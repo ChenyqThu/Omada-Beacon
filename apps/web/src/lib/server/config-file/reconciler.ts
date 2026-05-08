@@ -148,11 +148,16 @@ function mergeSetupState(
 ): SetupStateShape {
   const parsed = existing ? (safeJsonParse(existing) as Partial<SetupStateShape> | null) : null
   const parsedSteps = parsed?.steps
+  // Workspace step is "done" when either name or slug ships in the
+  // file. Slug-only-managed Quackbacks (e.g. CP forces slug to match
+  // tenant ID) need this so the wizard advances when the operator
+  // declares only the slug.
+  const fileSetsWorkspace = workspace.name !== undefined || workspace.slug !== undefined
   return {
     version: 1,
     steps: {
       core: parsedSteps?.core ?? true,
-      workspace: workspace.name !== undefined ? true : (parsedSteps?.workspace ?? false),
+      workspace: fileSetsWorkspace ? true : (parsedSteps?.workspace ?? false),
       boards: parsedSteps?.boards ?? false,
     },
     useCase: workspace.useCase ?? parsed?.useCase,

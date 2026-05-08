@@ -41,6 +41,14 @@ describe('reconcileFileIntoDb', () => {
     expect(setup.steps.workspace).toBe(true)
   })
 
+  it('marks setupState.steps.workspace=true when ONLY workspace.slug is managed', async () => {
+    const deps = baseDeps()
+    await reconcileFileIntoDb({ workspace: { slug: 'acme' } }, deps)
+    const arg = (deps.updateSettings as ReturnType<typeof vi.fn>).mock.calls[0]![0]
+    const setup = JSON.parse(arg.setupState as string)
+    expect(setup.steps.workspace).toBe(true)
+  })
+
   it('writes tierLimits as a JSON-encoded string', async () => {
     const deps = baseDeps()
     await reconcileFileIntoDb({ tierLimits: { maxBoards: 7 } }, deps)

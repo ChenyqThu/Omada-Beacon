@@ -11,6 +11,7 @@ import { listBoards } from '@/lib/server/domains/boards/board.service'
 import { db, settings, principal, user, postStatuses, eq, DEFAULT_STATUSES } from '@/lib/server/db'
 import { invalidateSettingsCache } from '@/lib/server/domains/settings/settings.helpers'
 import { assertNotManaged } from '@/lib/server/config-file/managed-guard'
+import { isPathManaged } from '@/lib/server/config-file/managed-paths'
 import { slugify } from '@/lib/shared/utils'
 
 /**
@@ -75,8 +76,13 @@ export const setupWorkspaceFn = createServerFn({ method: 'POST' })
       // is a no-op because settings (and managedFieldPaths) don't exist
       // yet — by the time managedFieldPaths is populated the reconciler
       // has already written the file's name/slug.
+      //
+      // Slug-only-managed: when the file owns slug but not name, we let
+      // the user submit the name input (the wizard auto-derives slug
+      // client-side, but the server skips the slug column write below).
+      // This avoids locking the user out of onboarding when only one of
+      // the two fields is managed.
       await assertNotManaged('workspace.name')
-      await assertNotManaged('workspace.slug')
       if (data.useCase !== undefined) {
         await assertNotManaged('workspace.useCase')
       }
@@ -178,10 +184,14 @@ export const setupWorkspaceFn = createServerFn({ method: 'POST' })
       if (existingSettings) {
         console.log(`[fn:onboarding] setupWorkspaceFn: updating existing settings`)
 
-        // Generate slug from workspace name
+        // Slug is auto-derived from name client-side, but if the
+        // operator's file owns workspace.slug we skip the column write
+        // and let the file's slug stand. The reconciler will overwrite
+        // it on its next tick anyway.
+        const slugManaged = isPathManaged('workspace.slug', existingSettings.managedFieldPaths)
         const slug = slugify(workspaceName)
 
-        if (slug.length < 2) {
+        if (!slugManaged && slug.length < 2) {
           throw new Error('Invalid workspace name - cannot generate valid slug')
         }
 
@@ -195,29 +205,29 @@ export const setupWorkspaceFn = createServerFn({ method: 'POST' })
             },
             useCase: useCase ?? setupState.useCase,
           }
-          await db
-            .update(settings)
-            .set({
-              name: workspaceName.trim(),
-              slug,
-              setupState: JSON.stringify(updatedState),
-              // Set default configs if not already set
-              portalConfig:
-                existingSettings.portalConfig ??
-                JSON.stringify({
-                  oauth: { password: true, google: true, github: true },
-                  features: { publicView: true, submissions: true, comments: true, voting: true },
-                }),
-              authConfig:
-                existingSettings.authConfig ??
-                JSON.stringify({
-                  oauth: { google: true, github: true },
-                  openSignup: true,
-                }),
-            })
-            .where(eq(settings.id, existingSettings.id))
+          const updatePayload: Record<string, unknown> = {
+            name: workspaceName.trim(),
+            setupState: JSON.stringify(updatedState),
+            // Set default configs if not already set
+            portalConfig:
+              existingSettings.portalConfig ??
+              JSON.stringify({
+                oauth: { password: true, google: true, github: true },
+                features: { publicView: true, submissions: true, comments: true, voting: true },
+              }),
+            authConfig:
+              existingSettings.authConfig ??
+              JSON.stringify({
+                oauth: { google: true, github: true },
+                openSignup: true,
+              }),
+          }
+          if (!slugManaged) updatePayload.slug = slug
+          await db.update(settings).set(updatePayload).where(eq(settings.id, existingSettings.id))
           console.log(
-            `[fn:onboarding] setupWorkspaceFn: updated name=${workspaceName}, slug=${slug}, workspace=true`
+            `[fn:onboarding] setupWorkspaceFn: updated name=${workspaceName}, slug=${
+              slugManaged ? '<managed:skipped>' : slug
+            }, workspace=true`
           )
         }
 
