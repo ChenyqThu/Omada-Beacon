@@ -27,12 +27,14 @@ export function pickOnboardingStep({ session, state }: PickStepInput): Onboardin
 
   if (state.needsInvitation) return '/auth/login'
 
-  // Cloud-provisioned admins skip the wizard; setup_state is pre-stamped.
-  if (state.setupState?.source === 'cloud' && state.principalRecord) {
-    return '/admin'
-  }
-
-  if (state.setupState?.steps?.workspace) return '/onboarding/boards'
-  if (state.setupState?.useCase) return '/onboarding/workspace'
-  return '/onboarding/usecase'
+  // Route to the FIRST incomplete step in wizard order. Whatever the
+  // orchestrator (or self-hosted operator) hasn't already stamped on
+  // setupState becomes the user's next click. Earlier revisions
+  // jumped straight to /onboarding/boards as soon as steps.workspace
+  // was true, but that left useCase silently false-checkmarked when
+  // an external pre-seed populated workspace without picking a use
+  // case.
+  if (!state.setupState?.useCase) return '/onboarding/usecase'
+  if (!state.setupState?.steps?.workspace) return '/onboarding/workspace'
+  return '/onboarding/boards'
 }

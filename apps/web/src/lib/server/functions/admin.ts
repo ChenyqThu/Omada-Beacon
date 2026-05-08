@@ -489,6 +489,26 @@ export const fetchIntegrationByType = createServerFn({ method: 'GET' })
   })
 
 /**
+ * Public auth configuration surface for the unauthenticated onboarding
+ * shell. Tells the client whether an env-baked SSO provider is wired
+ * up so the account-creation step can offer the one-click button
+ * instead of the manual Jane-Doe form. Only non-secret signals are
+ * returned; the client never sees the OAuth client secret.
+ *
+ * `ssoEnabled` is true iff all three SSO_OIDC_* env vars are
+ * populated — the same gate the `auth/index.ts` server uses to
+ * register the genericOAuth provider, so the two stay in lockstep.
+ */
+export const getPublicAuthConfig = createServerFn({ method: 'GET' }).handler(async () => {
+  const ssoEnabled = Boolean(
+    process.env.SSO_OIDC_DISCOVERY_URL &&
+    process.env.SSO_OIDC_CLIENT_ID &&
+    process.env.SSO_OIDC_CLIENT_SECRET
+  )
+  return { ssoEnabled }
+})
+
+/**
  * Check onboarding state for a user
  * Returns member record, step, and whether boards exist
  * Note: This function is called during onboarding and may create member records

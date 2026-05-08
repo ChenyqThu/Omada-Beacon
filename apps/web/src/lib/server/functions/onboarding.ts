@@ -10,6 +10,8 @@ import { syncPrincipalProfile } from '@/lib/server/domains/principals/principal.
 import { listBoards } from '@/lib/server/domains/boards/board.service'
 import { db, settings, principal, user, postStatuses, eq, DEFAULT_STATUSES } from '@/lib/server/db'
 import { invalidateSettingsCache } from '@/lib/server/domains/settings/settings.helpers'
+import { assertNotManaged } from '@/lib/server/config-file/managed-guard'
+import { isPathManaged } from '@/lib/server/config-file/managed-paths'
 import { slugify } from '@/lib/shared/utils'
 
 /**
@@ -66,6 +68,23 @@ export const setupWorkspaceFn = createServerFn({ method: 'POST' })
       const session = await getSession()
       if (!session?.user) {
         throw new Error('Authentication required')
+      }
+
+      // Block in-app writes when the config-file owns these fields.
+      // The reconciler applies the file's value separately; this gate
+      // refuses to let the UI clobber it. Pre-onboarding the gate is a
+      // no-op because settings (and managedFieldPaths) don't exist yet
+      // — by the time managedFieldPaths is populated the reconciler
+      // has already written the file's name/slug.
+      //
+      // Slug-only lock: when the file owns slug but not name, the name
+      // input still accepts user submission (the wizard auto-derives
+      // slug client-side, but the server skips the slug column write
+      // below). This avoids locking the user out of onboarding when
+      // only one of the two fields is managed.
+      await assertNotManaged('workspace.name')
+      if (data.useCase !== undefined) {
+        await assertNotManaged('workspace.useCase')
       }
 
       const { workspaceName, userName, useCase } = data
@@ -165,10 +184,14 @@ export const setupWorkspaceFn = createServerFn({ method: 'POST' })
       if (existingSettings) {
         console.log(`[fn:onboarding] setupWorkspaceFn: updating existing settings`)
 
-        // Generate slug from workspace name
+        // Slug is auto-derived from name client-side, but if the
+        // config file owns workspace.slug we skip the column write and
+        // let the file's slug stand. The reconciler will overwrite it
+        // on its next tick anyway.
+        const slugManaged = isPathManaged('workspace.slug', existingSettings.managedFieldPaths)
         const slug = slugify(workspaceName)
 
-        if (slug.length < 2) {
+        if (!slugManaged && slug.length < 2) {
           throw new Error('Invalid workspace name - cannot generate valid slug')
         }
 
@@ -182,29 +205,29 @@ export const setupWorkspaceFn = createServerFn({ method: 'POST' })
             },
             useCase: useCase ?? setupState.useCase,
           }
-          await db
-            .update(settings)
-            .set({
-              name: workspaceName.trim(),
-              slug,
-              setupState: JSON.stringify(updatedState),
-              // Set default configs if not already set
-              portalConfig:
-                existingSettings.portalConfig ??
-                JSON.stringify({
-                  oauth: { password: true, google: true, github: true },
-                  features: { publicView: true, submissions: true, comments: true, voting: true },
-                }),
-              authConfig:
-                existingSettings.authConfig ??
-                JSON.stringify({
-                  oauth: { google: true, github: true },
-                  openSignup: true,
-                }),
-            })
-            .where(eq(settings.id, existingSettings.id))
+          const updatePayload: Record<string, unknown> = {
+            name: workspaceName.trim(),
+            setupState: JSON.stringify(updatedState),
+            // Set default configs if not already set
+            portalConfig:
+              existingSettings.portalConfig ??
+              JSON.stringify({
+                oauth: { password: true, google: true, github: true },
+                features: { publicView: true, submissions: true, comments: true, voting: true },
+              }),
+            authConfig:
+              existingSettings.authConfig ??
+              JSON.stringify({
+                oauth: { google: true, github: true },
+                openSignup: true,
+              }),
+          }
+          if (!slugManaged) updatePayload.slug = slug
+          await db.update(settings).set(updatePayload).where(eq(settings.id, existingSettings.id))
           console.log(
-            `[fn:onboarding] setupWorkspaceFn: updated name=${workspaceName}, slug=${slug}, workspace=true`
+            `[fn:onboarding] setupWorkspaceFn: updated name=${workspaceName}, slug=${
+              slugManaged ? '<managed:skipped>' : slug
+            }, workspace=true`
           )
         }
 
@@ -218,7 +241,8 @@ export const setupWorkspaceFn = createServerFn({ method: 'POST' })
           throw new Error('Invalid workspace name - cannot generate valid slug')
         }
 
-        // Initial setupState for self-hosted (workspace step done after this fn completes)
+        // Workspace step is done by the time this fn returns; boards
+        // step still pending until the user creates / skips one.
         setupState = {
           version: 1,
           steps: {
@@ -226,12 +250,18 @@ export const setupWorkspaceFn = createServerFn({ method: 'POST' })
             workspace: true,
             boards: false,
           },
-          source: 'self-hosted',
           useCase,
         }
 
         // Create settings
         // Note: Not using transaction because neon-http driver doesn't support interactive transactions.
+        //
+        // Fresh-insert intentionally bypasses the managed-paths gate:
+        // there's no settings row yet to read managedFieldPaths from,
+        // so assertNotManaged would have nothing to assert against. If
+        // a config file is present, the reconciler will overwrite
+        // name/slug/etc on its next tick and populate managedFieldPaths
+        // — subsequent UI mutators are gated normally.
         const [createdSettings] = await db
           .insert(settings)
           .values({
@@ -335,13 +365,17 @@ export const saveUseCaseFn = createServerFn({ method: 'POST' })
         throw new Error('Authentication required')
       }
 
+      // Same rationale as setupWorkspaceFn: don't let the UI overwrite
+      // a file-managed useCase. Pre-onboarding the gate is a no-op.
+      await assertNotManaged('workspace.useCase')
+
       const existingSettings = await getSettings()
 
       if (existingSettings) {
         // Update existing settings with useCase
         const setupState: SetupState = existingSettings.setupState
           ? JSON.parse(existingSettings.setupState)
-          : { version: 1, steps: { core: true, workspace: false, boards: false }, source: 'cloud' }
+          : { version: 1, steps: { core: true, workspace: false, boards: false } }
 
         const updatedState: SetupState = {
           ...setupState,
@@ -373,8 +407,13 @@ export const saveUseCaseFn = createServerFn({ method: 'POST' })
         await invalidateSettingsCache()
         console.log(`[fn:onboarding] saveUseCaseFn: saved useCase=${data.useCase}`)
       } else {
-        // Fresh self-hosted install: create minimal settings to store useCase
-        // The workspace step will update name/slug later
+        // Fresh install: create minimal settings to store useCase. The
+        // workspace step will update name/slug later.
+        //
+        // Fresh-insert intentionally bypasses the managed-paths gate
+        // (same rationale as setupWorkspaceFn): no settings row yet to
+        // read managedFieldPaths from. The reconciler will overwrite on
+        // its next tick if the file owns these fields.
         const setupState: SetupState = {
           version: 1,
           steps: {
@@ -382,7 +421,6 @@ export const saveUseCaseFn = createServerFn({ method: 'POST' })
             workspace: false,
             boards: false,
           },
-          source: 'self-hosted',
           useCase: data.useCase,
         }
 
@@ -421,20 +459,26 @@ export const saveUseCaseFn = createServerFn({ method: 'POST' })
   })
 
 /**
- * List existing boards during onboarding.
- * This is a simpler version that doesn't require full auth context.
+ * List existing boards during onboarding plus the tenant's maxBoards
+ * tier limit. The wizard's boards step uses both — the first to
+ * display existing boards as completed, the second to render the
+ * selector as radio-style (single-select) when only one board fits.
  */
 export const listBoardsForOnboarding = createServerFn({ method: 'GET' }).handler(async () => {
   console.log(`[fn:onboarding] listBoardsForOnboarding`)
   try {
-    const boardList = await listBoards()
-    return boardList.map((b) => ({
-      id: b.id,
-      name: b.name,
-      description: b.description,
-    }))
+    const { getTierLimits } = await import('@/lib/server/domains/settings/tier-limits.service')
+    const [boardList, limits] = await Promise.all([listBoards(), getTierLimits()])
+    return {
+      boards: boardList.map((b) => ({
+        id: b.id,
+        name: b.name,
+        description: b.description,
+      })),
+      maxBoards: limits.maxBoards,
+    }
   } catch (error) {
     console.error(`[fn:onboarding] ❌ listBoardsForOnboarding failed:`, error)
-    return []
+    return { boards: [], maxBoards: null }
   }
 })
