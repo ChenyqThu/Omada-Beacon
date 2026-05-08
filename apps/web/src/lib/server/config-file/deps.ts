@@ -3,6 +3,7 @@ import { invalidateSettingsCache } from '@/lib/server/domains/settings/settings.
 import { invalidateTierLimitsCache } from '@/lib/server/domains/settings/tier-limits.service'
 import { resetAuth } from '@/lib/server/auth/index'
 import type { ReconcileDeps, SettingsRow, SettingsUpdate } from './reconciler'
+import { makeReportStatus } from './report-status'
 
 /** Production wiring of `ReconcileDeps`. The reconciler is db-agnostic
  *  to keep its tests fast; this module is the only place that touches
@@ -38,5 +39,6 @@ export function makeReconcileDeps(): ReconcileDeps {
     resetAuth: async () => {
       resetAuth()
     },
+    reportStatus: makeReportStatus(),
   }
 }

@@ -30,6 +30,15 @@ export interface ReconcileDeps {
   invalidateSettingsCache: () => Promise<void>
   invalidateTierLimitsCache: () => Promise<void>
   resetAuth: () => Promise<void>
+  /** Post-reconcile status reporter. Optional so unit tests don't have
+   *  to stub it; production wiring (`makeReconcileDeps`) populates it
+   *  with a fetch to the cloud control plane. Self-hosters with no CP
+   *  configured (no env vars) are a silent no-op. */
+  reportStatus?: (status: {
+    kind: 'ok' | 'absent' | 'error'
+    message?: string
+    configHash?: string
+  }) => Promise<void>
 }
 
 /**
