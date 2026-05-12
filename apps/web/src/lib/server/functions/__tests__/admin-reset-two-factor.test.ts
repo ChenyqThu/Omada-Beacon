@@ -38,6 +38,7 @@ const hoisted = vi.hoisted(() => {
 
   return {
     requireAuth: vi.fn(),
+    recordAuditEvent: vi.fn(),
     deleteWhere: whereStub,
     updateWhere: whereStub,
     deleteFn: vi.fn(() => ({ where: whereStub })),
@@ -77,12 +78,17 @@ vi.mock('@/lib/server/functions/auth-helpers', () => ({
   requireAuth: hoisted.requireAuth,
 }))
 
+vi.mock('@/lib/server/audit/log', () => ({
+  recordAuditEvent: hoisted.recordAuditEvent,
+}))
+
 beforeEach(() => {
   vi.clearAllMocks()
   hoisted.deleteFn.mockImplementation(() => ({ where: hoisted.deleteWhere }))
   hoisted.updateFn.mockImplementation(() => ({ set: hoisted.setStub }))
   hoisted.setStub.mockImplementation(() => ({ where: hoisted.updateWhere }))
   hoisted.deleteWhere.mockResolvedValue(undefined)
+  hoisted.recordAuditEvent.mockResolvedValue(undefined)
 })
 
 // Load the module ONCE — the only handler captured here is
@@ -104,7 +110,10 @@ describe('adminResetTwoFactorFn', () => {
   })
 
   it('deletes twoFactor row + user flag + trust-device records', async () => {
-    hoisted.requireAuth.mockResolvedValue({ user: { id: 'user_admin' } })
+    hoisted.requireAuth.mockResolvedValue({
+      user: { id: 'user_admin', email: 'admin@example.com' },
+      principal: { id: 'principal_admin', role: 'admin' },
+    })
 
     const result = await adminResetTwoFactor({
       data: { userId: 'user_target' },
@@ -129,5 +138,39 @@ describe('adminResetTwoFactorFn', () => {
     )
     expect(hoisted.eq).toHaveBeenCalledWith(hoisted.verificationTable.value, 'user_target')
     expect(hoisted.and).toHaveBeenCalled()
+  })
+
+  it('records two_factor.reset_by_admin audit event on success', async () => {
+    hoisted.requireAuth.mockResolvedValue({
+      user: { id: 'user_admin', email: 'admin@example.com' },
+      principal: { id: 'principal_admin', role: 'admin' },
+    })
+
+    await adminResetTwoFactor({ data: { userId: 'user_target' } })
+
+    expect(hoisted.recordAuditEvent).toHaveBeenCalledTimes(1)
+    const call = hoisted.recordAuditEvent.mock.calls[0][0]
+    expect(call.event).toBe('two_factor.reset_by_admin')
+    expect(call.outcome).toBe('success')
+    expect(call.actor).toMatchObject({
+      userId: 'user_admin',
+      email: 'admin@example.com',
+      role: 'admin',
+    })
+    expect(call.target).toEqual({ type: 'user', id: 'user_target' })
+  })
+
+  it('does NOT record audit when the underlying transaction throws', async () => {
+    hoisted.requireAuth.mockResolvedValue({
+      user: { id: 'user_admin', email: 'admin@example.com' },
+      principal: { id: 'principal_admin', role: 'admin' },
+    })
+    hoisted.deleteWhere.mockRejectedValueOnce(new Error('db down'))
+
+    await expect(adminResetTwoFactor({ data: { userId: 'user_target' } })).rejects.toThrow(
+      'db down'
+    )
+
+    expect(hoisted.recordAuditEvent).not.toHaveBeenCalled()
   })
 })
