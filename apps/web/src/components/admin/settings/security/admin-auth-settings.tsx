@@ -624,10 +624,7 @@ function SsoConfiguredForm({
       </div>
 
       {/* Section 3 — Workspace-wide enforcement mode. */}
-      <SsoEnforcementMode
-        authConfig={{ ssoOidc: config } as AuthConfig}
-        hasEnforcedDomain={false}
-      />
+      <SsoEnforcementMode authConfig={{ ssoOidc: config } as AuthConfig} />
 
       {/* Section 4 — IdP-attribute-based role mapping. */}
       <AttributeMappingSection currentMapping={config.attributeMapping} />

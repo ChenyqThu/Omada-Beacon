@@ -39,20 +39,28 @@ import type { AuthConfig } from '@/lib/shared/types/settings'
 
 interface SsoEnforcementModeProps {
   authConfig: AuthConfig
-  hasEnforcedDomain: boolean
 }
 
-type Mode = 'off' | 'per-domain' | 'required'
+/**
+ * Two enforcement modes:
+ *
+ *   per-domain — SSO is the default route for verified-domain emails;
+ *                each row's `Require SSO` toggle controls hard-binding
+ *                for that domain. Without any switches flipped, this
+ *                is the routing-only state where team members can
+ *                still use other enabled methods.
+ *   required   — every admin/member must sign in via SSO, regardless
+ *                of email domain. The strictest workspace-wide option.
+ */
+type Mode = 'per-domain' | 'required'
 
-function currentMode(authConfig: AuthConfig, hasEnforcedDomain: boolean): Mode {
-  if (authConfig.ssoOidc?.required === true) return 'required'
-  if (hasEnforcedDomain) return 'per-domain'
-  return 'off'
+function currentMode(authConfig: AuthConfig): Mode {
+  return authConfig.ssoOidc?.required === true ? 'required' : 'per-domain'
 }
 
-export function SsoEnforcementMode({ authConfig, hasEnforcedDomain }: SsoEnforcementModeProps) {
+export function SsoEnforcementMode({ authConfig }: SsoEnforcementModeProps) {
   const queryClient = useQueryClient()
-  const mode = currentMode(authConfig, hasEnforcedDomain)
+  const mode = currentMode(authConfig)
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const setRequired = useMutation({
@@ -62,7 +70,7 @@ export function SsoEnforcementMode({ authConfig, hasEnforcedDomain }: SsoEnforce
       toast.success(
         result.revokeCount
           ? `Workspace SSO enforced. ${result.revokeCount} session(s) revoked.`
-          : 'Workspace SSO enforced.'
+          : 'Workspace SSO enforcement updated.'
       )
       setConfirmOpen(false)
       void queryClient.invalidateQueries({ queryKey: ['admin'] })
@@ -78,12 +86,9 @@ export function SsoEnforcementMode({ authConfig, hasEnforcedDomain }: SsoEnforce
       setConfirmOpen(true)
       return
     }
-    if (next === 'off' && mode === 'required') {
+    if (next === 'per-domain' && mode === 'required') {
       setRequired.mutate({ required: false })
-      return
     }
-    // per-domain mode is managed inline by the verified-domain rows
-    // — toggle them from the block above.
   }
 
   return (
@@ -100,27 +105,16 @@ export function SsoEnforcementMode({ authConfig, hasEnforcedDomain }: SsoEnforce
 
       <RadioGroup value={mode} onValueChange={handleModeChange} className="space-y-2">
         <label
-          htmlFor="enf-off"
+          htmlFor="enf-domain"
           className="flex items-start gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/40"
         >
-          <RadioGroupItem id="enf-off" value="off" />
-          <div>
-            <div className="text-sm font-medium">Off</div>
-            <p className="text-xs text-muted-foreground">
-              No hard-binding. Team can use any enabled method.
-            </p>
-          </div>
-        </label>
-        <label
-          htmlFor="enf-domain"
-          className="flex items-start gap-3 rounded-md border p-3 opacity-80 cursor-default"
-        >
-          <RadioGroupItem id="enf-domain" value="per-domain" disabled />
+          <RadioGroupItem id="enf-domain" value="per-domain" />
           <div>
             <div className="text-sm font-medium">Per verified domain</div>
             <p className="text-xs text-muted-foreground">
-              Only emails at domains marked Enforced above are bound. Toggle individual domains in
-              the Verified domains block.
+              SSO is the default route for verified-domain emails. Flip the per-row
+              <span className="font-medium"> Require SSO</span> switch above to hard-bind a specific
+              domain — without it, team members can still use other enabled methods.
             </p>
           </div>
         </label>
