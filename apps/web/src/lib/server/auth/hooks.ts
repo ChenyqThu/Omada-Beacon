@@ -516,13 +516,7 @@ export async function handleCredentialPostSignInGate(
   // intercepted (user has 2FA enrolled — challenge handoff). Bail.
   if (typeof userId !== 'string' || typeof token !== 'string') return
 
-  const {
-    db,
-    user: userTable,
-    principal: principalTable,
-    session: sessionTable,
-    eq,
-  } = await import('@/lib/server/db')
+  const { db, user: userTable, principal: principalTable, eq } = await import('@/lib/server/db')
   type UserId = `user_${string}`
   const userIdTyped = userId as UserId
 
@@ -548,12 +542,9 @@ export async function handleCredentialPostSignInGate(
   }
 
   // Revoke the just-created session row BEFORE throwing the redirect —
-  // otherwise the user is signed in despite the redirect. We delete by
-  // token to mirror `revokeSession`. The cookie is cleared by the
-  // matching helper.
-  await db.delete(sessionTable).where(eq(sessionTable.token, token))
-  const { deleteSessionCookie } = await import('better-auth/cookies')
-  deleteSessionCookie(ctx as SessionCtx)
+  // otherwise the user is signed in despite the redirect. revokeSession
+  // deletes the row and clears the cookie via Better-Auth's helper.
+  await revokeSession(ctx as SessionCtx, token)
   throw ctx.redirect('/auth/two-factor-setup-required')
 }
 
