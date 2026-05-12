@@ -166,7 +166,11 @@ export function PortalAuthFormInline({
   }, [email, lookupAuthMethods])
 
   /** Redirects to SSO if `emailValue` is on the verified domain.
-   *  Returns true when a redirect is in flight (caller should bail). */
+   *  Returns true when a redirect is in flight (caller should bail).
+   *  Flips `loadingAction` to `'sso'` before the bounce so the button
+   *  label reflects what's actually happening (a sign-in redirect, not
+   *  a magic-link email send) — end users on the portal don't know
+   *  what an IdP is. */
   const maybeRedirectToSso = async (emailValue: string): Promise<boolean> => {
     const trimmed = emailValue.trim()
     if (!trimmed) return false
@@ -174,6 +178,7 @@ export function PortalAuthFormInline({
     // email — avoids both a redundant lookup and a wrong-redirect race
     // if the email changed since the last classification.
     if (gatedBySso && trimmed === lastCheckedEmail) {
+      setLoadingAction('sso')
       await authClient.signIn.oauth2({ providerId: 'sso', callbackURL: '/' })
       return true
     }
@@ -186,6 +191,7 @@ export function PortalAuthFormInline({
         data: { email: trimmed, surface: 'portal' },
       })
       if (result.kind === 'sso-redirect') {
+        setLoadingAction('sso')
         await authClient.signIn.oauth2({ providerId: 'sso', callbackURL: '/' })
         return true
       }
@@ -304,6 +310,10 @@ export function PortalAuthFormInline({
 
   const requestSigninEmail = async () => {
     setError('')
+    // Tentatively show the email-sending label. If the email belongs
+    // to a verified SSO domain `maybeRedirectToSso` swaps it for
+    // `'sso'` (button label flips to "Signing you in…") before the
+    // browser bounces.
     setLoadingAction('email')
     if (await maybeRedirectToSso(email)) return
     const res = await emailSignin.requestEmail(email)
@@ -686,6 +696,11 @@ export function PortalAuthFormInline({
               <>
                 <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
                 Sending email…
+              </>
+            ) : loadingAction === 'sso' ? (
+              <>
+                <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
+                Signing you in…
               </>
             ) : (
               'Continue with email'
