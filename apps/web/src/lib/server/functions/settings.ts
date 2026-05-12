@@ -29,6 +29,7 @@ import {
   updateCustomCss,
 } from '@/lib/server/domains/settings/settings.media'
 import { getPublicUrlOrNull } from '@/lib/server/storage/s3'
+import { recordAuditEvent, type AuditEventType } from '@/lib/server/audit/log'
 import { requireAuth } from './auth-helpers'
 import { getSession } from '@/lib/server/auth/session'
 import { db, principal, user, invitation, account, eq, ne, and } from '@/lib/server/db'
@@ -328,14 +329,63 @@ export const updateAuthConfigSchema = z.object({
 
 export type UpdateAuthConfigActionInput = z.infer<typeof updateAuthConfigSchema>
 
+/**
+ * OAuth toggles that get their own audit event when flipped. Other
+ * provider toggles (google, github, etc.) are routine OAuth IdP
+ * changes — useful but not security-critical enough to warrant a
+ * named event-type slot. Password and magic-link are different
+ * because flipping either one changes the workspace's break-glass
+ * surface.
+ */
+const AUDIT_TRACKED_OAUTH_KEYS: Array<{
+  key: 'password' | 'magicLink'
+  enabled: AuditEventType
+  disabled: AuditEventType
+}> = [
+  { key: 'password', enabled: 'auth.password.enabled', disabled: 'auth.password.disabled' },
+  {
+    key: 'magicLink',
+    enabled: 'auth.magic_link.enabled',
+    disabled: 'auth.magic_link.disabled',
+  },
+]
+
 export const updateAuthConfigFn = createServerFn({ method: 'POST' })
   .inputValidator(updateAuthConfigSchema)
   .handler(async ({ data }) => {
     console.log(`[fn:settings] updateAuthConfigFn`)
     try {
-      await requireAuth({ roles: ['admin'] })
-      const { updateAuthConfig } = await import('@/lib/server/domains/settings/settings.service')
-      return await updateAuthConfig(data as Parameters<typeof updateAuthConfig>[0])
+      const auth = await requireAuth({ roles: ['admin'] })
+      const actor = { userId: auth.user.id, email: auth.user.email, role: auth.principal.role }
+
+      const { updateAuthConfig, getAuthConfig } =
+        await import('@/lib/server/domains/settings/settings.service')
+
+      // Snapshot only when the payload touches an audit-tracked key —
+      // saves a settings read on every routine save.
+      const tracksAnyToggle =
+        data.oauth && AUDIT_TRACKED_OAUTH_KEYS.some(({ key }) => key in (data.oauth ?? {}))
+      const before = tracksAnyToggle ? await getAuthConfig() : null
+
+      const result = await updateAuthConfig(data as Parameters<typeof updateAuthConfig>[0])
+
+      if (tracksAnyToggle && before && data.oauth) {
+        for (const { key, enabled, disabled } of AUDIT_TRACKED_OAUTH_KEYS) {
+          if (!(key in data.oauth)) continue
+          const next = data.oauth[key]
+          const prior = (before.oauth as Record<string, boolean | undefined>)?.[key]
+          if (typeof next !== 'boolean' || next === prior) continue
+          await recordAuditEvent({
+            event: next ? enabled : disabled,
+            outcome: 'success',
+            actor,
+            before: { [key]: prior ?? null },
+            after: { [key]: next },
+          })
+        }
+      }
+
+      return result
     } catch (error) {
       console.error(`[fn:settings] updateAuthConfigFn failed:`, error)
       throw error
