@@ -12,6 +12,7 @@ import {
   BookOpenIcon,
   ChartBarIcon,
   QuestionMarkCircleIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/solid'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
@@ -42,6 +43,7 @@ interface AdminSidebarProps {
 
 const navItems = [
   { label: 'Feedback', href: '/admin/feedback', icon: ChatBubbleLeftIcon },
+  { label: 'Moderation', href: '/admin/moderation', icon: ShieldCheckIcon },
   { label: 'Roadmap', href: '/admin/roadmap', icon: MapIcon },
   { label: 'Changelog', href: '/admin/changelog', icon: DocumentTextIcon },
   { label: 'Help Center', href: '/admin/help-center', icon: BookOpenIcon },
