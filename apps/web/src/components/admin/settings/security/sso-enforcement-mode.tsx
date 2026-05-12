@@ -1,12 +1,15 @@
 /**
- * Tri-state SSO enforcement mode selector.
+ * SSO enforcement mode selector — two states:
  *
- *   Off              — no hard-binding; admins can use any enabled method.
- *   Per verified     — only emails at sso_verified_domain rows with
- *   domain            enforced=true are bound. (Status of those rows is
- *                     managed in the Verified Domains block above.)
- *   Required for     — every admin/member must sign in via SSO,
- *   all team members  regardless of email domain. The strictest mode.
+ *   Per verified domain — SSO is the default route for verified-domain
+ *                         emails; each row's `Require SSO` toggle in
+ *                         the Verified Domains block hard-binds that
+ *                         specific domain. Without any switches
+ *                         flipped, team members can still use other
+ *                         enabled methods.
+ *   Required for all    — every admin/member must sign in via SSO,
+ *                         regardless of email domain. The strictest
+ *                         workspace-wide option.
  *
  * Switching to Required opens a confirmation modal that calls
  * previewSsoRequiredImpactFn for the impact counts and gates the
