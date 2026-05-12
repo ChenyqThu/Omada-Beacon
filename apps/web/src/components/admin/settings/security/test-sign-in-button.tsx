@@ -20,8 +20,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { startSsoTestFn, getSsoTestResultFn } from '@/lib/server/functions/sso-test'
 import type { HandshakeResult } from '@/lib/server/auth/sso-test-handshake'
 import { SSO_TEST_POSTMESSAGE_SOURCE } from '@/lib/shared/sso-test-keys'
+import { openAuthPopup, usePopupTracker } from '@/lib/client/hooks/use-auth-broadcast'
 
-const POPUP_FEATURES = 'width=600,height=720'
 const POLL_INTERVAL_MS = 2000
 // 150 polls * 2s = 5 minutes. The Redis test-session TTL is 10
 // minutes; bail well before that so we don't poll an expired session
@@ -67,6 +67,24 @@ export function TestSignInButton({ disabled }: { disabled?: boolean }) {
     }
   }
 
+  // If the admin closes the popup without finishing the round-trip we
+  // can short-circuit the polling fallback (5-minute cap) and flip the
+  // button back to "Test sign-in" immediately. Result-delivery paths
+  // (postMessage, poll hit) call clearPopup() so this doesn't fire
+  // after a successful test.
+  const { trackPopup, clearPopup } = usePopupTracker({
+    onPopupClosed: () => {
+      // Only react if we're still in-flight; a stale callback after a
+      // result has already landed would otherwise stomp the success UI.
+      setTesting((stillTesting) => {
+        if (stillTesting) {
+          clearPoll()
+        }
+        return false
+      })
+    },
+  })
+
   // Listen for the callback route's postMessage. Origin + source checks
   // keep stray messages (extensions, other tabs, the IdP itself) from
   // ending the test early with garbage data.
@@ -80,10 +98,11 @@ export function TestSignInButton({ disabled }: { disabled?: boolean }) {
       setResult(data.result)
       setTesting(false)
       clearPoll()
+      clearPopup()
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [])
+  }, [clearPopup])
 
   // Belt-and-braces cleanup if the component unmounts mid-test.
   useEffect(() => {
@@ -107,15 +126,16 @@ export function TestSignInButton({ disabled }: { disabled?: boolean }) {
       setTesting(false)
       return
     }
-    const popup = window.open(r.authorizeUrl, SSO_TEST_POSTMESSAGE_SOURCE, POPUP_FEATURES)
+    const popup = openAuthPopup(r.authorizeUrl)
     if (!popup) {
       setError('Popup blocked. Allow popups for this site and try again.')
       setTesting(false)
       return
     }
-    // We don't keep a ref to `popup` — postMessage origin + source
-    // checks are the only auth on result delivery and we never call
-    // methods on the popup window.
+    // postMessage origin + source checks are the only auth on result
+    // delivery; trackPopup gets us closed-window detection so we don't
+    // wait the full 5 minutes if the admin abandons the popup.
+    trackPopup(popup)
     // Polling fallback: if the popup lands on an off-origin error page
     // the postMessage will never fire, but the callback route may still
     // have written a diagnostic to Redis. Cleared the moment a result
@@ -126,6 +146,7 @@ export function TestSignInButton({ disabled }: { disabled?: boolean }) {
       pollCount += 1
       if (pollCount > MAX_POLLS) {
         clearPoll()
+        clearPopup()
         setTesting(false)
         setError('Test sign-in did not complete. Try again or check your IdP redirect URI.')
         return
@@ -136,6 +157,7 @@ export function TestSignInButton({ disabled }: { disabled?: boolean }) {
           setResult(diag.result)
           setTesting(false)
           clearPoll()
+          clearPopup()
         }
       } catch {
         // Swallow transient errors — the popup may still produce a
