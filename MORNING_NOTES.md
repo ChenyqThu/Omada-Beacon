@@ -5,6 +5,34 @@
 **Plan:** `docs/superpowers/plans/2026-05-12-granular-access-controls-v1.md`
 **Status when stopping:** typecheck clean, **2197/2197 tests passing** (1991 baseline + 206 new access-control tests), 24 commits ahead of main.
 
+## Actor-driven pattern — completed + remaining candidates
+
+`getPublicPostDetail` previously took `(postId, principalId, { includePrivateComments })` — the caller derived `includePrivateComments` from auth role manually. The fix collapses that into `(postId, actor)`, with `principalId` and `includePrivateComments` derived from the actor. Single source of truth, can't drift.
+
+**The pattern that benefits from actor-driven refactor**: any function that does _richer policy work_ (canViewX, audience check, segment-aware logic) AND threads a manual boolean derived from auth.role through the same call chain. The two drift if a future caller forgets the boolean.
+
+**Functions that should follow the same refactor** (not done in this session — flagged for follow-up):
+
+| File                                                                         | Current shape                                                                                            | Candidate shape                                                                                                           |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web/src/lib/server/domains/comments/comment.permissions.ts`            | `(commentId, actor: {role, principalId})` — but actor lacks segmentIds; ad-hoc isTeamMember(role) gating | Take full `Actor`; remove inline `isTeamMember` calls; use `isTeamActor(actor)`                                           |
+| `apps/web/src/lib/server/domains/comments/comment.service.ts`                | `(input, author: {role,…})` with multiple isTeamMember(actor.role) calls                                 | Same — full Actor + isTeamActor                                                                                           |
+| `apps/web/src/lib/server/domains/comments/comment.pin.ts`                    | Three isTeamMember(actor.role) gates                                                                     | Full Actor + isTeamActor                                                                                                  |
+| `apps/web/src/lib/server/domains/posts/post.permissions.ts`                  | isTeamMember(actor.role) at three sites                                                                  | Full Actor + isTeamActor — also: these are the natural place to wire `canViewPost` for the existing canEdit/canDelete fns |
+| `apps/web/src/lib/server/domains/posts/post.user-actions.ts`                 | Two isTeamMember(actor.role) gates                                                                       | Full Actor + isTeamActor                                                                                                  |
+| `apps/web/src/lib/server/domains/help-center/help-center.article.service.ts` | Two isTeamMember(author.role) checks during create/update                                                | Full Actor + isTeamActor                                                                                                  |
+| `apps/web/src/lib/server/domains/principals/principal.service.ts:192`        | One isTeamMember(targetMember.role) check (testing the target, not actor)                                | Stays — different intent                                                                                                  |
+
+**Functions that are fine as-is**:
+
+- `requireAuth({ roles: [...] })` — route-entry gates. The roles list is the public contract; converting it to an Actor would be ceremony.
+- `withApiKeyAuth({ role: 'team' })` — same.
+- moderation server fns: do nothing else with the actor, so building one would be wasted work.
+
+Recommendation for the audit: do it in a single follow-up PR after this lands. The fix per site is mechanical (replace `actor: { role, ... }` with `actor: Actor`, replace `isTeamMember(actor.role)` with `isTeamActor(actor)`), but the test fixtures need a sweep too — defer until the access-control core has soaked.
+
+---
+
 ## Test coverage — what's now pinned by tests
 
 A separate "ultrathink" pass added comprehensive coverage of every access-control branch. New tests:
