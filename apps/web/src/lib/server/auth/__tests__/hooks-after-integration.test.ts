@@ -240,13 +240,13 @@ describe('hooksAfter — bootstrap precedes auto-provision', () => {
 })
 
 describe('hooksAfter — short-circuit on blocked sign-in', () => {
-  it('skips the success audit when cleanup throws (admin tries password under workspace required)', async () => {
-    // Workspace requires SSO. Admin tried password (already verified by
-    // Better-Auth — this is the post-session compensating cleanup path
-    // via /sign-in/social with a workspace-required admin).
+  it('skips the success audit when cleanup throws (admin tries credential at enforced verified domain)', async () => {
+    // Per-domain enforcement. Admin tried password at a verified-domain
+    // email (post-session compensating cleanup path via /sign-in/social).
     mockGetTenantSettings.mockResolvedValue(
       makeTenant({
-        authConfig: makeAuthConfig({ ssoOidc: { required: true } }),
+        authConfig: makeAuthConfig({ ssoOidc: { enabled: true } }),
+        verifiedDomains: [makeVerifiedDomain('acme.com', true)],
       })
     )
     state.role = 'admin'
@@ -254,10 +254,10 @@ describe('hooksAfter — short-circuit on blocked sign-in', () => {
     const ctx = {
       path: '/sign-in/social',
       params: {},
-      body: { provider: 'magic-link' },
+      body: { provider: 'credential' },
       context: {
         newSession: {
-          user: { id: 'user_admin', email: 'admin@example.com' },
+          user: { id: 'user_admin', email: 'admin@acme.com' },
           session: { token: 'tok' },
         },
       },
@@ -265,7 +265,7 @@ describe('hooksAfter — short-circuit on blocked sign-in', () => {
       redirect: vi.fn((url: string) => new Error(`REDIRECT:${url}`)),
     }
 
-    await expect(hooksAfter(ctx)).rejects.toThrow(/sso_required/)
+    await expect(hooksAfter(ctx)).rejects.toThrow(/verified_domain_requires_sso/)
 
     // Cleanup revoked the session.
     expect(mockSessionDelete).toHaveBeenCalled()

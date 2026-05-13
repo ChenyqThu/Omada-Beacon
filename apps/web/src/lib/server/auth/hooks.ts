@@ -214,8 +214,7 @@ export async function handleSignInPreCheck(ctx: {
   const { getTenantSettings } = await import('@/lib/server/domains/settings/settings.service')
   const tenant = await getTenantSettings()
 
-  const { isHardBound, isAuthMethodAllowed, findVerifiedDomainForEmail } =
-    await import('./auth-restrictions')
+  const { isHardBound, isAuthMethodAllowed } = await import('./auth-restrictions')
 
   // Look up the principal early — `isHardBound` needs the role to
   // evaluate the workspace-wide `ssoOidc.required` branch. Brand-new
@@ -247,21 +246,14 @@ export async function handleSignInPreCheck(ctx: {
   )
 
   // Hard-binding: refuses password / magic-link / email-OTP for
-  //   a) emails at a verified-domain row marked enforced (per-domain), OR
-  //   b) any admin/member when `ssoOidc.required=true` (workspace-wide)
+  // emails at a verified-domain row marked enforced (per-domain).
   // The verified-domain branch fires before user lookup matters —
   // inbox control at the verified domain shouldn't bypass the IdP's
   // attestations even for brand-new sign-ups.
   if (
     isHardBound(provider, email, role, tenant?.authConfig, tenant?.verifiedDomains, ssoRegistered)
   ) {
-    // Use the workspace-wide message for team-role hard-binds when no
-    // per-domain row matches; the per-domain message is more specific
-    // for the domain-enforce case.
-    const verifiedMatch = findVerifiedDomainForEmail(email, tenant?.verifiedDomains)
-    const errorCode =
-      verifiedMatch?.enforced === true ? 'verified_domain_requires_sso' : 'sso_required'
-    throw ctx.redirect(`/admin/login?error=${errorCode}`)
+    throw ctx.redirect('/admin/login?error=verified_domain_requires_sso')
   }
 
   if (!principalRow) return
@@ -548,8 +540,7 @@ export async function handleCallbackPolicyCleanup(
   } = await import('@/lib/server/db')
   type UserId = `user_${string}`
 
-  const { isHardBound, findVerifiedDomainForEmail, isAuthMethodAllowed } =
-    await import('./auth-restrictions')
+  const { isHardBound, isAuthMethodAllowed } = await import('./auth-restrictions')
   const verifiedDomains = tenant?.verifiedDomains
 
   // Look up the principal once — both the role-aware redirect (for the
@@ -590,10 +581,8 @@ export async function handleCallbackPolicyCleanup(
     await getTierLimits()
   )
 
-  // Hard-binding for non-SSO callbacks: handles both branches via
-  // isHardBound — per-domain (verified-domain row with enforced=true)
-  // and workspace-wide (authConfig.ssoOidc.required=true for any
-  // admin/member, regardless of email domain). HARD_BOUND_PROVIDERS is
+  // Hard-binding for non-SSO callbacks: per-domain enforcement only
+  // (verified-domain row with enforced=true). HARD_BOUND_PROVIDERS is
   // narrow ({credential, magic-link}) so in practice this rarely fires
   // for callback paths, but we keep the branch as defence-in-depth.
   if (
@@ -603,13 +592,7 @@ export async function handleCallbackPolicyCleanup(
   ) {
     await revokeSession(ctx as SessionCtx, token)
     await wipeBrandNewShellsIfFresh()
-
-    // Per-domain hits use the existing `verified_domain_requires_sso`
-    // copy; workspace-wide hits get the new `sso_required` code.
-    const verifiedMatch = findVerifiedDomainForEmail(userEmail, verifiedDomains)
-    const errorCode =
-      verifiedMatch?.enforced === true ? 'verified_domain_requires_sso' : 'sso_required'
-    throw blockedRedirect(errorCode)
+    throw blockedRedirect('verified_domain_requires_sso')
   }
 
   if (!principalRow) return

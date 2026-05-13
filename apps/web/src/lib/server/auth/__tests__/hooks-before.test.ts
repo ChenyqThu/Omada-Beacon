@@ -14,7 +14,6 @@
  *   - provider: credential / magic-link / sso / non-listed
  *   - path: gated / NO_EMAIL_BEFORE_PATH / unrecognised
  *   - email: present / missing
- *   - workspace: ssoOidc.required true|false × allowMagicLinkUnderRequired true|false
  *   - per-domain: verified-enforced / verified-routing-only / none
  *   - principal: admin / member / user / missing (brand-new sign-up)
  *   - oauth toggles: password on/off / magic-link on/off
@@ -85,8 +84,6 @@ const { handleSignInPreCheck } = await import('../hooks')
 type Ctx = Parameters<typeof handleSignInPreCheck>[0]
 type Knobs = {
   ssoEnabled?: boolean
-  required?: boolean
-  allowMagicLinkUnderRequired?: boolean
   passwordEnabled?: boolean
   magicLinkEnabled?: boolean
   verifiedDomains?: ReturnType<typeof makeVerifiedDomain>[]
@@ -98,11 +95,9 @@ const tenant = (k: Knobs = {}) =>
       oauth: { password: k.passwordEnabled, magicLink: k.magicLinkEnabled },
       ssoOidc: {
         // `enabled` defaults to true so existing tests exercising
-        // workspace-required / per-domain enforcement keep their semantics.
+        // per-domain enforcement keep their semantics.
         // Tests that need a disabled-SSO workspace pass `ssoEnabled: false`.
         enabled: k.ssoEnabled ?? true,
-        required: k.required,
-        allowMagicLinkUnderRequired: k.allowMagicLinkUnderRequired,
       },
     }),
     verifiedDomains: k.verifiedDomains ?? [],
@@ -253,87 +248,6 @@ describe('handleSignInPreCheck — per-domain enforced', () => {
 })
 
 // ============================================================
-// Workspace-wide hard-binding (ssoOidc.required)
-// ============================================================
-
-describe('handleSignInPreCheck — workspace required=true', () => {
-  beforeEach(() => {
-    mockGetTenantSettings.mockResolvedValue(tenant({ required: true }))
-  })
-
-  it('blocks password sign-in for admin with sso_required error code', async () => {
-    mockUserFindFirst.mockResolvedValue({ id: 'user_1' })
-    mockPrincipalFindFirst.mockResolvedValue({ role: 'admin' })
-    const ctx = ctxFor('/sign-in/email', { email: 'a@anywhere.com' })
-
-    await expect(handleSignInPreCheck(ctx)).rejects.toThrow(
-      'REDIRECT:/admin/login?error=sso_required'
-    )
-  })
-
-  it('blocks password sign-in for member with sso_required', async () => {
-    mockUserFindFirst.mockResolvedValue({ id: 'user_1' })
-    mockPrincipalFindFirst.mockResolvedValue({ role: 'member' })
-    const ctx = ctxFor('/sign-in/email', { email: 'a@anywhere.com' })
-
-    await expect(handleSignInPreCheck(ctx)).rejects.toThrow(/sso_required/)
-  })
-
-  it('does NOT block portal users (role=user) — workspace-wide binds team only', async () => {
-    mockUserFindFirst.mockResolvedValue({ id: 'user_1' })
-    mockPrincipalFindFirst.mockResolvedValue({ role: 'user' })
-    const ctx = ctxFor('/sign-in/email', { email: 'a@anywhere.com' })
-
-    await handleSignInPreCheck(ctx)
-    expect(ctx.redirect).not.toHaveBeenCalled()
-  })
-
-  it('does NOT block brand-new sign-ups (default role=user; portal branch)', async () => {
-    mockUserFindFirst.mockResolvedValue(null)
-    mockPrincipalFindFirst.mockResolvedValue(null)
-    const ctx = ctxFor('/sign-up/email', { email: 'newhire@example.com' })
-
-    await handleSignInPreCheck(ctx)
-    expect(ctx.redirect).not.toHaveBeenCalled()
-  })
-
-  it('blocks magic-link for admin without escape hatch', async () => {
-    mockUserFindFirst.mockResolvedValue({ id: 'user_1' })
-    mockPrincipalFindFirst.mockResolvedValue({ role: 'admin' })
-    const ctx = ctxFor('/sign-in/magic-link', { email: 'a@anywhere.com' })
-
-    await expect(handleSignInPreCheck(ctx)).rejects.toThrow(/sso_required/)
-  })
-
-  it('allows magic-link for admin when allowMagicLinkUnderRequired=true', async () => {
-    mockGetTenantSettings.mockResolvedValue(
-      tenant({ required: true, allowMagicLinkUnderRequired: true })
-    )
-    mockUserFindFirst.mockResolvedValue({ id: 'user_1' })
-    mockPrincipalFindFirst.mockResolvedValue({ role: 'admin' })
-    const ctx = ctxFor('/sign-in/magic-link', { email: 'a@anywhere.com' })
-
-    await handleSignInPreCheck(ctx)
-    expect(ctx.redirect).not.toHaveBeenCalled()
-  })
-
-  it('still blocks magic-link with escape if email is at an enforced verified domain (per-domain bites)', async () => {
-    mockGetTenantSettings.mockResolvedValue(
-      tenant({
-        required: true,
-        allowMagicLinkUnderRequired: true,
-        verifiedDomains: [makeVerifiedDomain('acme.com', true)],
-      })
-    )
-    mockUserFindFirst.mockResolvedValue({ id: 'user_1' })
-    mockPrincipalFindFirst.mockResolvedValue({ role: 'admin' })
-    const ctx = ctxFor('/sign-in/magic-link', { email: 'a@acme.com' })
-
-    await expect(handleSignInPreCheck(ctx)).rejects.toThrow(/verified_domain_requires_sso/)
-  })
-})
-
-// ============================================================
 // Method-allowed fall-through (toggles)
 // ============================================================
 
@@ -427,11 +341,13 @@ describe('handleSignInPreCheck — ssoOidc.enabled=false (workspace SSO disabled
     expect(ctx.redirect).not.toHaveBeenCalled()
   })
 
-  it('does NOT block admin password sign-in even with stale workspace required=true', async () => {
-    mockGetTenantSettings.mockResolvedValue(tenant({ ssoEnabled: false, required: true }))
+  it('does NOT block admin password sign-in even with stale enforced verified-domain + disabled SSO', async () => {
+    mockGetTenantSettings.mockResolvedValue(
+      tenant({ ssoEnabled: false, verifiedDomains: [makeVerifiedDomain('acme.com', true)] })
+    )
     mockUserFindFirst.mockResolvedValue({ id: 'user_1' })
     mockPrincipalFindFirst.mockResolvedValue({ role: 'admin' })
-    const ctx = ctxFor('/sign-in/email', { email: 'a@anywhere.com' })
+    const ctx = ctxFor('/sign-in/email', { email: 'a@acme.com' })
 
     await handleSignInPreCheck(ctx)
     expect(ctx.redirect).not.toHaveBeenCalled()
@@ -454,29 +370,15 @@ describe('handleSignInPreCheck — ssoOidc.enabled=false (workspace SSO disabled
 // ============================================================
 
 describe('handleSignInPreCheck — tier-downgrade / missing-secret fail-open', () => {
-  // Admin has SSO enabled and required=true, but the runtime can't
-  // actually use it: tier was downgraded or the secret got rotated and
-  // cleared. Layer A has already unregistered the SSO provider, so
-  // there's no SSO button. Without fail-open, password sign-in would
+  // Admin has SSO enabled and an enforced verified-domain row, but the
+  // runtime can't actually use it: tier was downgraded or the secret got
+  // rotated and cleared. Layer A has already unregistered the SSO provider,
+  // so there's no SSO button. Without fail-open, password sign-in would
   // also be blocked → total lockout. The runtime check undoes the
   // enforcement until the operator fixes things.
-  it('allows admin password sign-in when SSO is required but not registered (tier downgrade)', async () => {
-    mockGetTenantSettings.mockResolvedValue(tenant({ ssoEnabled: true, required: true }))
-    mockIsSsoActuallyRegistered.mockResolvedValue(false)
-    mockUserFindFirst.mockResolvedValue({ id: 'user_1' })
-    mockPrincipalFindFirst.mockResolvedValue({ role: 'admin' })
-    const ctx = ctxFor('/sign-in/email', { email: 'a@anywhere.com' })
-
-    await handleSignInPreCheck(ctx)
-    expect(ctx.redirect).not.toHaveBeenCalled()
-  })
-
-  it('allows admin password sign-in at enforced verified domain when SSO not registered', async () => {
+  it('allows admin password sign-in at enforced verified domain when SSO not registered (tier downgrade)', async () => {
     mockGetTenantSettings.mockResolvedValue(
-      tenant({
-        ssoEnabled: true,
-        verifiedDomains: [makeVerifiedDomain('acme.com', true)],
-      })
+      tenant({ ssoEnabled: true, verifiedDomains: [makeVerifiedDomain('acme.com', true)] })
     )
     mockIsSsoActuallyRegistered.mockResolvedValue(false)
     mockUserFindFirst.mockResolvedValue({ id: 'user_1' })
@@ -491,7 +393,6 @@ describe('handleSignInPreCheck — tier-downgrade / missing-secret fail-open', (
     mockGetTenantSettings.mockResolvedValue(
       tenant({
         ssoEnabled: true,
-        required: true,
         verifiedDomains: [makeVerifiedDomain('acme.com', true)],
       })
     )

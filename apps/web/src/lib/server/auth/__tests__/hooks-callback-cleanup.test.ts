@@ -83,7 +83,6 @@ const { handleCallbackPolicyCleanup } = await import('../hooks')
 
 const tenantSettings = (
   k: {
-    required?: boolean
     passwordEnabled?: boolean
     googleEnabled?: boolean
     verifiedDomains?: ReturnType<typeof makeVerifiedDomain>[]
@@ -92,7 +91,6 @@ const tenantSettings = (
   makeTenant({
     authConfig: makeAuthConfig({
       oauth: { password: k.passwordEnabled, google: k.googleEnabled },
-      ssoOidc: { required: k.required },
     }),
     verifiedDomains: k.verifiedDomains ?? [],
   })
@@ -461,41 +459,5 @@ describe('handleCallbackPolicyCleanup — hard-binding branch (defensive)', () =
     expect(mockUserDeleteWhere).not.toHaveBeenCalled()
     expect(mockAccountDeleteWhere).not.toHaveBeenCalled()
     expect(mockPrincipalDeleteWhere).not.toHaveBeenCalled()
-  })
-
-  it('uses sso_required code when workspace-required fires for team without a verified-domain match', async () => {
-    mockPrincipalFindFirst.mockResolvedValue({ role: 'admin' })
-    mockUserFindFirst.mockResolvedValue({ createdAt: new Date(Date.now() - 60 * 60_000) })
-
-    const ctx = ctxFor({
-      path: '/sign-in/social',
-      bodyProvider: 'magic-link',
-      userId: 'user_1',
-      email: 'a@somewhere.com',
-      token: 'tok',
-    })
-
-    await expect(
-      handleCallbackPolicyCleanup(ctx, tenantSettings({ required: true }))
-    ).rejects.toThrow(/\/admin\/login\?error=sso_required/)
-  })
-
-  it('does not fire hard-binding branch for portal user under workspace-required (workspace-wide is team-only)', async () => {
-    mockPrincipalFindFirst.mockResolvedValue({ role: 'user' })
-    mockUserFindFirst.mockResolvedValue({ createdAt: new Date(Date.now() - 60 * 60_000) })
-    mockGetPublicPortalConfig.mockResolvedValue({
-      oauth: { password: true, magicLink: true },
-    })
-
-    const ctx = ctxFor({
-      path: '/sign-in/social',
-      bodyProvider: 'magic-link',
-      userId: 'user_1',
-      email: 'a@somewhere.com',
-      token: 'tok',
-    })
-
-    await handleCallbackPolicyCleanup(ctx, tenantSettings({ required: true }))
-    expect(ctx.redirect).not.toHaveBeenCalled()
   })
 })
