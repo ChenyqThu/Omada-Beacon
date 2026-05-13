@@ -3,7 +3,25 @@
 **Branch:** `worktree-feat+access-controls-v1` (off `origin/main`)
 **Worktree:** `/home/james/quackback/.claude/worktrees/feat+access-controls-v1`
 **Plan:** `docs/superpowers/plans/2026-05-12-granular-access-controls-v1.md`
-**Status when stopping:** typecheck clean, **2020/2020 tests passing** (started at 1991 baseline + 29 new), 20 commits ahead of main.
+**Status when stopping:** typecheck clean, **2197/2197 tests passing** (1991 baseline + 206 new access-control tests), 24 commits ahead of main.
+
+## Test coverage — what's now pinned by tests
+
+A separate "ultrathink" pass added comprehensive coverage of every access-control branch. New tests:
+
+| File                                                                               | Cases | What it pins                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web/src/lib/server/policy/__tests__/boards.test.ts`                          | 31    | Full audience × actor matrix incl. empty segments[], service principal denial on `authenticated`, multi-segment match, structural-typing acceptance of richer board records.                                                                                                           |
+| `apps/web/src/lib/server/policy/__tests__/posts.test.ts`                           | 58    | canViewPost across all 6 moderationStates × actor types; team-bypass; author-pending escape (incl. **null+null does NOT match** — a falsy-equal check would leak all anon pending). canCreatePost across 4 requireApproval × 3 principalTypes × trusted-bypass on/off × team/non-team. |
+| `apps/web/src/lib/server/policy/__tests__/invariants.test.ts`                      | 17    | Determinism + team-bypass invariants. **SQL shape via `PgDialect.sqlToQuery`** — team predicate is `true`/`<> 'deleted'`, non-team binds segment-ids and principal-id as parameters (anti SQL-injection), moderation_state literals bound by drizzle's `eq()`.                         |
+| `apps/web/src/lib/server/domains/segments/__tests__/segment-membership.test.ts`    | 49    | Full 5×5 source-priority matrix (`manual > api > widget > sso > dynamic`), reconcileSsoMemberships preservation of manual rows through SSO add/drop cycles (the codex P2 regression class), removeMember regardless of source, audit on/off.                                           |
+| `apps/web/src/lib/server/functions/__tests__/moderation.test.ts`                   | 16    | Role gating (user→403, member→200, admin→200), audit before/after on approve/reject, reason metadata, idempotent approve, NotFoundError.                                                                                                                                               |
+| `apps/web/src/lib/server/functions/__tests__/board-access.test.ts`                 | 13    | **The codex P1 fix is pinned**: role=member is explicitly denied (no isTeamMember regression), audit branches (audience-only, moderation-only, both, none), full requireApproval matrix.                                                                                               |
+| `apps/web/src/lib/server/functions/__tests__/policy-actor-from-auth.test.ts`       | 9     | Anonymous principal preservation (codex P1 regression guard), service principalType independence from role, unknown principalType defaults to 'user', segmentIds threading.                                                                                                            |
+| `apps/web/src/routes/api/widget/__tests__/widget-identify-attributes.test.ts` (+5) | +5    | `'segments'` is in RESERVED_JWT_CLAIMS — stripped from custom-attribute pipeline.                                                                                                                                                                                                      |
+| `apps/web/src/routes/api/widget/__tests__/verify-jwt.test.ts` (+4)                 | +4    | JWT round-trip preserves segments[]; empty/undefined arrays omitted from payload; single-element arrays survive.                                                                                                                                                                       |
+
+**All tests are type-clean** — no `as unknown as`, no `@ts-expect-error`, no `as never`. Mock infrastructure uses typed sentinel `ColumnRef` / `Condition` interfaces so the in-memory db simulator catches contract drift at compile time.
 
 ---
 
