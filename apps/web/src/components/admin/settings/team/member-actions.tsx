@@ -2,12 +2,14 @@
 
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import {
   EllipsisVerticalIcon,
   ShieldCheckIcon,
   ShieldExclamationIcon,
   UserIcon,
   UserMinusIcon,
+  ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/solid'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,7 +20,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
-import { updateMemberRoleFn, removeTeamMemberFn } from '@/lib/server/functions/admin'
+import {
+  updateMemberRoleFn,
+  removeTeamMemberFn,
+  forceSignOutUserFn,
+} from '@/lib/server/functions/admin'
 import { adminResetTwoFactorFn } from '@/lib/server/functions/admin-reset-two-factor'
 
 interface MemberActionsProps {
@@ -41,6 +47,7 @@ export function MemberActions({
   const [roleDialogOpen, setRoleDialogOpen] = useState(false)
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
   const [resetTfaDialogOpen, setResetTfaDialogOpen] = useState(false)
+  const [forceSignOutDialogOpen, setForceSignOutDialogOpen] = useState(false)
 
   const newRole = memberRole === 'admin' ? 'member' : 'admin'
   const canChangeRole = !(memberRole === 'admin' && isLastAdmin)
@@ -89,6 +96,25 @@ export function MemberActions({
     }
   }
 
+  const handleForceSignOut = async () => {
+    if (!userId) return
+    setIsLoading(true)
+    try {
+      const result = await forceSignOutUserFn({ data: { userId } })
+      toast.success(
+        result.revokeCount
+          ? `Signed ${memberName} out of ${result.revokeCount} session${result.revokeCount === 1 ? '' : 's'}.`
+          : `${memberName} had no active sessions.`
+      )
+      await queryClient.invalidateQueries({ queryKey: ['settings', 'team'] })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to sign user out')
+    } finally {
+      setIsLoading(false)
+      setForceSignOutDialogOpen(false)
+    }
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -120,6 +146,12 @@ export function MemberActions({
             <DropdownMenuItem onClick={() => setResetTfaDialogOpen(true)} className="gap-2">
               <ShieldExclamationIcon className="h-4 w-4" />
               Reset two-factor
+            </DropdownMenuItem>
+          ) : null}
+          {userId ? (
+            <DropdownMenuItem onClick={() => setForceSignOutDialogOpen(true)} className="gap-2">
+              <ArrowRightOnRectangleIcon className="h-4 w-4" />
+              Sign out everywhere
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuSeparator />
@@ -192,6 +224,23 @@ export function MemberActions({
         confirmLabel={isLoading ? 'Resetting...' : 'Reset two-factor'}
         isPending={isLoading}
         onConfirm={handleResetTfa}
+      />
+
+      <ConfirmDialog
+        open={forceSignOutDialogOpen}
+        onOpenChange={setForceSignOutDialogOpen}
+        title="Sign out everywhere?"
+        description={
+          <>
+            All active sessions for <strong>{memberName}</strong> will be revoked. They&apos;ll need
+            to sign in again on every device. Use this when an account is compromised, a device is
+            lost, or a team member is leaving.
+          </>
+        }
+        variant="destructive"
+        confirmLabel={isLoading ? 'Signing out...' : 'Sign out everywhere'}
+        isPending={isLoading}
+        onConfirm={handleForceSignOut}
       />
     </>
   )

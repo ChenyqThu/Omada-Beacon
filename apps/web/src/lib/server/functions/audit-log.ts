@@ -13,7 +13,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { UserId } from '@quackback/ids'
-import { and, auditLog, db, desc, eq, gte, lte } from '@/lib/server/db'
+import { and, auditLog, db, desc, eq, gte, ilike, lte } from '@/lib/server/db'
 import type { SQL } from 'drizzle-orm'
 import type { AuditEventOutcome, JsonValue } from '@/lib/server/audit/log'
 import { requireAuth } from './auth-helpers'
@@ -27,6 +27,13 @@ const listAuditEventsInput = z.object({
     .string()
     .regex(/^user_/)
     .optional(),
+  /**
+   * Substring match against the denormalised `actor_email` column.
+   * Trimmed and lower-cased server-side; uses ILIKE for case-
+   * insensitive search against the index-less column (audit_log is
+   * small enough that a seq-scan on actor_email is fine for now).
+   */
+  actorEmail: z.string().min(1).max(254).optional(),
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
   limit: z.number().int().positive().optional(),
@@ -60,6 +67,10 @@ export const listAuditEventsFn = createServerFn({ method: 'GET' })
     const conditions: SQL[] = []
     if (data.eventType) conditions.push(eq(auditLog.eventType, data.eventType))
     if (data.actorUserId) conditions.push(eq(auditLog.actorUserId, data.actorUserId as UserId))
+    if (data.actorEmail) {
+      const needle = `%${data.actorEmail.trim().toLowerCase()}%`
+      conditions.push(ilike(auditLog.actorEmail, needle))
+    }
     if (data.from) conditions.push(gte(auditLog.occurredAt, new Date(data.from)))
     if (data.to) conditions.push(lte(auditLog.occurredAt, new Date(data.to)))
 

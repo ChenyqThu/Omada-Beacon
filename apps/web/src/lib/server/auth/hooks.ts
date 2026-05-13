@@ -619,6 +619,70 @@ export async function handleCredentialPostSignInGate(
 }
 
 /**
+ * Successful sign-in audit log emitter. Fires whenever Better-Auth
+ * creates a `newSession` — covers password, magic-link, OTP, OAuth
+ * callbacks, and SSO. The provider is inferred from `ctx.path` /
+ * `ctx.params.providerId` via `inferProvider`.
+ *
+ * Runs late in the after-hook chain so it observes the post-revoke,
+ * post-provision state — a session that was just revoked by the
+ * policy cleanup won't show up here because we re-check
+ * `ctx.context.newSession.session.token` after the earlier hooks
+ * may have nulled it. We also re-read the principal role so the
+ * audit row reflects the actor's post-provision role (e.g. a
+ * brand-new SSO user shows as 'member' / 'admin', not 'user').
+ */
+export async function handleSignInSuccessAudit(ctx: {
+  path?: string
+  params?: Record<string, unknown>
+  body?: Record<string, unknown>
+  context?: {
+    newSession?: {
+      user?: { id?: string; email?: string }
+      session?: { token?: string }
+    } | null
+  }
+}): Promise<void> {
+  const userId = ctx.context?.newSession?.user?.id
+  const userEmail = ctx.context?.newSession?.user?.email ?? null
+  const token = ctx.context?.newSession?.session?.token
+  if (typeof userId !== 'string' || typeof token !== 'string') return
+
+  const provider = inferProvider(ctx as Parameters<typeof inferProvider>[0])
+  if (!provider) return
+
+  // Look up role for the actor row. Best-effort — if the principal
+  // doesn't exist yet (some sign-up flows create user first), we
+  // fall back to 'user'. Role isn't load-bearing for the audit row.
+  let role: string | null = null
+  try {
+    const { db, principal: principalTable, eq } = await import('@/lib/server/db')
+    type UserId = `user_${string}`
+    const principalRow = await db.query.principal.findFirst({
+      where: eq(principalTable.userId, userId as UserId),
+      columns: { role: true },
+    })
+    role = principalRow?.role ?? null
+  } catch (error) {
+    console.error('[auth-hooks.after] handleSignInSuccessAudit: principal lookup failed:', error)
+  }
+
+  const { recordAuditEvent } = await import('@/lib/server/audit/log')
+  const { getRequestHeaders } = await import('@tanstack/react-start/server')
+  await recordAuditEvent({
+    event: 'auth.signin.success',
+    outcome: 'success',
+    actor: {
+      userId: userId as `user_${string}`,
+      email: userEmail,
+      role,
+    },
+    headers: getRequestHeaders(),
+    metadata: { method: provider },
+  })
+}
+
+/**
  * Composed `hooks.after` middleware. Order matters:
  *
  *  1. `handleSsoCallbackAfter` — bootstrap admin promotion +
@@ -636,6 +700,10 @@ export async function handleCredentialPostSignInGate(
  *     users are correctly classified as team and allowed through.
  *  4. `handleCredentialPostSignInGate` — Require-2FA gate for the
  *     password path.
+ *  5. `handleSignInSuccessAudit` — emits `auth.signin.success` if a
+ *     session still exists at this point (i.e. wasn't revoked by
+ *     prior steps). Runs last so it only records sign-ins that
+ *     actually stuck.
  */
 export const hooksAfter = createAuthMiddleware(async (ctx) => {
   if (process.env.AUTH_HOOKS_DEBUG === '1') {
@@ -660,4 +728,5 @@ export const hooksAfter = createAuthMiddleware(async (ctx) => {
     ctx as Parameters<typeof handleCredentialPostSignInGate>[0],
     tenant
   )
+  await handleSignInSuccessAudit(ctx as Parameters<typeof handleSignInSuccessAudit>[0])
 })

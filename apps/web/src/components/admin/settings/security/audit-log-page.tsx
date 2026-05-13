@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   Select,
@@ -68,6 +69,18 @@ export function rangeToFromIso(range: TimeRange): string | undefined {
   const minuteMs = 60 * 1000
   const now = Math.floor(Date.now() / minuteMs) * minuteMs
   return new Date(now - days * 24 * 60 * 60 * 1000).toISOString()
+}
+
+/** Tiny debounce hook — keeps the audit-log filter from spamming the
+ *  server fn with every keystroke. */
+function useDebounced<T>(value: T, ms: number): T {
+  const [debounced, setDebounced] = useState(value)
+  // Reset on each input change; clear on unmount.
+  useMemo(() => {
+    const timer = setTimeout(() => setDebounced(value), ms)
+    return () => clearTimeout(timer)
+  }, [value, ms])
+  return debounced
 }
 
 function formatTimestamp(iso: string): string {
@@ -165,14 +178,19 @@ function downloadCsv(rows: AuditEventRow[]): void {
 export function AuditLogPage() {
   const [eventType, setEventType] = useState<string>('all')
   const [timeRange, setTimeRange] = useState<TimeRange>('30d')
+  const [actorEmailInput, setActorEmailInput] = useState<string>('')
+  // Debounce the actor filter so each keystroke doesn't fire a fresh
+  // server-fn request. 300ms feels like "instant" without spamming.
+  const debouncedActorEmail = useDebounced(actorEmailInput, 300)
 
   const filters = useMemo(
     () => ({
       eventType: eventType === 'all' ? undefined : eventType,
+      actorEmail: debouncedActorEmail.trim() || undefined,
       from: rangeToFromIso(timeRange),
       limit: 200,
     }),
-    [eventType, timeRange]
+    [eventType, timeRange, debouncedActorEmail]
   )
 
   const { data } = useSuspenseQuery(adminQueries.auditEvents(filters))
@@ -206,6 +224,14 @@ export function AuditLogPage() {
               ))}
             </SelectContent>
           </Select>
+          <Input
+            type="search"
+            placeholder="Filter by actor email"
+            value={actorEmailInput}
+            onChange={(e) => setActorEmailInput(e.target.value)}
+            className="h-8 w-56 text-xs"
+            aria-label="Filter audit events by actor email"
+          />
         </div>
         <Button
           variant="outline"

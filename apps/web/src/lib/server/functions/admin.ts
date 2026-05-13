@@ -279,6 +279,54 @@ export const updateMemberRoleFn = createServerFn({ method: 'POST' })
     }
   })
 
+const forceSignOutInput = z.object({
+  userId: z.string().regex(/^user_/),
+})
+
+/**
+ * Admin action: revoke every active session for the given user.
+ *
+ * Common use: an admin needs to evict a user immediately — laptop
+ * lost, suspected compromise, departing employee. The deletion is a
+ * single SQL DELETE against the session table (Better-Auth checks
+ * the row on every authed request, so the user is signed out on
+ * their next interaction).
+ *
+ * Audit row: `session.revoked.individual` with the target user_id
+ * and the affected-row count. The actor is the calling admin.
+ */
+export const forceSignOutUserFn = createServerFn({ method: 'POST' })
+  .inputValidator(forceSignOutInput)
+  .handler(async ({ data }) => {
+    const auth = await requireAuth({ roles: ['admin'] })
+    const targetUserId = data.userId as UserId
+
+    const { db, session, eq, sql } = await import('@/lib/server/db')
+    const result = (await db.execute(sql`
+      DELETE FROM "session"
+      WHERE "user_id" = ${targetUserId}
+    `)) as unknown as { count?: number; length?: number }
+    // postgres-js exposes the affected-row count on `.count`; node-pg
+    // would put it on `rowCount`. We don't ship that driver but read
+    // both shapes defensively.
+    void session
+    void eq
+    const revokeCount = result.count ?? result.length ?? 0
+
+    const { recordAuditEvent, actorFromAuth } = await import('@/lib/server/audit/log')
+    const { getRequestHeaders } = await import('@tanstack/react-start/server')
+    await recordAuditEvent({
+      event: 'session.revoked.individual',
+      outcome: 'success',
+      actor: actorFromAuth(auth),
+      headers: getRequestHeaders(),
+      target: { type: 'user', id: targetUserId },
+      metadata: { count: revokeCount, reason: 'admin_forced' },
+    })
+
+    return { revokeCount }
+  })
+
 /**
  * Remove a team member (converts to portal user, admin only)
  */

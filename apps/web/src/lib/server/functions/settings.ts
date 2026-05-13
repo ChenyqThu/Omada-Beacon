@@ -127,7 +127,20 @@ export const fetchTeamMembersAndInvitations = createServerFn({ method: 'GET' }).
     try {
       await requireAuth({ roles: ['admin', 'member'] })
 
-      const members = await db
+      // Subquery: latest session timestamp per user. Left-joined so
+      // a team member with no sessions still appears (lastSignInAt
+      // = null) — useful for spotting stale accounts.
+      const { session, max, sql: sqlOp } = await import('@/lib/server/db')
+      const lastSession = db
+        .select({
+          userId: session.userId,
+          lastSignInAt: max(session.createdAt).as('last_sign_in_at'),
+        })
+        .from(session)
+        .groupBy(session.userId)
+        .as('last_session')
+
+      const membersRaw = await db
         .select({
           id: principal.id,
           role: principal.role,
@@ -136,10 +149,21 @@ export const fetchTeamMembersAndInvitations = createServerFn({ method: 'GET' }).
           avatarUrl: principal.avatarUrl,
           userName: user.name,
           userEmail: user.email,
+          lastSignInAt: sqlOp<Date | null>`${lastSession.lastSignInAt}`,
         })
         .from(principal)
         .innerJoin(user, eq(principal.userId, user.id))
+        .leftJoin(lastSession, eq(lastSession.userId, user.id))
         .where(ne(principal.role, 'user'))
+
+      // Serialise Date → ISO string on the boundary so the client
+      // type stays narrow (`string | null`). TanStack Start auto-
+      // serialises Dates anyway, but typing it explicitly avoids the
+      // Date/string mismatch in the consumer.
+      const members = membersRaw.map((m) => ({
+        ...m,
+        lastSignInAt: m.lastSignInAt ? m.lastSignInAt.toISOString() : null,
+      }))
 
       const pendingInvitations = await db.query.invitation.findMany({
         where: eq(invitation.status, 'pending'),

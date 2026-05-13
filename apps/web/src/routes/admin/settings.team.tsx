@@ -46,6 +46,10 @@ type TeamRow =
       role: string
       userId: UserId | null
       principalId: PrincipalId
+      /** ISO 8601 from the server; null when the user has never
+       *  signed in (or all sessions have aged out). Rendered as
+       *  "2 hours ago" / "Never" in the table. */
+      lastSignInAt: string | null
     }
   | {
       type: 'invitation'
@@ -111,6 +115,7 @@ function TeamPage() {
       role: m.role,
       userId: m.userId,
       principalId: m.id,
+      lastSignInAt: m.lastSignInAt,
     }))
     const invitationRows: TeamRow[] = invitations.map((inv) => ({
       type: 'invitation' as const,
@@ -210,6 +215,31 @@ function TeamPage() {
               {role}
             </Badge>
           )
+        },
+      },
+      {
+        id: 'lastSignIn',
+        header: 'Last sign-in',
+        meta: { className: 'w-0 whitespace-nowrap text-xs text-muted-foreground' },
+        cell: ({ row }) => {
+          const r = row.original
+          // Invitation rows have their own time info inline with the
+          // name; skip the column.
+          if (r.type !== 'member') return null
+          if (!r.lastSignInAt) return <span className="text-muted-foreground">Never</span>
+          const date = new Date(r.lastSignInAt)
+          // Days-ago is enough granularity for a team list; the audit
+          // log has the timestamp if anyone needs the exact moment.
+          const daysAgo = Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000))
+          const label =
+            daysAgo === 0
+              ? 'Today'
+              : daysAgo === 1
+                ? 'Yesterday'
+                : daysAgo < 30
+                  ? `${daysAgo}d ago`
+                  : date.toLocaleDateString()
+          return <span title={date.toLocaleString()}>{label}</span>
         },
       },
       {

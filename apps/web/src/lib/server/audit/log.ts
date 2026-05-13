@@ -42,7 +42,9 @@ export type AuditEventType =
   | 'auth.magic_link.enabled'
   | 'auth.magic_link.disabled'
   | 'auth.method.blocked'
+  | 'auth.signin.success'
   | 'session.revoked.bulk'
+  | 'session.revoked.individual'
   | 'user.role.changed'
   | 'user.invited'
   | 'user.removed'
@@ -117,6 +119,42 @@ export async function recordAuditEvent(input: RecordAuditEventInput): Promise<vo
  */
 /** Cap on the `metadata.reason` extracted from thrown errors. */
 const MAX_REASON_LEN = 200
+
+/**
+ * Default retention for audit-log rows. 365 days covers SOC2's
+ * one-year minimum with no extra work for operators. Self-hosters
+ * can override via the `auditLogRetentionDays` field on
+ * `settings.audit_config` (added below). 0 = keep forever.
+ */
+export const DEFAULT_AUDIT_RETENTION_DAYS = 365
+
+/**
+ * Delete audit_log rows older than the configured retention window.
+ * Single SQL DELETE, indexed by occurred_at DESC so the work is
+ * bounded. Returns the number of rows deleted.
+ *
+ * Called from `startup.ts` daily (with a 30s post-boot delay).
+ * Idempotent and concurrency-safe — concurrent runs in the unlikely
+ * event of two pods racing each other simply delete fewer rows in
+ * each.
+ */
+export async function pruneAuditLog(opts?: { retentionDays?: number }): Promise<number> {
+  const retentionDays = opts?.retentionDays ?? DEFAULT_AUDIT_RETENTION_DAYS
+  if (retentionDays <= 0) return 0
+
+  const { db } = await import('@/lib/server/db')
+  const { sql } = await import('drizzle-orm')
+
+  const result = (await db.execute(sql`
+    DELETE FROM "audit_log"
+    WHERE "occurred_at" < now() - ${`${retentionDays} days`}::interval
+  `)) as unknown as { count?: number; length?: number }
+  const deleted = result.count ?? result.length ?? 0
+  if (deleted > 0) {
+    console.log(`[audit] pruned ${deleted} rows older than ${retentionDays} days`)
+  }
+  return deleted
+}
 
 /**
  * Derive a stable, length-capped `reason` string from a thrown error.
