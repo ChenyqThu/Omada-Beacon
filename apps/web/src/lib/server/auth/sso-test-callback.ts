@@ -4,10 +4,10 @@
  * `sso-test:<state>` Redis key dispatches the diagnostic handshake;
  * a miss falls through to a real OAuth sign-in.
  *
- * `runHandshake` itself imports nothing from db/session/user/account
- * tables. After a successful match this handler does one read of `user.email`
- * and one write to `principal.last_sso_sign_in_at` — narrow, idempotent,
- * and bound to the admin who started the test.
+ * On a successful handshake this stamps `ssoOidc.lastSuccessfulTestAt`
+ * (via `markSsoTestSucceeded`) to unlock the SSO gates, and does one
+ * read of `user.email` to report whether the IdP identity matched the
+ * admin who ran the test — informational only, not a gate.
  */
 
 import { runHandshake } from '@/lib/server/auth/sso-test-handshake'
