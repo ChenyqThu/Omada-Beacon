@@ -257,6 +257,38 @@ export async function updateAuthConfig(input: UpdateAuthConfigInput): Promise<Au
           )
         }
       }
+
+      // Stamp `detailsChangedAt` when a connection-affecting field
+      // changed (discoveryUrl / clientId). A brand-new ssoOidc block
+      // (no prior) also counts as "changed" — it has never been tested.
+      // autoCreateUsers / autoProvisionRole / attributeMapping don't
+      // affect the IdP handshake, so they don't reset the timestamp.
+      // The client secret is handled separately by setSsoClientSecretFn.
+      const prevSso = existing.ssoOidc
+      const detailsChanged =
+        !prevSso ||
+        updated.ssoOidc.discoveryUrl !== prevSso.discoveryUrl ||
+        updated.ssoOidc.clientId !== prevSso.clientId
+      if (detailsChanged) {
+        updated.ssoOidc.detailsChangedAt = new Date().toISOString()
+      }
+
+      // Gate the off→on transition: enabling SSO requires a successful
+      // test sign-in performed AFTER the most recent details change.
+      // Transition-only — a config save that round-trips an already-on
+      // `enabled` (e.g. editing autoProvisionRole) is never blocked, and
+      // changing the discovery URL while enabled stamps detailsChangedAt
+      // but doesn't kick the workspace out of SSO.
+      const wasEnabled = prevSso?.enabled === true
+      if (updated.ssoOidc.enabled === true && !wasEnabled) {
+        const { isSsoTestValid } = await import('@/lib/server/auth/sso-gates')
+        if (!isSsoTestValid(updated.ssoOidc)) {
+          throw new ValidationError(
+            'SSO_TEST_REQUIRED',
+            'Run a successful test sign-in before enabling SSO.'
+          )
+        }
+      }
       // Block private/loopback/link-local discovery URLs at write time
       // so the auth runtime never gets handed an SSRF target. The runtime
       // fetches `discoveryUrl` (and the metadata's JWKS / token URLs)
@@ -297,6 +329,66 @@ export async function updateAuthConfig(input: UpdateAuthConfigInput): Promise<Au
   } catch (error) {
     console.error(`[domain:settings] updateAuthConfig failed:`, error)
     wrapDbError('update auth config', error)
+  }
+}
+
+/**
+ * Shallow-merge a patch into the stored `ssoOidc` block + bump the
+ * auth-config version + invalidate caches. Shared by the two
+ * timestamp-stamping helpers below. No-op when no ssoOidc block exists.
+ */
+async function patchSsoOidc(patch: Partial<NonNullable<AuthConfig['ssoOidc']>>): Promise<void> {
+  const org = await requireSettings()
+  const existing = parseJsonConfig(org.authConfig, DEFAULT_AUTH_CONFIG)
+  if (!existing.ssoOidc) return
+  const updated: AuthConfig = {
+    ...existing,
+    ssoOidc: { ...existing.ssoOidc, ...patch },
+  }
+  const { bumpAuthConfigVersionInTx } = await import('@/lib/server/auth/config-version')
+  const { resetAuth } = await import('@/lib/server/auth')
+  await db.transaction(async (tx) => {
+    await tx
+      .update(settings)
+      .set({ authConfig: JSON.stringify(updated) })
+      .where(eq(settings.id, org.id))
+    await bumpAuthConfigVersionInTx(tx)
+  })
+  resetAuth()
+  await invalidateSettingsCache()
+}
+
+/**
+ * Stamp `ssoOidc.detailsChangedAt = now`. Called when a connection-
+ * affecting field changes *outside* `updateAuthConfig` — specifically
+ * the client secret, which `setSsoClientSecretFn` writes to
+ * `platform_credentials` rather than the settings JSON. Keeps the
+ * "a prior test only counts if it postdates the last details change"
+ * invariant honest.
+ */
+export async function markSsoDetailsChanged(): Promise<void> {
+  console.log(`[domain:settings] markSsoDetailsChanged`)
+  try {
+    await patchSsoOidc({ detailsChangedAt: new Date().toISOString() })
+  } catch (error) {
+    console.error(`[domain:settings] markSsoDetailsChanged failed:`, error)
+    wrapDbError('mark sso details changed', error)
+  }
+}
+
+/**
+ * Stamp `ssoOidc.lastSuccessfulTestAt = now`. Called by the SSO test
+ * callback when a test sign-in succeeds AND the IdP-returned email
+ * matches the admin who ran it. Compared against `detailsChangedAt`
+ * to gate enabling SSO and per-domain enforcement.
+ */
+export async function markSsoTestSucceeded(): Promise<void> {
+  console.log(`[domain:settings] markSsoTestSucceeded`)
+  try {
+    await patchSsoOidc({ lastSuccessfulTestAt: new Date().toISOString() })
+  } catch (error) {
+    console.error(`[domain:settings] markSsoTestSucceeded failed:`, error)
+    wrapDbError('mark sso test succeeded', error)
   }
 }
 

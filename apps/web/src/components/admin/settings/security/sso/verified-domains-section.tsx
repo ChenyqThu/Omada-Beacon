@@ -59,7 +59,7 @@ export function VerifiedDomainsSection() {
   const ssoStatusQuery = useSuspenseQuery(adminQueries.ssoStatus())
   const domains = domainsQuery.data ?? []
   const ssoEnabled = ssoEnabledQuery.data?.ssoOidc?.enabled === true
-  const bootstrapEligible = ssoStatusQuery.data?.bootstrapEligible ?? false
+  const enforcementEligible = ssoStatusQuery.data?.enforcementEligible ?? false
 
   return (
     <div className="space-y-3">
@@ -104,7 +104,7 @@ export function VerifiedDomainsSection() {
               </TableRow>
             )}
             {domains.map((d) => (
-              <DomainRow key={d.id} domain={d} bootstrapEligible={bootstrapEligible} />
+              <DomainRow key={d.id} domain={d} enforcementEligible={enforcementEligible} />
             ))}
           </TableBody>
           <TableFooter className="bg-transparent">
@@ -124,7 +124,7 @@ export function VerifiedDomainsSection() {
           </p>
         )}
         {domains.map((d) => (
-          <DomainCard key={d.id} domain={d} bootstrapEligible={bootstrapEligible} />
+          <DomainCard key={d.id} domain={d} enforcementEligible={enforcementEligible} />
         ))}
         <AddDomainCardRow atCap={domains.length >= MAX_VERIFIED_DOMAINS} count={domains.length} />
       </div>
@@ -134,10 +134,10 @@ export function VerifiedDomainsSection() {
 
 function DomainRow({
   domain,
-  bootstrapEligible,
+  enforcementEligible,
 }: {
   domain: VerifiedDomain
-  bootstrapEligible: boolean
+  enforcementEligible: boolean
 }) {
   const queryClient = useQueryClient()
   const remove = useServerFn(removeVerifiedDomainFn)
@@ -200,8 +200,8 @@ function DomainRow({
 
   const enforcementDisabledReason = !isVerified
     ? 'Verify this domain first.'
-    : !bootstrapEligible
-      ? 'Sign in via SSO first to enable enforcement.'
+    : !enforcementEligible
+      ? 'Run a successful test sign-in first.'
       : null
 
   return (
@@ -351,10 +351,10 @@ function DomainRow({
  */
 function DomainCard({
   domain,
-  bootstrapEligible,
+  enforcementEligible,
 }: {
   domain: VerifiedDomain
-  bootstrapEligible: boolean
+  enforcementEligible: boolean
 }) {
   const queryClient = useQueryClient()
   const remove = useServerFn(removeVerifiedDomainFn)
@@ -417,8 +417,8 @@ function DomainCard({
 
   const enforcementDisabledReason = !isVerified
     ? 'Verify this domain first.'
-    : !bootstrapEligible
-      ? 'Sign in via SSO first to enable enforcement.'
+    : !enforcementEligible
+      ? 'Run a successful test sign-in first.'
       : null
 
   return (

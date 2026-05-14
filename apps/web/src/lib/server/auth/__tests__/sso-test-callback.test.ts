@@ -15,8 +15,7 @@ const hoisted = vi.hoisted(() => ({
   cacheDel: vi.fn(),
   runHandshake: vi.fn(),
   userFindFirst: vi.fn(),
-  principalUpdateSet: vi.fn(),
-  principalUpdateWhere: vi.fn(),
+  markSsoTestSucceeded: vi.fn(),
 }))
 
 vi.mock('@/lib/server/redis', () => ({
@@ -35,16 +34,15 @@ vi.mock('@/lib/server/db', () => ({
     query: {
       user: { findFirst: (...args: unknown[]) => hoisted.userFindFirst(...args) },
     },
-    update: () => ({
-      set: (...args: unknown[]) => {
-        hoisted.principalUpdateSet(...args)
-        return { where: (...wargs: unknown[]) => hoisted.principalUpdateWhere(...wargs) }
-      },
-    }),
   },
   user: { id: 'user_id_col', email: 'user_email_col' },
-  principal: { userId: 'principal_user_id_col', lastSsoSignInAt: 'principal_last_sso_col' },
   eq: (col: unknown, val: unknown) => ({ __eq: [col, val] }),
+}))
+
+// The identity-match path stamps `ssoOidc.lastSuccessfulTestAt` via the
+// settings service rather than touching `principal` directly.
+vi.mock('@/lib/server/domains/settings/settings.service', () => ({
+  markSsoTestSucceeded: hoisted.markSsoTestSucceeded,
 }))
 
 import { handleSsoTestCallback, renderSsoTestCallbackHtml } from '../sso-test-callback'
@@ -68,7 +66,7 @@ const validSession = {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  hoisted.principalUpdateWhere.mockResolvedValue(undefined)
+  hoisted.markSsoTestSucceeded.mockResolvedValue(undefined)
 })
 
 describe('handleSsoTestCallback', () => {
@@ -181,7 +179,7 @@ describe('handleSsoTestCallback', () => {
     expect((persisted as { result: Record<string, unknown> }).result.raw).toBeUndefined()
   })
 
-  it('matching email updates principal.last_sso_sign_in_at and returns identityMatched=true', async () => {
+  it('matching email stamps lastSuccessfulTestAt and returns identityMatched=true', async () => {
     hoisted.cacheGet.mockResolvedValueOnce(validSession)
     const okResult = {
       ok: true,
@@ -202,10 +200,7 @@ describe('handleSsoTestCallback', () => {
     })
 
     expect(handled?.identityMatched).toBe(true)
-    expect(hoisted.principalUpdateSet).toHaveBeenCalledTimes(1)
-    const [setArg] = hoisted.principalUpdateSet.mock.calls[0]
-    expect((setArg as { lastSsoSignInAt: unknown }).lastSsoSignInAt).toBeInstanceOf(Date)
-    expect(hoisted.principalUpdateWhere).toHaveBeenCalledTimes(1)
+    expect(hoisted.markSsoTestSucceeded).toHaveBeenCalledTimes(1)
     expect(hoisted.cacheSet).toHaveBeenCalledWith(
       'sso-test:result:ssotest_abc',
       { result: okResult, identityMatched: true },
@@ -213,7 +208,7 @@ describe('handleSsoTestCallback', () => {
     )
   })
 
-  it('mismatching email does NOT update principal and returns identityMatched=false', async () => {
+  it('mismatching email does NOT stamp lastSuccessfulTestAt and returns identityMatched=false', async () => {
     hoisted.cacheGet.mockResolvedValueOnce(validSession)
     const okResult = {
       ok: true,
@@ -232,8 +227,7 @@ describe('handleSsoTestCallback', () => {
     })
 
     expect(handled?.identityMatched).toBe(false)
-    expect(hoisted.principalUpdateSet).not.toHaveBeenCalled()
-    expect(hoisted.principalUpdateWhere).not.toHaveBeenCalled()
+    expect(hoisted.markSsoTestSucceeded).not.toHaveBeenCalled()
     expect(hoisted.cacheSet).toHaveBeenCalledWith(
       'sso-test:result:ssotest_abc',
       { result: okResult, identityMatched: false },
@@ -241,7 +235,7 @@ describe('handleSsoTestCallback', () => {
     )
   })
 
-  it('no email claim returns identityMatched=false and skips the user/principal lookup', async () => {
+  it('no email claim returns identityMatched=false and skips the user lookup', async () => {
     hoisted.cacheGet.mockResolvedValueOnce(validSession)
     const okResult = {
       ok: true,
@@ -260,10 +254,10 @@ describe('handleSsoTestCallback', () => {
 
     expect(handled?.identityMatched).toBe(false)
     expect(hoisted.userFindFirst).not.toHaveBeenCalled()
-    expect(hoisted.principalUpdateSet).not.toHaveBeenCalled()
+    expect(hoisted.markSsoTestSucceeded).not.toHaveBeenCalled()
   })
 
-  it('failed handshake does not attempt the principal update', async () => {
+  it('failed handshake does not stamp lastSuccessfulTestAt', async () => {
     hoisted.cacheGet.mockResolvedValueOnce(validSession)
     hoisted.runHandshake.mockResolvedValueOnce({
       ok: false,
@@ -282,7 +276,7 @@ describe('handleSsoTestCallback', () => {
 
     expect(handled?.identityMatched).toBe(false)
     expect(hoisted.userFindFirst).not.toHaveBeenCalled()
-    expect(hoisted.principalUpdateSet).not.toHaveBeenCalled()
+    expect(hoisted.markSsoTestSucceeded).not.toHaveBeenCalled()
   })
 
   it('forwards IdP-side error params to the handshake', async () => {

@@ -34,7 +34,8 @@ const baseStatus: SsoStatus = {
   lastSignInAt: null,
   secretConfigured: true,
   discoveryReachable: null,
-  bootstrapEligible: false,
+  enableEligible: false,
+  enforcementEligible: false,
   redirectUri: 'https://example.com/api/auth/oauth2/callback/sso',
 }
 

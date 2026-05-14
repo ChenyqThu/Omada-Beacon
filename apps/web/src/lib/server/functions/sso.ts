@@ -192,8 +192,6 @@ export const testSsoConnectionFn = createServerFn({ method: 'POST' })
     return { ok: true, issuer: json.issuer as string }
   })
 
-const SSO_BOOTSTRAP_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
-
 const verifiedDomainId = z.string().regex(/^domain_/) as z.ZodType<`domain_${string}`>
 const setVerifiedDomainEnforcedInput = z.object({
   id: verifiedDomainId,
@@ -202,9 +200,11 @@ const setVerifiedDomainEnforcedInput = z.object({
 
 /**
  * Flip the per-domain `enforced` flag. Preconditions on enable:
- *  1. Caller has a recent SSO sign-in (workspace-scoped bootstrap guard
- *     — there's one IdP per workspace, so any recent SSO attests it's
- *     live and reachable, not just for this specific domain).
+ *  1. SSO is proven working since the last connection-details change —
+ *     either a successful test sign-in or a real team SSO sign-in that
+ *     postdates `ssoOidc.detailsChangedAt` (`isSsoEnforcementUnlocked`).
+ *     Workspace-scoped: there's one IdP per workspace, so a proof for
+ *     any domain attests the IdP is live and reachable.
  *  2. Magic-link delivery is wired (`isEmailConfigured()` — break-glass
  *     for the rest of the workspace).
  * Disable skips both — any admin can turn enforcement off on any row.
@@ -239,16 +239,25 @@ export const setVerifiedDomainEnforcedFn = createServerFn({ method: 'POST' })
       },
       async () => {
         if (data.enforced) {
-          const { db, principal: principalTable, eq } = await import('@/lib/server/db')
-          const principalRow = await db.query.principal.findFirst({
-            where: eq(principalTable.userId, auth.user.id),
-            columns: { lastSsoSignInAt: true },
-          })
-          const last = principalRow?.lastSsoSignInAt
-          if (!last || last.getTime() < Date.now() - SSO_BOOTSTRAP_WINDOW_MS) {
+          const { db, principal: principalTable, sql, inArray } = await import('@/lib/server/db')
+          const { getAuthConfig } = await import('@/lib/server/domains/settings/settings.service')
+          const { isSsoEnforcementUnlocked } = await import('@/lib/server/auth/sso-gates')
+
+          // Most recent real team SSO sign-in — an alternative proof to
+          // a test sign-in that the IdP works for production logins.
+          const [maxRow] = await db
+            .select({ ts: principalTable.lastSsoSignInAt })
+            .from(principalTable)
+            .where(inArray(principalTable.role, ['admin', 'member']))
+            .orderBy(sql`${principalTable.lastSsoSignInAt} DESC NULLS LAST`)
+            .limit(1)
+          const lastRealSignInAt = maxRow?.ts ?? null
+
+          const authConfig = await getAuthConfig()
+          if (!isSsoEnforcementUnlocked(authConfig?.ssoOidc, lastRealSignInAt)) {
             throw new ForbiddenError(
-              'SSO_BOOTSTRAP_GUARD',
-              'Sign in via SSO first to enable enforcement.'
+              'SSO_TEST_REQUIRED',
+              'Run a successful test sign-in before enabling enforcement.'
             )
           }
 
@@ -276,12 +285,18 @@ export type SsoStatus = {
   secretConfigured: boolean
   discoveryReachable: boolean | null // null = not configured / unknown
   /**
-   * Whether the calling admin has signed in via SSO recently enough
-   * that `setVerifiedDomainEnforcedFn`'s bootstrap guard would let them
-   * flip enforcement on for any verified domain. Computed against the
-   * same `SSO_BOOTSTRAP_WINDOW_MS` the server uses.
+   * Whether **enabling SSO** is unlocked: a successful test sign-in
+   * postdates the last connection-details change
+   * (`isSsoTestValid`). When false the Enable toggle still renders but
+   * routes through the test-sign-in prompt modal first.
    */
-  bootstrapEligible: boolean
+  enableEligible: boolean
+  /**
+   * Whether **per-domain enforcement** is unlocked: a test sign-in OR a
+   * real team SSO sign-in postdates the last details change
+   * (`isSsoEnforcementUnlocked`). Same prompt-modal treatment when false.
+   */
+  enforcementEligible: boolean
   /**
    * Redirect URI the admin must register in their IdP App. Better-Auth
    * generic-oauth callbacks land at `${BASE_URL}/api/auth/oauth2/callback/sso`;
@@ -293,23 +308,23 @@ export type SsoStatus = {
 
 /**
  * Status row consumed by the admin auth settings UI. Cheap to call —
- * settings cache hit + a single per-team aggregation + a per-caller
- * principal lookup for the bootstrap-eligibility flag.
+ * settings cache hit + a single per-team max-sign-in aggregation. The
+ * enable / enforcement eligibility flags are derived from the settings
+ * blob (`ssoOidc` timestamps) plus that aggregation, no extra reads.
  */
 export const getSsoStatusFn = createServerFn({ method: 'GET' }).handler(
   async (): Promise<SsoStatus> => {
-    const auth = await requireAuth({ roles: ['admin'] })
+    await requireAuth({ roles: ['admin'] })
 
-    const { db, principal: principalTable, sql, inArray, eq } = await import('@/lib/server/db')
+    const { db, principal: principalTable, sql, inArray } = await import('@/lib/server/db')
     const { getTenantSettings } = await import('@/lib/server/domains/settings/settings.service')
     const { hasSsoClientSecret } = await import('@/lib/server/auth/sso-secret')
 
     // Run independent reads in parallel: tenant settings, max sign-in
-    // timestamp across team, calling admin's own lastSsoSignInAt, and
-    // secret presence. Both timestamp queries use the typed column ref
-    // (not `sql<Date>` raw expressions) so Drizzle returns Date instances
-    // via the postgres adapter — no manual coercion needed.
-    const [tenant, maxRows, callerRows, secretConfigured] = await Promise.all([
+    // timestamp across team, and secret presence. The timestamp query
+    // uses the typed column ref (not a `sql<Date>` raw expression) so
+    // Drizzle returns a Date instance via the postgres adapter.
+    const [tenant, maxRows, secretConfigured] = await Promise.all([
       getTenantSettings(),
       db
         .select({ ts: principalTable.lastSsoSignInAt })
@@ -317,19 +332,18 @@ export const getSsoStatusFn = createServerFn({ method: 'GET' }).handler(
         .where(inArray(principalTable.role, ['admin', 'member']))
         .orderBy(sql`${principalTable.lastSsoSignInAt} DESC NULLS LAST`)
         .limit(1),
-      db
-        .select({ ts: principalTable.lastSsoSignInAt })
-        .from(principalTable)
-        .where(eq(principalTable.userId, auth.user.id))
-        .limit(1),
       hasSsoClientSecret(),
     ])
 
     const ssoConfig = tenant?.authConfig?.ssoOidc
     const lastSignInAt = maxRows[0]?.ts ?? null
-    const callerLast = callerRows[0]?.ts ?? null
-    const bootstrapEligible =
-      !!callerLast && callerLast.getTime() >= Date.now() - SSO_BOOTSTRAP_WINDOW_MS
+
+    // Gate eligibility: enabling SSO needs a valid test sign-in;
+    // enforcement also accepts a real team SSO sign-in. Both compare
+    // against `ssoOidc.detailsChangedAt` so a stale proof doesn't count.
+    const { isSsoTestValid, isSsoEnforcementUnlocked } = await import('@/lib/server/auth/sso-gates')
+    const enableEligible = isSsoTestValid(ssoConfig)
+    const enforcementEligible = isSsoEnforcementUnlocked(ssoConfig, lastSignInAt)
 
     let discoveryReachable: boolean | null = null
     if (ssoConfig?.enabled && ssoConfig.discoveryUrl) {
@@ -374,7 +388,8 @@ export const getSsoStatusFn = createServerFn({ method: 'GET' }).handler(
       lastSignInAt: lastSignInAt ? lastSignInAt.toISOString() : null,
       secretConfigured,
       discoveryReachable,
-      bootstrapEligible,
+      enableEligible,
+      enforcementEligible,
       redirectUri,
     }
   }
@@ -413,6 +428,12 @@ export const setSsoClientSecretFn = createServerFn({ method: 'POST' })
           credentials: { clientSecret: data.clientSecret.trim() },
           principalId: auth.principal.id,
         })
+        // The client secret is a connection-affecting field — stamp
+        // detailsChangedAt so any prior test sign-in stops counting
+        // until the admin re-tests against the new secret.
+        const { markSsoDetailsChanged } =
+          await import('@/lib/server/domains/settings/settings.service')
+        await markSsoDetailsChanged()
         return { success: true }
       }
     )

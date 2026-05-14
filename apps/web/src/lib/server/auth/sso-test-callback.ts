@@ -88,12 +88,16 @@ export async function handleSsoTestCallback(
 
   // Identity-match path: a successful Test sign-in where the IdP-returned
   // `email` claim case-insensitively matches the admin who started the
-  // test unlocks the per-domain SSO enforcement bootstrap gate by writing
-  // `principal.last_sso_sign_in_at`. Bound to identity-match so it can't
-  // be used as a backdoor (a different admin's IdP login doesn't count).
+  // test unlocks the SSO gates (enabling SSO + per-domain enforcement)
+  // by stamping `ssoOidc.lastSuccessfulTestAt`. Bound to identity-match
+  // so it can't be a backdoor — a different admin's IdP login doesn't
+  // count. Workspace-level: any admin's identity-matched test unlocks
+  // the gate for the workspace, and the gate logic compares the stamp
+  // against `ssoOidc.detailsChangedAt` so a stale test (predating the
+  // last discoveryUrl / clientId / secret change) no longer counts.
   let identityMatched = false
   if (result.ok && result.claims.email) {
-    const { db, user, principal, eq } = await import('@/lib/server/db')
+    const { db, user, eq } = await import('@/lib/server/db')
     type UserId = `user_${string}`
     const admin = await db.query.user.findFirst({
       where: eq(user.id, session.adminUserId as UserId),
@@ -103,12 +107,11 @@ export async function handleSsoTestCallback(
     const idpEmail = String(result.claims.email).toLowerCase().trim()
     if (adminEmail && idpEmail && adminEmail === idpEmail) {
       identityMatched = true
-      await db
-        .update(principal)
-        .set({ lastSsoSignInAt: new Date() })
-        .where(eq(principal.userId, session.adminUserId as UserId))
+      const { markSsoTestSucceeded } =
+        await import('@/lib/server/domains/settings/settings.service')
+      await markSsoTestSucceeded()
       console.log(
-        `[sso-test] identity match — unlocked enforcement gate for adminUserId=${session.adminUserId}`
+        `[sso-test] identity match — unlocked SSO gates for adminUserId=${session.adminUserId}`
       )
     }
   }

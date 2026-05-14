@@ -358,6 +358,15 @@ export const updateAuthConfigSchema = z.object({
       clientId: z.string().min(1).optional(),
       autoCreateUsers: z.boolean().optional(),
       autoProvisionRole: z.enum(['admin', 'member', 'user']).optional(),
+      // Server-owned timestamps. `updateAuthConfig` stamps
+      // `detailsChangedAt` itself when discoveryUrl/clientId change and
+      // the SSO test callback stamps `lastSuccessfulTestAt`. They stay
+      // in the schema (rather than `.strict()` rejecting them) so reads
+      // that round-trip the whole config back through updateAuthConfig
+      // — the config-file reconciler, the admin UI's draft save — don't
+      // strip the values. UI callers never set them directly.
+      detailsChangedAt: z.string().optional(),
+      lastSuccessfulTestAt: z.string().optional(),
       attributeMapping: z
         .object({
           claimPath: z.string().min(1),

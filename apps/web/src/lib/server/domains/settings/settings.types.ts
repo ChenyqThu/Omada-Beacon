@@ -45,6 +45,25 @@ export interface AuthConfig {
      */
     autoProvisionRole?: 'admin' | 'member' | 'user'
     /**
+     * ISO-8601 UTC. Server-stamped whenever a *connection-affecting*
+     * field changes — `discoveryUrl`, `clientId`, or the client secret.
+     * It is the freshness baseline for {@link lastSuccessfulTestAt}: a
+     * successful test only counts if it happened after the most recent
+     * details change. Not stamped for `autoCreateUsers` /
+     * `autoProvisionRole` / `attributeMapping` — those don't affect
+     * whether the IdP handshake works.
+     */
+    detailsChangedAt?: string
+    /**
+     * ISO-8601 UTC. Server-stamped by the SSO test callback when a test
+     * sign-in succeeds AND the IdP-returned email matches the admin who
+     * ran it. Compared against {@link detailsChangedAt} to gate two
+     * actions: enabling SSO (`enabled=true`) and per-domain
+     * `enforced=true`. Workspace-level — any admin's identity-matched
+     * test unlocks the gate for the whole workspace.
+     */
+    lastSuccessfulTestAt?: string
+    /**
      * Optional IdP-attribute → role mapping. When set, the SSO callback
      * resolves the user's role from a claim on the ID token instead of
      * falling back to `autoProvisionRole`. The mapping is first-match-
