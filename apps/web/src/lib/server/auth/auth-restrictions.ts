@@ -161,17 +161,20 @@ export function isEmailAtVerifiedDomain(
 }
 
 /**
- * Providers that hooks.before can hard-bind in-line — i.e. those whose
- * sign-in body carries the email pre-session, so we can reject the
- * request before any token exchange. OAuth callback paths aren't here;
- * Layer C in `hooks.after` covers them.
+ * SSO is the one provider that is never hard-bound — it *is* the
+ * enforced method. Every other provider (password, magic-link, social
+ * OAuth, generic OAuth) is subject to hard-binding when the candidate
+ * email is at an enforced verified domain.
  *
- * Magic-link is included alongside `credential` because anyone with
- * inbox control at the verified domain (catch-all, contractor address,
- * former employee with retained access) could otherwise self-issue a
- * sign-in token that bypasses the IdP's role/MFA attestations.
+ * Hard-binding is email-driven, not provider-allowlist-driven: an
+ * enforced domain means "SSO only", full stop. Layer B gates the
+ * pre-session providers (password / magic-link); Layer C
+ * (`handleCallbackPolicyCleanup`) gates the OAuth-callback providers,
+ * where the email is only known post token-exchange. Restricting this
+ * predicate to {credential, magic-link} silently let social / generic
+ * OAuth bypass enforcement.
  */
-const HARD_BOUND_PROVIDERS = new Set<AuthProvider>(['credential', 'magic-link'])
+const SSO_PROVIDER_ID: AuthProvider = 'sso'
 
 /**
  * Layer-1 predicate: did the admin configure SSO to be on?
@@ -218,7 +221,7 @@ export function isHardBound(
   verifiedDomains: readonly VerifiedDomain[] | undefined,
   ssoActuallyRegistered: boolean
 ): boolean {
-  if (!HARD_BOUND_PROVIDERS.has(provider)) return false
+  if (provider === SSO_PROVIDER_ID) return false
   if (!ssoActuallyRegistered) return false
   void authConfig
   void role

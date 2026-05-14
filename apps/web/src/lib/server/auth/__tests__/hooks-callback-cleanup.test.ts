@@ -11,13 +11,13 @@
  * (user.createdAt < 60s old) wipe the user / account / principal shells
  * so a blocked first attempt doesn't leave dangling rows.
  *
- * Important: `isHardBound` only matches `credential` and `magic-link`.
- * The OAuth-callback paths exercised in production carry inferred
- * provider ids like `google` / `github` / `sso`, none of which trigger
- * the hard-binding branch. The non-SSO blocking we see in production
- * happens via the `isAuthMethodAllowed` fall-through (oauth toggle off
- * or credentials missing). Layer A (registration filter) is what
- * actually prevents google/github from running when SSO is required.
+ * Hard-binding (`isHardBound`) fires for every provider except `sso`:
+ * an email at an enforced verified-domain row is blocked here for
+ * social / generic-OAuth callbacks too, not just credential /
+ * magic-link. Layer B can't see those (no email pre-session on
+ * callback paths), so this Layer-C branch is the gate that enforces
+ * it. The `isAuthMethodAllowed` fall-through still handles the
+ * separate "oauth toggle off / credentials missing" cases.
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { makeAuthConfig, makeTenant, makeVerifiedDomain } from './_helpers'
@@ -85,12 +85,13 @@ const tenantSettings = (
   k: {
     passwordEnabled?: boolean
     googleEnabled?: boolean
+    githubEnabled?: boolean
     verifiedDomains?: ReturnType<typeof makeVerifiedDomain>[]
   } = {}
 ) =>
   makeTenant({
     authConfig: makeAuthConfig({
-      oauth: { password: k.passwordEnabled, google: k.googleEnabled },
+      oauth: { password: k.passwordEnabled, google: k.googleEnabled, github: k.githubEnabled },
     }),
     verifiedDomains: k.verifiedDomains ?? [],
   })
@@ -180,8 +181,9 @@ describe('handleCallbackPolicyCleanup — guards', () => {
       token: 'tok',
     })
     await handleCallbackPolicyCleanup(ctx, tenantSettings({}))
-    // No hard-binding for 'google', no principal → return without
-    // running the method-allowed gate.
+    // 'a@external.com' is not at an enforced domain (none configured)
+    // and no principal exists → return without running the
+    // method-allowed gate.
     expect(mockSessionDeleteWhere).not.toHaveBeenCalled()
     expect(ctx.redirect).not.toHaveBeenCalled()
   })
@@ -401,15 +403,133 @@ describe('handleCallbackPolicyCleanup — non-SSO OAuth', () => {
 })
 
 // ============================================================
-// Hard-binding branch — only fires for credential / magic-link
+// Hard-binding branch — fires for every provider except `sso`
 //
-// The only realistic way to enter this branch via a session-creating
-// callback path is `/sign-in/social` carrying body.provider='credential'
-// or 'magic-link', which Better-Auth's idToken-direct flow shouldn't
-// emit. Tested defensively here because the code wipes shells on hit.
+// An email at an enforced verified-domain row is hard-bound: the only
+// allowed sign-in is the team SSO provider. Layer C is where social /
+// generic-OAuth callbacks get caught (Layer B never sees their email).
+// `/sign-in/social` carrying body.provider='credential' is covered too.
 // ============================================================
 
-describe('handleCallbackPolicyCleanup — hard-binding branch (defensive)', () => {
+describe('handleCallbackPolicyCleanup — hard-binding branch (enforced verified domain)', () => {
+  it('revokes + redirects an existing user signing in via google at an enforced domain', async () => {
+    mockPrincipalFindFirst.mockResolvedValue({ role: 'admin' })
+    mockUserFindFirst.mockResolvedValue({ createdAt: new Date(Date.now() - 60 * 60_000) })
+    const ctx = ctxFor({
+      path: '/oauth2/callback/:providerId',
+      providerParam: 'google',
+      userId: 'user_existing',
+      email: 'a@acme.com',
+      token: 'tok',
+    })
+
+    await expect(
+      handleCallbackPolicyCleanup(
+        ctx,
+        tenantSettings({
+          googleEnabled: true,
+          verifiedDomains: [makeVerifiedDomain('acme.com', true)],
+        })
+      )
+    ).rejects.toThrow(/\/admin\/login\?error=verified_domain_requires_sso/)
+
+    expect(mockSessionDeleteWhere).toHaveBeenCalled()
+    expect(mockDeleteSessionCookie).toHaveBeenCalled()
+    // Existing user — shells preserved.
+    expect(mockUserDeleteWhere).not.toHaveBeenCalled()
+  })
+
+  it('revokes + wipes shells for a brand-new user signing in via google at an enforced domain', async () => {
+    mockPrincipalFindFirst.mockResolvedValue({ role: 'admin' })
+    mockUserFindFirst.mockResolvedValue({ createdAt: new Date(Date.now() - 5_000) })
+    const ctx = ctxFor({
+      path: '/oauth2/callback/:providerId',
+      providerParam: 'google',
+      userId: 'user_brandnew',
+      email: 'a@acme.com',
+      token: 'tok',
+    })
+
+    await expect(
+      handleCallbackPolicyCleanup(
+        ctx,
+        tenantSettings({
+          googleEnabled: true,
+          verifiedDomains: [makeVerifiedDomain('acme.com', true)],
+        })
+      )
+    ).rejects.toThrow(/verified_domain_requires_sso/)
+
+    expect(mockSessionDeleteWhere).toHaveBeenCalled()
+    expect(mockUserDeleteWhere).toHaveBeenCalled()
+    expect(mockAccountDeleteWhere).toHaveBeenCalled()
+    expect(mockPrincipalDeleteWhere).toHaveBeenCalled()
+  })
+
+  it('revokes a github callback at an enforced domain too', async () => {
+    mockPrincipalFindFirst.mockResolvedValue({ role: 'member' })
+    mockUserFindFirst.mockResolvedValue({ createdAt: new Date(Date.now() - 60 * 60_000) })
+    const ctx = ctxFor({
+      path: '/oauth2/callback/:providerId',
+      providerParam: 'github',
+      userId: 'user_existing',
+      email: 'a@acme.com',
+      token: 'tok',
+    })
+
+    await expect(
+      handleCallbackPolicyCleanup(
+        ctx,
+        tenantSettings({
+          githubEnabled: true,
+          verifiedDomains: [makeVerifiedDomain('acme.com', true)],
+        })
+      )
+    ).rejects.toThrow(/verified_domain_requires_sso/)
+    expect(mockSessionDeleteWhere).toHaveBeenCalled()
+  })
+
+  it('does NOT hard-bind the team SSO provider itself at an enforced domain', async () => {
+    mockPrincipalFindFirst.mockResolvedValue({ role: 'admin' })
+    const ctx = ctxFor({
+      path: '/oauth2/callback/:providerId',
+      providerParam: 'sso',
+      userId: 'user_1',
+      email: 'a@acme.com',
+      token: 'tok',
+    })
+    await handleCallbackPolicyCleanup(
+      ctx,
+      tenantSettings({ verifiedDomains: [makeVerifiedDomain('acme.com', true)] })
+    )
+    expect(mockSessionDeleteWhere).not.toHaveBeenCalled()
+    expect(ctx.redirect).not.toHaveBeenCalled()
+  })
+
+  it('fails open: google at an enforced domain passes through when SSO is not actually registered', async () => {
+    mockPrincipalFindFirst.mockResolvedValue({ role: 'admin' })
+    mockIsSsoActuallyRegistered.mockResolvedValue(false)
+    const ctx = ctxFor({
+      path: '/oauth2/callback/:providerId',
+      providerParam: 'google',
+      userId: 'user_1',
+      email: 'a@acme.com',
+      token: 'tok',
+    })
+    // googleEnabled so the method-allowed fall-through also passes —
+    // the point is the hard-binding branch must NOT fire when SSO
+    // isn't viable (self-lockout guard).
+    await handleCallbackPolicyCleanup(
+      ctx,
+      tenantSettings({
+        googleEnabled: true,
+        verifiedDomains: [makeVerifiedDomain('acme.com', true)],
+      })
+    )
+    expect(mockSessionDeleteWhere).not.toHaveBeenCalled()
+    expect(ctx.redirect).not.toHaveBeenCalled()
+  })
+
   it('revokes + wipes shells when brand-new user lands via /sign-in/social with credential at enforced domain', async () => {
     mockPrincipalFindFirst.mockResolvedValue({ role: 'admin' })
     mockUserFindFirst.mockResolvedValue({ createdAt: new Date(Date.now() - 5_000) })

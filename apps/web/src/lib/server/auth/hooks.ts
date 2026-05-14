@@ -582,9 +582,11 @@ export async function handleCallbackPolicyCleanup(
   )
 
   // Hard-binding for non-SSO callbacks: per-domain enforcement only
-  // (verified-domain row with enforced=true). HARD_BOUND_PROVIDERS is
-  // narrow ({credential, magic-link}) so in practice this rarely fires
-  // for callback paths, but we keep the branch as defence-in-depth.
+  // (verified-domain row with enforced=true). `isHardBound` treats
+  // every provider except `sso` as hard-bindable, so this is the gate
+  // that actually blocks social / generic-OAuth sign-ins for emails at
+  // an enforced verified domain — Layer B can't (no email pre-session
+  // on callback paths).
   if (
     provider !== 'sso' &&
     typeof userEmail === 'string' &&

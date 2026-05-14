@@ -3,8 +3,10 @@
  *
  *  - Fires when the candidate email matches a verified-domain row whose
  *    `enforced=true` flag is set.
- *  - Provider gate: only `credential` and `magic-link` are subject to
- *    hard-binding here (OAuth-callback paths are gated by Layer A + C).
+ *  - Provider gate: every provider except `sso` is subject to hard-
+ *    binding (SSO *is* the enforced method). OAuth-callback paths are
+ *    gated in Layer C (`handleCallbackPolicyCleanup`); Layer B handles
+ *    password / magic-link pre-session.
  *  - Master switch `ssoOidc.enabled=false` disables enforcement
  *    indirectly via `isSsoActuallyRegistered`.
  *  - Runtime fail-open: callers pass `ssoActuallyRegistered`; when
@@ -103,16 +105,46 @@ describe('isHardBound — per-verified-domain branch', () => {
   })
 })
 
-describe('isHardBound — non-hard-bound providers', () => {
-  it('returns false for sso', () => {
+describe('isHardBound — provider gate (only `sso` is exempt)', () => {
+  it('returns false for sso — SSO *is* the enforced method', () => {
     expect(callIsHardBound('sso', 'a@acme.com', 'admin', configWithSso(), [enforcedDomain])).toBe(
       false
     )
   })
 
-  it('returns false for google', () => {
+  it('blocks google at an enforced verified domain', () => {
     expect(
       callIsHardBound('google', 'a@acme.com', 'admin', configWithSso(), [enforcedDomain])
+    ).toBe(true)
+  })
+
+  it('blocks github at an enforced verified domain', () => {
+    expect(
+      callIsHardBound('github', 'a@acme.com', 'admin', configWithSso(), [enforcedDomain])
+    ).toBe(true)
+  })
+
+  it('blocks a generic OAuth provider id at an enforced verified domain', () => {
+    expect(
+      callIsHardBound('okta-custom', 'a@acme.com', 'admin', configWithSso(), [enforcedDomain])
+    ).toBe(true)
+  })
+
+  it('blocks social OAuth for a portal user too (email-driven, not role-driven)', () => {
+    expect(callIsHardBound('google', 'a@acme.com', 'user', configWithSso(), [enforcedDomain])).toBe(
+      true
+    )
+  })
+
+  it('does NOT block social OAuth when the domain is not enforced', () => {
+    expect(
+      callIsHardBound('google', 'a@acme.com', 'admin', configWithSso(), [verifiedDomain])
+    ).toBe(false)
+  })
+
+  it('fails open for social OAuth when SSO is not actually registered', () => {
+    expect(
+      callIsHardBound('google', 'a@acme.com', 'admin', configWithSso(), [enforcedDomain], false)
     ).toBe(false)
   })
 })
