@@ -4,10 +4,12 @@ import { fetchUserAvatar } from '@/lib/server/functions/portal'
 import { PortalHeader } from '@/components/public/portal-header'
 import { AuthPopoverProvider } from '@/components/auth/auth-popover-context'
 import { AuthDialog } from '@/components/auth/auth-dialog'
+import { PortalAccessDenied } from '@/components/portal/portal-access-denied'
 import { DEFAULT_PORTAL_CONFIG } from '@/lib/shared/types/settings'
 import { generateThemeCSS, getGoogleFontsUrl } from '@/lib/shared/theme'
 import { resolveLocale } from '@/lib/shared/i18n'
 import { PortalIntlProvider } from '@/components/portal-intl-provider'
+import { evaluatePortalAccess } from '@/lib/server/domains/settings/portal-access'
 
 /** Resolve locale from Accept-Language header on the server. */
 const getPortalLocale = createServerFn({ method: 'GET' }).handler(async () => {
@@ -17,12 +19,50 @@ const getPortalLocale = createServerFn({ method: 'GET' }).handler(async () => {
 })
 
 export const Route = createFileRoute('/_portal')({
-  loader: async ({ context }) => {
+  loader: async ({ context, location }) => {
     const { session, settings, userRole, baseUrl } = context
 
     const org = settings?.settings
     if (!org) {
       throw redirect({ to: '/onboarding' })
+    }
+
+    // Portal-level visibility gate (Phase 1: team-only for private portals).
+    // An anonymous Better Auth session has session.user but principalType===
+    // 'anonymous' — mirror the check in widget.tsx to resolve auth state.
+    const portalConfig = settings?.portalConfig
+    const visibility = portalConfig?.access?.visibility ?? 'public'
+    const isAnonymousPrincipal = session?.user?.principalType === 'anonymous'
+    const isAuthenticated = !!session?.user && !isAnonymousPrincipal
+    const role = (userRole ?? null) as 'admin' | 'member' | 'user' | null
+    const accessResult = evaluatePortalAccess({ visibility, role, isAuthenticated })
+
+    if (!accessResult.granted) {
+      if (accessResult.reason === 'unauthenticated') {
+        // Encode the current path+search so the login page can redirect back.
+        const returnTo = location.pathname + (location.searchStr ?? '')
+        throw redirect({
+          to: '/auth/login',
+          search: { returnTo },
+        })
+      }
+      // reason === 'unauthorized': render access-denied UI instead of the portal.
+      return {
+        portalAccessDenied: true as const,
+        org,
+        baseUrl: baseUrl ?? '',
+        userRole,
+        session,
+        brandingData: settings?.brandingData ?? null,
+        faviconData: settings?.faviconData ?? null,
+        themeStyles: '',
+        customCss: '',
+        themeMode: 'user' as const,
+        googleFontsUrl: null,
+        initialUserData: undefined,
+        authConfig: { found: true, oauth: {}, customProviderNames: undefined },
+        locale: await getPortalLocale(),
+      }
     }
 
     // userRole comes from bootstrap data, avatar needs to be fetched
@@ -36,7 +76,7 @@ export const Route = createFileRoute('/_portal')({
     const faviconData = settings?.faviconData ?? null
     const brandingConfig = settings?.brandingConfig ?? {}
     const customCss = settings?.customCss ?? ''
-    const portalConfig = settings?.publicPortalConfig ?? null
+    const publicPortalConfig = settings?.publicPortalConfig ?? null
 
     const themeMode = brandingConfig.themeMode ?? 'user'
 
@@ -60,13 +100,14 @@ export const Route = createFileRoute('/_portal')({
 
     const authConfig = {
       found: true,
-      oauth: portalConfig?.oauth ?? DEFAULT_PORTAL_CONFIG.oauth,
-      customProviderNames: portalConfig?.customProviderNames,
+      oauth: publicPortalConfig?.oauth ?? DEFAULT_PORTAL_CONFIG.oauth,
+      customProviderNames: publicPortalConfig?.customProviderNames,
     }
 
     const locale = await getPortalLocale()
 
     return {
+      portalAccessDenied: false as const,
       org,
       baseUrl: baseUrl ?? '',
       userRole,
@@ -110,6 +151,7 @@ export const Route = createFileRoute('/_portal')({
 })
 
 function PortalLayout() {
+  const loaderData = Route.useLoaderData()
   const {
     org,
     userRole,
@@ -121,7 +163,20 @@ function PortalLayout() {
     initialUserData,
     authConfig,
     locale,
-  } = Route.useLoaderData()
+  } = loaderData
+
+  // Authenticated but non-team visitor on a private portal.
+  if (loaderData.portalAccessDenied) {
+    return (
+      <PortalIntlProvider locale={locale}>
+        <div className="min-h-screen bg-background">
+          {themeStyles && <style dangerouslySetInnerHTML={{ __html: themeStyles }} />}
+          {customCss && <style dangerouslySetInnerHTML={{ __html: customCss }} />}
+          <PortalAccessDenied workspaceName={org.name} logoUrl={brandingData?.logoUrl ?? null} />
+        </div>
+      </PortalIntlProvider>
+    )
+  }
 
   return (
     <PortalIntlProvider locale={locale}>

@@ -220,6 +220,21 @@ export interface PortalWelcomeCard {
 export const PORTAL_WELCOME_CARD_TITLE_MAX = 120
 
 /**
+ * Portal-level access control settings.
+ *
+ * Phase 1: visibility only. Later phases extend `allowedDomains` and
+ * `widgetSignIn` — those fields exist here so the DB column can accept
+ * them when written; only `visibility` is enforced in Phase 1.
+ */
+export interface PortalAccessConfig {
+  visibility: 'public' | 'private'
+  /** Phase 2+: email domains whose users are automatically granted access. */
+  allowedDomains: string[]
+  /** Phase 2+: whether widget-authenticated users may access a private portal. */
+  widgetSignIn: boolean
+}
+
+/**
  * Portal configuration
  * Controls the public feedback portal behavior
  */
@@ -232,6 +247,8 @@ export interface PortalConfig {
   welcomeCard?: PortalWelcomeCard
   /** Workspace-wide approval policy; applies to every board. */
   moderationDefault: ModerationDefault
+  /** Portal-level access control (visibility gate). */
+  access?: PortalAccessConfig
 }
 
 /**
@@ -258,6 +275,7 @@ export const DEFAULT_PORTAL_CONFIG: PortalConfig = {
     body: { type: 'doc', content: [{ type: 'paragraph' }] },
   },
   moderationDefault: { requireApproval: 'none' },
+  access: { visibility: 'public', allowedDomains: [], widgetSignIn: false },
 }
 
 // =============================================================================
@@ -488,6 +506,7 @@ export interface UpdatePortalConfigInput {
   features?: Partial<PortalFeatures>
   welcomeCard?: Partial<PortalWelcomeCard>
   moderationDefault?: ModerationDefault
+  access?: Partial<PortalAccessConfig>
 }
 
 // =============================================================================
@@ -512,6 +531,11 @@ export interface PublicPortalConfig {
   customProviderNames?: Record<string, string>
   /** Welcome card on the portal index. Absent / disabled = nothing rendered. */
   welcomeCard?: PortalWelcomeCard
+  /**
+   * Client-safe access control indicator. Only `isPrivate` is exposed;
+   * `allowedDomains` and `widgetSignIn` are server-only policy.
+   */
+  portalAccess?: { isPrivate: boolean }
 }
 
 // =============================================================================
