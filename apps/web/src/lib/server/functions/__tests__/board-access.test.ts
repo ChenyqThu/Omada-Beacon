@@ -129,6 +129,7 @@ import { ForbiddenError, NotFoundError } from '@/lib/shared/errors'
 // declaration order. Boards.ts has many existing fns ahead of
 // updateBoardAccessFn — we resolve it via name, not index.
 import * as boardsModule from '../boards'
+import { moderationSchema } from '../boards'
 
 function getUpdateBoardAccessFn(): Handler {
   // updateBoardAccessFn was appended last; pick the last handler captured
@@ -287,6 +288,37 @@ describe('updateBoardAccessFn — accepts all four requireApproval values', () =
       expect(state.boards[0].moderation.requireApproval).toBe(ra)
     }
   )
+})
+
+describe('updateBoardAccessFn — requireApproval accepts inherit', () => {
+  beforeEach(() => mockRequireAuth.mockResolvedValue(AUTH_ADMIN))
+
+  it("requireApproval='inherit' resolves { ok: true } and persists the value", async () => {
+    const result = await getUpdateBoardAccessFn()({
+      data: {
+        boardId: 'board_1',
+        moderation: { requireApproval: 'inherit', trustedSegmentIds: [] },
+      },
+    })
+    expect(result).toEqual({ ok: true })
+    expect(state.boards[0].moderation.requireApproval).toBe('inherit')
+  })
+})
+
+describe('moderationSchema', () => {
+  it.each(['inherit', 'none', 'anonymous', 'authenticated', 'all'])(
+    'accepts requireApproval=%s',
+    (val) => {
+      expect(() =>
+        moderationSchema.parse({ requireApproval: val, trustedSegmentIds: [] })
+      ).not.toThrow()
+    }
+  )
+  it('rejects an unknown requireApproval value', () => {
+    expect(
+      moderationSchema.safeParse({ requireApproval: 'bogus', trustedSegmentIds: [] }).success
+    ).toBe(false)
+  })
 })
 
 describe('updateBoardAccessFn — segments audience persists segmentIds[]', () => {

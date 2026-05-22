@@ -295,8 +295,8 @@ import { recordAuditEvent, actorFromAuth } from '@/lib/server/audit/log'
 
 // audienceSchema is defined at the top of this file (reused by create/update).
 
-const moderationSchema = z.object({
-  requireApproval: z.enum(['none', 'anonymous', 'authenticated', 'all']),
+export const moderationSchema = z.object({
+  requireApproval: z.enum(['inherit', 'none', 'anonymous', 'authenticated', 'all']),
   trustedSegmentIds: z.array(z.string()).max(50),
 })
 
