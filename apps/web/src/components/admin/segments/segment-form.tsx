@@ -340,7 +340,7 @@ function RuleBuilder({
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span>Users must match</span>
         <Select value={match} onValueChange={(v) => onMatchChange(v as 'all' | 'any')}>
-          <SelectTrigger className="h-7 w-[60px] text-xs">
+          <SelectTrigger className="h-7 w-20 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
