@@ -12,7 +12,7 @@
  * Pairs with boards.test.ts (audience matrix) and segment-membership tests.
  */
 import { describe, it, expect } from 'vitest'
-import { canViewPost, canCreatePost, resolveRequireApproval } from '../posts'
+import { canViewPost, canCreatePost, canCreateComment, resolveRequireApproval } from '../posts'
 import { ANONYMOUS_ACTOR, type Actor } from '../types'
 import type { SegmentId, PrincipalId } from '@quackback/ids'
 import type { BoardAudience, BoardModeration, ModerationState } from '@/lib/server/db'
@@ -490,5 +490,93 @@ describe('resolveRequireApproval', () => {
     expect(
       resolveRequireApproval({ requireApproval: 'inherit', trustedSegmentIds: [] }, undefined)
     ).toBe('none')
+  })
+})
+
+// ----------------------------------------------------------------------
+// canCreateComment
+// ----------------------------------------------------------------------
+
+describe('canCreateComment — board access gate', () => {
+  const publishedPost = {
+    moderationState: 'published' as ModerationState,
+    principalId: 'p_other' as PrincipalId,
+    isCommentsLocked: false,
+  }
+
+  it('portal user CANNOT comment on a post in a team-audience board', () => {
+    expect(canCreateComment(portal, publishedPost, teamBoard).allowed).toBe(false)
+  })
+
+  it('portal user CANNOT comment in a segments board they are not in', () => {
+    expect(canCreateComment(portal, publishedPost, segBoard).allowed).toBe(false)
+  })
+
+  it('segment-member CAN comment in their segments board', () => {
+    expect(canCreateComment(trustedPortal, publishedPost, segBoard).allowed).toBe(true)
+  })
+
+  it('anonymous user CANNOT comment in an authenticated-audience board', () => {
+    expect(canCreateComment(anon, publishedPost, authBoard).allowed).toBe(false)
+  })
+
+  it('portal user CAN comment on a published post in a public board', () => {
+    expect(canCreateComment(portal, publishedPost, publicBoard).allowed).toBe(true)
+  })
+})
+
+describe('canCreateComment — post visibility gate', () => {
+  it("portal user CANNOT comment on another user's pending post", () => {
+    const pendingPost = {
+      moderationState: 'pending' as ModerationState,
+      principalId: 'p_other' as PrincipalId,
+      isCommentsLocked: false,
+    }
+    expect(canCreateComment(portal, pendingPost, publicBoard).allowed).toBe(false)
+  })
+
+  it('portal user CAN comment on their own pending post', () => {
+    const ownPendingPost = {
+      moderationState: 'pending' as ModerationState,
+      principalId: portal.principalId,
+      isCommentsLocked: false,
+    }
+    expect(canCreateComment(portal, ownPendingPost, publicBoard).allowed).toBe(true)
+  })
+
+  it('team member CAN comment on any non-deleted post (including pending)', () => {
+    const pendingPost = {
+      moderationState: 'pending' as ModerationState,
+      principalId: 'p_other' as PrincipalId,
+      isCommentsLocked: false,
+    }
+    expect(canCreateComment(admin, pendingPost, publicBoard).allowed).toBe(true)
+    expect(canCreateComment(member, pendingPost, publicBoard).allowed).toBe(true)
+  })
+})
+
+describe('canCreateComment — isCommentsLocked gate', () => {
+  const lockedPost = {
+    moderationState: 'published' as ModerationState,
+    principalId: 'p_other' as PrincipalId,
+    isCommentsLocked: true,
+  }
+
+  it('portal user CANNOT comment when isCommentsLocked=true', () => {
+    const decision = canCreateComment(portal, lockedPost, publicBoard)
+    expect(decision.allowed).toBe(false)
+    if (!decision.allowed) expect(decision.reason).toMatch(/locked/i)
+  })
+
+  it('anonymous user CANNOT comment when isCommentsLocked=true', () => {
+    expect(canCreateComment(anon, lockedPost, publicBoard).allowed).toBe(false)
+  })
+
+  it('admin CAN comment even when isCommentsLocked=true', () => {
+    expect(canCreateComment(admin, lockedPost, publicBoard).allowed).toBe(true)
+  })
+
+  it('member CAN comment even when isCommentsLocked=true', () => {
+    expect(canCreateComment(member, lockedPost, publicBoard).allowed).toBe(true)
   })
 })

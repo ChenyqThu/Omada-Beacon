@@ -24,6 +24,8 @@ import { commentMarkdownToTiptapJson } from '@/lib/server/markdown-tiptap'
 import { sanitizeTiptapContent } from '@/lib/server/sanitize-tiptap'
 import type { TiptapContent } from '@/lib/shared/db-types'
 import type { CreateCommentInput, CreateCommentResult, UpdateCommentInput } from './comment.types'
+import { canCreateComment } from '@/lib/server/policy/posts'
+import type { Actor } from '@/lib/server/policy/types'
 
 /**
  * Resolve the TipTap doc to store. UI clients send `contentJson` directly
@@ -54,6 +56,7 @@ export async function createComment(
     displayName?: string
     role: 'admin' | 'member' | 'user'
   },
+  actor: Actor,
   options?: { skipDispatch?: boolean }
 ): Promise<CreateCommentResult> {
   console.log(
@@ -69,9 +72,18 @@ export async function createComment(
   }
   const board = post.board
 
-  // Check if comments are locked (portal users blocked, team members bypass)
-  if (post.isCommentsLocked && author.role === 'user') {
-    throw new ForbiddenError('COMMENTS_LOCKED', 'Comments are locked on this post')
+  // Enforce access-control policy: board audience + post visibility + comments-locked.
+  const decision = canCreateComment(
+    actor,
+    {
+      moderationState: post.moderationState,
+      principalId: post.principalId,
+      isCommentsLocked: post.isCommentsLocked,
+    },
+    { audience: board.audience, moderation: board.moderation ?? undefined }
+  )
+  if (!decision.allowed) {
+    throw new ForbiddenError('FORBIDDEN', decision.reason)
   }
 
   // Validate parent comment exists if specified

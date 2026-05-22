@@ -5,7 +5,8 @@
  * TipTap doc instead of parsing markdown on every render.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CommentId, PostId, PrincipalId } from '@quackback/ids'
+import type { CommentId, PostId, PrincipalId, SegmentId } from '@quackback/ids'
+import type { Actor } from '@/lib/server/policy/types'
 
 const insertedComments: Record<string, unknown>[] = []
 const insertedEditHistory: Record<string, unknown>[] = []
@@ -67,7 +68,14 @@ vi.mock('@/lib/server/db', async () => {
             boardId: 'board_b',
             statusId: 'status_open',
             isCommentsLocked: false,
-            board: { id: 'board_b', slug: 'b' },
+            moderationState: 'published',
+            principalId: null,
+            board: {
+              id: 'board_b',
+              slug: 'b',
+              audience: { kind: 'public' },
+              moderation: { requireApproval: 'none', trustedSegmentIds: [] },
+            },
           }),
         },
         comments: {
@@ -116,6 +124,13 @@ vi.mock('@/lib/server/events/dispatch', () => ({
   buildEventActor: vi.fn(() => ({})),
 }))
 
+const portalActor: Actor = {
+  principalId: 'principal_a' as unknown as PrincipalId,
+  role: 'user',
+  principalType: 'user',
+  segmentIds: new Set<SegmentId>(),
+}
+
 describe('createComment contentJson dual-write', () => {
   beforeEach(() => {
     insertedComments.length = 0
@@ -128,6 +143,7 @@ describe('createComment contentJson dual-write', () => {
     await createComment(
       { postId: 'post_p' as unknown as PostId, content: '**bold** body' },
       { principalId: 'principal_a' as unknown as PrincipalId, role: 'user' },
+      portalActor,
       { skipDispatch: true }
     )
     expect(insertedComments[0]).toMatchObject({ content: '**bold** body' })
@@ -153,6 +169,7 @@ describe('createComment contentJson dual-write', () => {
         contentJson: providedJson,
       },
       { principalId: 'principal_a' as unknown as PrincipalId, role: 'user' },
+      portalActor,
       { skipDispatch: true }
     )
     expect(insertedComments[0].contentJson).toEqual(providedJson)

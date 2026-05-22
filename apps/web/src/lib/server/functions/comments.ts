@@ -9,6 +9,7 @@ import { isTeamMember } from '@/lib/shared/roles'
 import { createActivity } from '@/lib/server/domains/activity/activity.service'
 
 import { createComment } from '@/lib/server/domains/comments/comment.service'
+import { policyActorFromAuth } from './auth-helpers'
 import { addReaction, removeReaction } from '@/lib/server/domains/comments/comment.reactions'
 import {
   canDeleteComment,
@@ -85,6 +86,8 @@ export const createCommentFn = createServerFn({ method: 'POST' })
         }
       }
 
+      const actor = await policyActorFromAuth(auth)
+
       const result = await createComment(
         {
           postId: data.postId as PostId,
@@ -102,7 +105,8 @@ export const createCommentFn = createServerFn({ method: 'POST' })
           name: auth.user.name,
           email: auth.user.email,
           role: auth.principal.role,
-        }
+        },
+        actor
       )
 
       // Events are dispatched by the service layer

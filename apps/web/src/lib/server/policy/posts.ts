@@ -80,6 +80,26 @@ export function postViewFilter(actor: Actor): SQL {
   return and(boardViewFilter(actor), or(eq(posts.moderationState, 'published'), ownPending))!
 }
 
+/**
+ * Whether the requesting actor can post a comment on a post.
+ *
+ * Rules (applied in order):
+ * 1. The actor must be able to view the post (board audience + moderation state).
+ * 2. If comments are locked, only team members may bypass.
+ */
+export function canCreateComment(
+  actor: Actor,
+  post: PostShape & { isCommentsLocked: boolean },
+  board: BoardShape
+): Decision {
+  const view = canViewPost(actor, post, board)
+  if (!view.allowed) return view
+  if (post.isCommentsLocked && !isTeam(actor)) {
+    return denyDecision('Comments are locked on this post')
+  }
+  return allowDecision()
+}
+
 export type CreateDecision =
   | { allowed: true; requiresApproval: boolean }
   | { allowed: false; reason: string }

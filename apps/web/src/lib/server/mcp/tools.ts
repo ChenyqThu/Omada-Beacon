@@ -1034,6 +1034,15 @@ Examples:
       const denied = requireScope(auth, 'write:feedback')
       if (denied) return denied
       try {
+        // MCP auth is admin/member-scoped; build a team-shaped actor so the
+        // policy gate inside createComment reflects who is doing the write.
+        const callerSegmentIds = await segmentIdsForPrincipal(auth.principalId)
+        const mcpCommentActor = {
+          principalId: auth.principalId,
+          role: auth.role,
+          principalType: 'user' as const,
+          segmentIds: callerSegmentIds,
+        }
         const result = await createComment(
           {
             postId: args.postId as PostId,
@@ -1048,7 +1057,8 @@ Examples:
             email: auth.email,
             displayName: auth.name,
             role: auth.role,
-          }
+          },
+          mcpCommentActor
         )
 
         return jsonResult({

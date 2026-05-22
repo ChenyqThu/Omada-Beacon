@@ -133,6 +133,19 @@ export const Route = createFileRoute('/api/v1/posts/$postId/comments')({
               ? new Date(parsed.data.createdAt)
               : undefined
 
+          // Build the policy actor from the API-key holder (the caller).
+          // On override, the author differs from the caller — policy reflects
+          // who is performing the write, not who is attributed.
+          const { segmentIdsForPrincipal } =
+            await import('@/lib/server/domains/segments/segment-membership.service')
+          const callerSegmentIds = await segmentIdsForPrincipal(auth.principalId)
+          const callerActor = {
+            principalId: auth.principalId,
+            role: auth.role as import('@/lib/server/policy/types').Role,
+            principalType: 'user' as const,
+            segmentIds: callerSegmentIds,
+          }
+
           const result = await createComment(
             {
               postId,
@@ -152,6 +165,7 @@ export const Route = createFileRoute('/api/v1/posts/$postId/comments')({
               email: principalRecord.user?.email ?? undefined,
               role: principalRecord.role as Role,
             },
+            callerActor,
             { skipDispatch: auth.importMode }
           )
 
