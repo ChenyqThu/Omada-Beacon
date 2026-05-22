@@ -297,8 +297,7 @@ const updateBoardAccessSchema = z.object({
  * Update board.audience.
  *
  * isAdmin-gated — granting/revoking access is policy-level work. Members can
- * moderate posts (approve/reject) but not change who sees the board. Mirrors
- * the Canny/Featurebase/Linear split.
+ * moderate posts (approve/reject) but not change who sees the board.
  */
 export const updateBoardAccessFn = createServerFn({ method: 'POST' })
   .inputValidator(updateBoardAccessSchema.parse)
