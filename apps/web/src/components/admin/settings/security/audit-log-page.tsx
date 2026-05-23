@@ -67,6 +67,19 @@ const FILTER_EVENT_TYPES: FilterEventOption[] = [
   { group: 'Portal', label: 'Invite sent', value: 'portal.invite.sent' },
   { group: 'Portal', label: 'Visibility changed', value: 'portal.visibility.changed' },
   { group: 'Portal', label: 'Widget sign-in changed', value: 'portal.widget_signin.changed' },
+  // Widget activity — separated because handshake events are high-volume on active workspaces.
+  // portal.widget_handshake.consumed is flagged excludeByDefault for future multi-select support.
+  {
+    group: 'Widget activity',
+    label: 'Handshake consumed',
+    value: 'portal.widget_handshake.consumed',
+    excludeByDefault: true,
+  },
+  {
+    group: 'Widget activity',
+    label: 'Handshake invalid',
+    value: 'portal.widget_handshake.invalid',
+  },
 ]
 
 const TIME_RANGES = [
@@ -257,6 +270,12 @@ export function AuditLogPage() {
                   <SelectLabel className="text-xs font-semibold text-muted-foreground px-2 py-1">
                     {group}
                   </SelectLabel>
+                  {group === 'Widget activity' && (
+                    <p className="px-2 pb-1 text-[10px] text-muted-foreground leading-snug">
+                      Widget access events are high-volume on active workspaces and are hidden by
+                      default.
+                    </p>
+                  )}
                   {FILTER_EVENT_TYPES.filter((o) => o.group === group).map((opt) => (
                     <SelectItem key={opt.value} value={opt.value} className="text-xs">
                       {opt.label}
