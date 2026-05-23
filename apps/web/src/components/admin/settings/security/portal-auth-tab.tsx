@@ -81,7 +81,7 @@ const VISIBILITY_OPTIONS: VisibilityOption[] = [
   {
     value: 'private',
     label: 'Private',
-    description: 'Visitors must be authorized to view the portal.',
+    description: 'Only your team and the groups you authorize below.',
     icon: LockClosedIcon,
   },
 ]
@@ -326,7 +326,7 @@ export function PortalAuthTab({
       {/* Portal visibility — radio + (when private) allowed-domains editor */}
       <SettingsCard
         title="Portal visibility"
-        description="Choose whether your portal is open to anyone or restricted to authorized visitors."
+        description="Choose who can view your portal. A private portal is limited to your team plus the people you authorize below."
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {VISIBILITY_OPTIONS.map((option) => {
@@ -364,13 +364,24 @@ export function PortalAuthTab({
           })}
         </div>
 
+        {/* Banner: makes the access model explicit so each sub-section below
+            reads as "additional grants on top of team", not "the only way in". */}
+        {visibility === 'private' && (
+          <div className="mt-6 rounded-md border border-border/40 bg-muted/30 p-3 text-xs text-muted-foreground">
+            <p>
+              <span className="font-medium text-foreground">Your team always has access.</span> Use
+              the groups below to authorize additional visitors.
+            </p>
+          </div>
+        )}
+
         {/* Allowed email domains — only meaningful when the portal is private */}
         {visibility === 'private' && (
           <div className="mt-6 border-t border-border/50 pt-6 space-y-4">
             <div>
               <p className="text-sm font-medium">Allowed email domains</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Users with a verified email on these domains can access the private portal. Users
+                Anyone signed in with a verified email on these domains can view the portal. Users
                 verify their address by clicking the link in the verification email we send on
                 sign-up.
               </p>
@@ -434,7 +445,8 @@ export function PortalAuthTab({
               </ul>
             ) : (
               <p className="text-xs text-muted-foreground">
-                No domains added yet. Anyone signed in must be a team member to access the portal.
+                No domains added — add one to grant access to everyone with a verified address at
+                that domain.
               </p>
             )}
 
@@ -447,8 +459,8 @@ export function PortalAuthTab({
                 <div>
                   <h4 className="text-sm font-medium">Allowed segments</h4>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Members of these segments can access the private portal. Segments are defined on
-                    the People page.
+                    Members of these segments can view the portal. Segments are defined on the
+                    People page.
                   </p>
                 </div>
 
