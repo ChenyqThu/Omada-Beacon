@@ -29,6 +29,9 @@ vi.mock('@tanstack/react-start', () => ({
     }
     return chain
   },
+  // resolvePortalAccessForRequest is wrapped in createServerOnlyFn — the
+  // mock just returns the inner function so the module loads.
+  createServerOnlyFn: <T>(fn: T) => fn,
 }))
 
 // ---------------------------------------------------------------------------

@@ -6,13 +6,25 @@
  *
  * Flow:
  *   1. Widget "Go to portal" CTA → opens `{origin}/auth/widget-handoff?ott=<token>`.
- *   2. Loader reads the OTT from the search param.
- *   3. Server-side OTT verify via a POST to BA's /api/auth/one-time-token/verify.
- *      The verify response carries Set-Cookie; we forward it to the user's browser.
+ *   2. Loader extracts the OTT from the search param.
+ *   3. Loader calls `consumeWidgetHandoffFn` (a server fn) which does the
+ *      server-side OTT verify via a POST to BA's /api/auth/one-time-token/verify.
+ *      The verify response carries Set-Cookie; the server fn forwards it to
+ *      the user's browser via `setResponseHeader`.
  *   4. On success: insert into widget_origin_session, record the consumed audit
- *      event, redirect to / (or a validated returnTo).
- *   5. On invalid / expired / replayed OTT: render an error page, record the
- *      invalid audit event.
+ *      event, return a redirect target. The loader then throws redirect().
+ *   5. On invalid / expired / replayed OTT: record the invalid audit event,
+ *      return an error status. The loader returns it and the error component
+ *      renders.
+ *
+ * Why the server fn wrapper?
+ *   The actual OTT consumption logic needs `setResponseHeader` and
+ *   `getRequestHeaders` from `@tanstack/react-start/server`. Vite's
+ *   import-protection plugin denies that specifier in client-bundled code,
+ *   and route files end up in the client bundle via `routeTree.gen.ts`.
+ *   Wrapping the logic in a `createServerFn` confines the server-only
+ *   imports to the server bundle — same pattern used by `widget.tsx`'s
+ *   `setIframeHeaders`.
  *
  * Security properties:
  *   - The OTT is consumed (deleted from the verification table) on the first
@@ -24,6 +36,8 @@
  *     widget sessions (HMAC not required) never reach the portal via this path.
  */
 import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createServerFn } from '@tanstack/react-start'
+import { getRequestHeaders, setResponseHeader } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { isSafeCallbackUrl } from '@/lib/shared/routing'
 import type { UserId } from '@quackback/ids'
@@ -44,23 +58,33 @@ const searchSchema = z.object({
 type LoaderData = { status: 'invalid' | 'expired' | 'error' }
 
 // ---------------------------------------------------------------------------
-// Route
+// Server fn: server-side OTT consumption
 // ---------------------------------------------------------------------------
 
-export const Route = createFileRoute('/auth/widget-handoff')({
-  validateSearch: searchSchema.parse,
-  loader: async ({ location }): Promise<LoaderData> => {
-    const { setResponseHeader, getRequestHeaders } = await import('@tanstack/react-start/server')
+type HandoffResult =
+  | { kind: 'redirect'; to: string }
+  | { kind: 'error'; status: 'invalid' | 'expired' | 'error' }
+
+/**
+ * Verify the OTT against BA, forward Set-Cookie to the browser, insert the
+ * widget_origin_session marker, and record the audit event. Returns a
+ * discriminated union so the route loader can decide whether to throw
+ * `redirect()` or return the error data.
+ *
+ * Runs in the same h3 request scope as the route loader when called
+ * server-side, so `setResponseHeader('Set-Cookie', ...)` here applies to
+ * the OUTER request's response — the redirect carries the session cookie.
+ */
+const consumeWidgetHandoffFn = createServerFn({ method: 'POST' })
+  .inputValidator(searchSchema)
+  .handler(async ({ data }): Promise<HandoffResult> => {
     const { config } = await import('@/lib/server/config')
     const { db, widgetOriginSession } = await import('@/lib/server/db')
     const { recordAuditEvent } = await import('@/lib/server/audit/log')
 
-    const params = new URLSearchParams(location.search)
-    const ott = params.get('ott')
-    const returnToRaw = params.get('returnTo')
-    const returnTo = isSafeCallbackUrl(returnToRaw) ? returnToRaw : '/'
+    const returnTo = isSafeCallbackUrl(data.returnTo) ? (data.returnTo as string) : '/'
 
-    if (!ott) {
+    if (!data.ott) {
       // No token at all — invalid request.
       await recordAuditEvent({
         event: 'portal.widget_handshake.invalid',
@@ -68,7 +92,7 @@ export const Route = createFileRoute('/auth/widget-handoff')({
         actor: {},
         metadata: { reason: 'missing_ott' },
       })
-      return { status: 'invalid' }
+      return { kind: 'error', status: 'invalid' }
     }
 
     // Server-side OTT verify: POST to BA's verify endpoint.
@@ -88,7 +112,7 @@ export const Route = createFileRoute('/auth/widget-handoff')({
             ? { cookie: getRequestHeaders().get('cookie')! }
             : {}),
         },
-        body: JSON.stringify({ token: ott }),
+        body: JSON.stringify({ token: data.ott }),
       })
     } catch (err) {
       console.error('[route:widget-handoff] fetch to OTT verify failed:', err)
@@ -98,7 +122,7 @@ export const Route = createFileRoute('/auth/widget-handoff')({
         actor: {},
         metadata: { reason: 'fetch_error' },
       })
-      return { status: 'error' }
+      return { kind: 'error', status: 'error' }
     }
 
     if (!verifyResponse.ok) {
@@ -110,7 +134,7 @@ export const Route = createFileRoute('/auth/widget-handoff')({
         metadata: { reason: `ba_status_${verifyResponse.status}` },
       })
       const status = verifyResponse.status === 400 ? 'invalid' : 'error'
-      return { status }
+      return { kind: 'error', status }
     }
 
     // Forward all Set-Cookie headers from the BA response to the user's browser.
@@ -168,7 +192,27 @@ export const Route = createFileRoute('/auth/widget-handoff')({
       target: sessionId ? { type: 'session', id: sessionId } : undefined,
     })
 
-    throw redirect({ to: returnTo })
+    return { kind: 'redirect', to: returnTo }
+  })
+
+// ---------------------------------------------------------------------------
+// Route
+// ---------------------------------------------------------------------------
+
+export const Route = createFileRoute('/auth/widget-handoff')({
+  validateSearch: searchSchema.parse,
+  loader: async ({ location }): Promise<LoaderData> => {
+    // The search schema is shared between validateSearch and the server fn's
+    // inputValidator, so location.search is shape-compatible with the fn's
+    // expected input.
+    const search = location.search as z.infer<typeof searchSchema>
+    const result = await consumeWidgetHandoffFn({
+      data: { ott: search.ott, returnTo: search.returnTo },
+    })
+    if (result.kind === 'redirect') {
+      throw redirect({ to: result.to })
+    }
+    return { status: result.status }
   },
   component: WidgetHandoffErrorPage,
 })
