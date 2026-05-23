@@ -323,11 +323,10 @@ export function PortalAuthTab({
 
   return (
     <div className="space-y-6">
-      {/* Portal visibility — radio + (when private) allowed-domains editor */}
-      <SettingsCard
-        title="Portal visibility"
-        description="Choose who can view your portal. A private portal is limited to your team plus the people you authorize below."
-      >
+      {/* Portal visibility — sole purpose is the public/private switch. The
+          four authorization channels each get their own SettingsCard below
+          (only when Private) so each one stands on its own. */}
+      <SettingsCard title="Portal visibility" description="Choose who can view your portal.">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {VISIBILITY_OPTIONS.map((option) => {
             const isSelected = visibility === option.value
@@ -364,167 +363,157 @@ export function PortalAuthTab({
           })}
         </div>
 
-        {/* Banner: makes the access model explicit so each sub-section below
-            reads as "additional grants on top of team", not "the only way in". */}
+        {/* Lives inside the visibility card, directly under the toggles, so
+            the team-always-has-access reassurance appears at the exact moment
+            an admin picks Private — not as a floating note between cards. */}
         {visibility === 'private' && (
-          <div className="mt-6 rounded-md border border-border/40 bg-muted/30 p-3 text-xs text-muted-foreground">
-            <p>
-              <span className="font-medium text-foreground">Your team always has access.</span> Use
-              the groups below to authorize additional visitors.
-            </p>
-          </div>
-        )}
-
-        {/* Allowed email domains — only meaningful when the portal is private */}
-        {visibility === 'private' && (
-          <div className="mt-6 border-t border-border/50 pt-6 space-y-4">
-            <div>
-              <p className="text-sm font-medium">Allowed email domains</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Anyone signed in with a verified email on these domains can view the portal. Users
-                verify their address by clicking the link in the verification email we send on
-                sign-up.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Input
-                  value={domainInput}
-                  onChange={(e) => {
-                    setDomainInput(e.target.value)
-                    if (domainInputError) setDomainInputError(null)
-                  }}
-                  onKeyDown={handleDomainKeyDown}
-                  placeholder="acme.com"
-                  disabled={isAccessBusy}
-                  aria-label="Add email domain"
-                  aria-invalid={!!domainInputError}
-                  className={cn(domainInputError && 'border-destructive')}
-                />
-                {domainInputError && (
-                  <p className="mt-1 text-xs text-destructive">{domainInputError}</p>
-                )}
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleAddDomain}
-                disabled={!domainInput.trim() || isAccessBusy}
-                className="h-9 shrink-0"
-              >
-                <PlusIcon className="mr-1 h-3.5 w-3.5" />
-                Add
-              </Button>
-              {accessBusy && (
-                <div className="flex items-center">
-                  <ArrowPathIcon className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                </div>
-              )}
-            </div>
-
-            {allowedDomains.length > 0 ? (
-              <ul className="space-y-1.5" role="list" aria-label="Allowed domains">
-                {allowedDomains.map((domain) => (
-                  <li
-                    key={domain}
-                    className="flex items-center justify-between rounded-md border border-border/50 bg-muted/30 px-3 py-1.5"
-                  >
-                    <span className="text-sm font-mono">{domain}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveDomain(domain)}
-                      disabled={isAccessBusy}
-                      className="ml-2 rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-40 transition-colors"
-                      aria-label={`Remove ${domain}`}
-                    >
-                      <XMarkIcon className="h-3.5 w-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                No domains added — add one to grant access to everyone with a verified address at
-                that domain.
-              </p>
-            )}
-
-            {/* Email invites — below domains, same private-only block */}
-            <PortalInvitesSection />
-
-            {/* Allowed segments — below invites, same private-only block */}
-            <div className="mt-6 border-t border-border/50 pt-6">
-              <div className="space-y-3">
-                <div>
-                  <h4 className="text-sm font-medium">Allowed segments</h4>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Members of these segments can view the portal. Segments are defined on the
-                    People page.
-                  </p>
-                </div>
-
-                {segmentsQuery.isLoading ? (
-                  <p className="text-xs text-muted-foreground">Loading segments…</p>
-                ) : segmentsQuery.isError ? (
-                  <p className="text-xs text-destructive">
-                    Could not load segments. Reload the page to try again.
-                  </p>
-                ) : (segmentsQuery.data ?? []).length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    No segments defined yet. Create segments on the People page.
-                  </p>
-                ) : (
-                  <>
-                    <SegmentMultiSelect
-                      segments={segmentsQuery.data ?? []}
-                      value={allowedSegmentIds}
-                      onChange={(next) => {
-                        void applyAccess(
-                          visibilityRef.current,
-                          allowedDomainsRef.current,
-                          widgetSignInRef.current,
-                          next
-                        )
-                      }}
-                      disabled={isAccessBusy}
-                    />
-                    {allowedSegmentIds.length > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        Members of {allowedSegmentIds.length} selected segment
-                        {allowedSegmentIds.length === 1 ? '' : 's'} can access this portal.
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Widget sign-in — below segments, same private-only block */}
-            <div className="mt-6 border-t border-border/50 pt-6 space-y-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium">Widget sign-in</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Allow users authenticated through the widget (in verified-identity mode) to
-                    access this portal. They&apos;ll see a &ldquo;Go to portal&rdquo; link in the
-                    widget.
-                  </p>
-                </div>
-                <Switch
-                  id="widget-signin-toggle"
-                  checked={widgetSignIn}
-                  onCheckedChange={(checked) => {
-                    void applyAccess(visibilityRef.current, allowedDomainsRef.current, checked)
-                  }}
-                  disabled={isAccessBusy}
-                  aria-label="Allow widget-authenticated users to access the portal"
-                />
-              </div>
-            </div>
-          </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Your team always has access.</span> Use
+            the cards below to authorize additional visitors.
+          </p>
         )}
       </SettingsCard>
+
+      {/* The authorization channels — each a peer card of Portal visibility,
+          only shown when Private is selected. Public mode collapses all four
+          since they only ever affect non-team visitors on a private portal. */}
+      {visibility === 'private' && (
+        <>
+          <SettingsCard
+            title="Allowed email domains"
+            description="Anyone signed in with a verified email on these domains can view the portal. Users verify their address by clicking the link in the verification email we send on sign-up."
+          >
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input
+                    value={domainInput}
+                    onChange={(e) => {
+                      setDomainInput(e.target.value)
+                      if (domainInputError) setDomainInputError(null)
+                    }}
+                    onKeyDown={handleDomainKeyDown}
+                    placeholder="acme.com"
+                    disabled={isAccessBusy}
+                    aria-label="Add email domain"
+                    aria-invalid={!!domainInputError}
+                    className={cn(domainInputError && 'border-destructive')}
+                  />
+                  {domainInputError && (
+                    <p className="mt-1 text-xs text-destructive">{domainInputError}</p>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddDomain}
+                  disabled={!domainInput.trim() || isAccessBusy}
+                  className="h-9 shrink-0"
+                >
+                  <PlusIcon className="mr-1 h-3.5 w-3.5" />
+                  Add
+                </Button>
+                {accessBusy && (
+                  <div className="flex items-center">
+                    <ArrowPathIcon className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+
+              {allowedDomains.length > 0 ? (
+                <ul className="space-y-1.5" role="list" aria-label="Allowed domains">
+                  {allowedDomains.map((domain) => (
+                    <li
+                      key={domain}
+                      className="flex items-center justify-between rounded-md border border-border/50 bg-muted/30 px-3 py-1.5"
+                    >
+                      <span className="text-sm font-mono">{domain}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveDomain(domain)}
+                        disabled={isAccessBusy}
+                        className="ml-2 rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-40 transition-colors"
+                        aria-label={`Remove ${domain}`}
+                      >
+                        <XMarkIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No domains added — add one to grant access to everyone with a verified address at
+                  that domain.
+                </p>
+              )}
+            </div>
+          </SettingsCard>
+
+          <PortalInvitesSection />
+
+          <SettingsCard
+            title="Allowed segments"
+            description="Members of these segments can view the portal. Segments are defined on the People page."
+          >
+            {segmentsQuery.isLoading ? (
+              <p className="text-xs text-muted-foreground">Loading segments…</p>
+            ) : segmentsQuery.isError ? (
+              <p className="text-xs text-destructive">
+                Could not load segments. Reload the page to try again.
+              </p>
+            ) : (segmentsQuery.data ?? []).length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No segments defined yet. Create segments on the People page.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <SegmentMultiSelect
+                  segments={segmentsQuery.data ?? []}
+                  value={allowedSegmentIds}
+                  onChange={(next) => {
+                    void applyAccess(
+                      visibilityRef.current,
+                      allowedDomainsRef.current,
+                      widgetSignInRef.current,
+                      next
+                    )
+                  }}
+                  disabled={isAccessBusy}
+                />
+                {allowedSegmentIds.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Members of {allowedSegmentIds.length} selected segment
+                    {allowedSegmentIds.length === 1 ? '' : 's'} can access this portal.
+                  </p>
+                )}
+              </div>
+            )}
+          </SettingsCard>
+
+          <SettingsCard
+            title="Widget sign-in"
+            description="Allow users authenticated through the widget (in verified-identity mode) to view this portal."
+            action={
+              <Switch
+                id="widget-signin-toggle"
+                checked={widgetSignIn}
+                onCheckedChange={(checked) => {
+                  void applyAccess(visibilityRef.current, allowedDomainsRef.current, checked)
+                }}
+                disabled={isAccessBusy}
+                aria-label="Allow widget-authenticated users to access the portal"
+              />
+            }
+          >
+            <p className="text-xs text-muted-foreground">
+              When enabled, widget users see a &ldquo;Go to portal&rdquo; link to continue in the
+              full portal — useful if you want a single source of truth across the widget and the
+              portal.
+            </p>
+          </SettingsCard>
+        </>
+      )}
 
       <PortalPrivacyDialog
         open={dialogOpen}
@@ -599,8 +588,7 @@ export function PortalAuthTab({
         <div className="px-6 py-4 border-b border-border/50">
           <h2 className="text-base font-semibold">Social sign-in</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Let visitors sign in with Google, GitHub, and more. Configure each provider once and
-            enable it for the Team or Portal.
+            Let visitors sign in with Google, GitHub, and more.
           </p>
         </div>
         <div className="p-6">
@@ -743,36 +731,31 @@ function PortalInvitesSection() {
   const totalCount = portal.invites.length
 
   return (
-    <div className="mt-6 border-t border-border/50 pt-6 space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium">Email invites</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Invite specific people by email. They&apos;ll get a magic link to sign in and access the
-            portal.
+    <SettingsCard
+      title="Email invites"
+      description="Invite specific people by email. They'll get a magic link to sign in and access the portal."
+      action={
+        <Button type="button" size="sm" variant="outline" onClick={portal.openDialog}>
+          <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
+          Invite people
+        </Button>
+      }
+    >
+      <div className="space-y-3">
+        <InviteSummary
+          loading={portal.isLoading}
+          totalCount={totalCount}
+          pendingCount={portal.pendingCount}
+          acceptedCount={portal.acceptedCount}
+        />
+
+        {/* Inline success summary after a send — modal closes, this fades. */}
+        {portal.lastSentSummary && (
+          <p className="text-xs text-emerald-700 dark:text-emerald-400" role="status">
+            {portal.lastSentSummary}
           </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button type="button" size="sm" variant="outline" onClick={portal.openDialog}>
-            <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
-            Invite people
-          </Button>
-        </div>
+        )}
       </div>
-
-      <InviteSummary
-        loading={portal.isLoading}
-        totalCount={totalCount}
-        pendingCount={portal.pendingCount}
-        acceptedCount={portal.acceptedCount}
-      />
-
-      {/* Inline success summary after a send — modal closes, this fades. */}
-      {portal.lastSentSummary && (
-        <p className="text-xs text-emerald-700 dark:text-emerald-400" role="status">
-          {portal.lastSentSummary}
-        </p>
-      )}
 
       <InvitePeopleDialog
         open={portal.dialogOpen}
@@ -786,7 +769,7 @@ function PortalInvitesSection() {
         onMessageChange={portal.onMessageChange}
         onSend={portal.onSend}
       />
-    </div>
+    </SettingsCard>
   )
 }
 
