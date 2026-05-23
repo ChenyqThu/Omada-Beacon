@@ -2,10 +2,12 @@
  * Server functions for portal email invites.
  *
  * Provides admin-only operations for sending, cancelling, resending, and
- * listing portal-access invitations. A portal invite lets an admin grant a
- * specific person access to a private portal without adding them to the team.
+ * listing portal-access invitations, plus the invitee-facing accept function.
+ * A portal invite lets an admin grant a specific person access to a private
+ * portal without adding them to the team.
  *
- * The accept flow (magic-link callback) lives in a separate route — Task 2.
+ * The accept flow (magic-link callback) calls acceptPortalInviteFn from the
+ * portal-invite.$inviteId route.
  */
 import { z } from 'zod'
 import { createServerFn } from '@tanstack/react-start'
@@ -17,6 +19,7 @@ import { requireAuth } from './auth-helpers'
 import { actorFromAuth, recordAuditEvent } from '@/lib/server/audit/log'
 import { getBaseUrl } from '@/lib/server/config'
 import { sendPortalInviteEmail } from '@quackback/email'
+import { getSession } from '@/lib/server/auth/session'
 
 /** Portal invite lifetime — 14 days. */
 const PORTAL_INVITE_EXPIRY_MS = 14 * 24 * 60 * 60 * 1000
@@ -309,3 +312,116 @@ export const fetchPortalInvitesFn = createServerFn({ method: 'GET' }).handler(as
     expiresAt: inv.expiresAt.toISOString(),
   }))
 })
+
+// ---------------------------------------------------------------------------
+// acceptPortalInviteFn
+// ---------------------------------------------------------------------------
+
+/**
+ * Discriminated result from acceptPortalInviteFn.
+ *
+ * The route renders a user-facing message for every non-accepted state;
+ * on `accepted` it redirects to `/` so the portal gate grants entry.
+ */
+export type AcceptPortalInviteResult =
+  | { status: 'accepted'; alreadyAccepted: boolean }
+  | { status: 'canceled' }
+  | { status: 'expired' }
+  | { status: 'mismatch' }
+
+/**
+ * Accept a portal-access invitation for the currently signed-in user.
+ *
+ * Requires an authenticated session (any role — the invitee just signed in
+ * via the magic-link and may not yet have a principal record).
+ *
+ * Validates the invite and returns a discriminated result:
+ *   - `accepted`  — invite was pending + email matched → status set to accepted.
+ *   - `accepted` (alreadyAccepted) — idempotent re-visit; no second audit event.
+ *   - `canceled`  — invite was revoked before the invitee clicked.
+ *   - `expired`   — invite's expiresAt is in the past.
+ *   - `mismatch`  — session email does not match the invite email (case-insensitive).
+ *
+ * Throws on missing session (unauthenticated) or invite not found.
+ */
+export const acceptPortalInviteFn = createServerFn({ method: 'POST' })
+  .inputValidator(portalInviteByIdSchema)
+  .handler(async ({ data }): Promise<AcceptPortalInviteResult> => {
+    const inviteId = data.inviteId as InviteId
+    const headers = getRequestHeaders()
+
+    console.log(`[fn:portal-invites] acceptPortalInviteFn: id=${inviteId}`)
+
+    // Portal invitees may not have a principal record yet — use getSession()
+    // directly instead of requireAuth() to avoid the principal existence check.
+    const session = await getSession()
+    if (!session?.user) {
+      throw new Error('Authentication required')
+    }
+
+    const sessionEmail = session.user.email?.toLowerCase()
+    if (!sessionEmail) {
+      throw new Error('Session has no email address')
+    }
+
+    const inv = await db.query.invitation.findFirst({
+      where: and(eq(invitation.id, inviteId), eq(invitation.kind, 'portal')),
+    })
+
+    if (!inv) {
+      throw new Error('PORTAL_INVITE_NOT_FOUND')
+    }
+
+    // Idempotent: already accepted — no second audit event.
+    if (inv.status === 'accepted') {
+      console.log(`[fn:portal-invites] acceptPortalInviteFn: already accepted`)
+      return { status: 'accepted', alreadyAccepted: true }
+    }
+
+    if (inv.status === 'canceled') {
+      console.log(`[fn:portal-invites] acceptPortalInviteFn: invite is canceled`)
+      return { status: 'canceled' }
+    }
+
+    if (new Date(inv.expiresAt) < new Date()) {
+      console.log(`[fn:portal-invites] acceptPortalInviteFn: invite is expired`)
+      return { status: 'expired' }
+    }
+
+    // Email mismatch — must be case-insensitive to prevent a signed-in-as-X
+    // user from accepting an invite meant for Y.
+    if (inv.email.toLowerCase() !== sessionEmail) {
+      console.warn(
+        `[fn:portal-invites] acceptPortalInviteFn: email mismatch invite=${inv.email} session=${sessionEmail}`
+      )
+      return { status: 'mismatch' }
+    }
+
+    // All checks passed — accept the invite.
+    await db
+      .update(invitation)
+      .set({ status: 'accepted' })
+      .where(and(eq(invitation.id, inviteId), eq(invitation.kind, 'portal')))
+
+    // Build a minimal actor from the session for the audit row.
+    const principalRecord = await db.query.principal.findFirst({
+      where: eq(principal.userId, session.user.id as UserId),
+      columns: { id: true, role: true, type: true },
+    })
+    const actor = {
+      userId: session.user.id as UserId,
+      email: session.user.email,
+      role: principalRecord?.role ?? 'user',
+    }
+
+    await recordAuditEvent({
+      event: 'portal.invite.accepted',
+      actor,
+      headers,
+      target: { type: 'invitation', id: inviteId },
+      after: { email: inv.email, kind: 'portal' },
+    })
+
+    console.log(`[fn:portal-invites] acceptPortalInviteFn: accepted id=${inviteId}`)
+    return { status: 'accepted', alreadyAccepted: false }
+  })
