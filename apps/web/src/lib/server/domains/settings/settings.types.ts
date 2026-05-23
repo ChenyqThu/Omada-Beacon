@@ -222,9 +222,9 @@ export const PORTAL_WELCOME_CARD_TITLE_MAX = 120
 /**
  * Portal-level access control settings.
  *
- * `allowedDomains` and `widgetSignIn` are server-only policy. They are
- * read by `evaluateMyPortalAccessFn` server-side and never serialized
- * into the router context or any client payload. The router context
+ * `allowedDomains`, `widgetSignIn`, and `allowedSegmentIds` are server-only
+ * policy. They are read by `evaluateMyPortalAccessFn` server-side and never
+ * serialized into the router context or any client payload. The router context
  * carries only `visibility` from this shape (redacted in `__root.tsx`).
  */
 export interface PortalAccessConfig {
@@ -233,6 +233,8 @@ export interface PortalAccessConfig {
   allowedDomains: string[]
   /** Whether widget-authenticated users may access a private portal. */
   widgetSignIn: boolean
+  /** Server-only policy. Segments whose members can access a private portal. */
+  allowedSegmentIds: string[]
 }
 
 /**
@@ -276,7 +278,7 @@ export const DEFAULT_PORTAL_CONFIG: PortalConfig = {
     body: { type: 'doc', content: [{ type: 'paragraph' }] },
   },
   moderationDefault: { requireApproval: 'none' },
-  access: { visibility: 'public', allowedDomains: [], widgetSignIn: false },
+  access: { visibility: 'public', allowedDomains: [], widgetSignIn: false, allowedSegmentIds: [] },
 }
 
 // =============================================================================

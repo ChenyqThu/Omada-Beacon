@@ -11,6 +11,7 @@ const ACCESS_POLICY = {
   visibility: 'private' as const,
   allowedDomains: ['acme.example', 'beta.example'],
   widgetSignIn: true,
+  allowedSegmentIds: [],
 }
 
 const FULL_PORTAL_CONFIG: PortalConfig = {
