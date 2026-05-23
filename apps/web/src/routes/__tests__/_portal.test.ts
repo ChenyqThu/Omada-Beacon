@@ -6,9 +6,9 @@
  * mock environment and verifying the audit logic via the extracted condition
  * that determines when to emit: authenticated + !accessResult.granted.
  *
- * Strategy: the route calls evaluateMyPortalAccessFn() and recordAuditEvent()
- * as module-scope imports. By mocking both via vi.mock before the module loads
- * we can spy on emit behavior.
+ * Strategy: the route calls evaluateMyPortalAccessFn() and
+ * recordPortalAccessDeniedFn() as module-scope imports. By mocking both via
+ * vi.mock before the module loads we can spy on emit behavior.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -17,18 +17,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // ---------------------------------------------------------------------------
 
 const mockEvaluateMyPortalAccessFn = vi.fn()
+const mockRecordPortalAccessDeniedFn = vi.fn()
 vi.mock('@/lib/server/functions/portal-access', () => ({
   evaluateMyPortalAccessFn: (...a: unknown[]) => mockEvaluateMyPortalAccessFn(...a),
-}))
-
-const mockRecordAuditEvent = vi.fn()
-vi.mock('@/lib/server/audit/log', () => ({
-  recordAuditEvent: (...a: unknown[]) => mockRecordAuditEvent(...a),
-}))
-
-const mockGetRequestHeaders = vi.fn(() => new Headers())
-vi.mock('@tanstack/react-start/server', () => ({
-  getRequestHeaders: () => mockGetRequestHeaders(),
+  recordPortalAccessDeniedFn: (...a: unknown[]) => mockRecordPortalAccessDeniedFn(...a),
 }))
 
 // Stub enough of the portal route's other dependencies to avoid import errors
@@ -44,6 +36,22 @@ vi.mock('@/lib/shared/i18n', () => ({ resolveLocale: vi.fn(async () => 'en') }))
 vi.mock('@/lib/shared/types/settings', () => ({ DEFAULT_PORTAL_CONFIG: { oauth: {}, access: {} } }))
 vi.mock('@/lib/shared/types/portal-gate-error', () => ({
   parseGateError: vi.fn(() => null),
+}))
+vi.mock('@tanstack/react-start', () => ({
+  createServerFn: () => {
+    const chain = {
+      inputValidator() {
+        return chain
+      },
+      handler(fn: unknown) {
+        return fn
+      },
+    }
+    return chain
+  },
+}))
+vi.mock('@tanstack/react-start/server', () => ({
+  getRequestHeaders: () => new Headers(),
 }))
 
 // ---------------------------------------------------------------------------
@@ -113,7 +121,7 @@ function getBeforeLoad() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockRecordAuditEvent.mockResolvedValue(undefined)
+  mockRecordPortalAccessDeniedFn.mockResolvedValue(undefined)
 })
 
 async function runBeforeLoad(context: ReturnType<typeof makeContext>) {
@@ -125,7 +133,7 @@ async function runBeforeLoad(context: ReturnType<typeof makeContext>) {
 // ---------------------------------------------------------------------------
 
 describe('_portal beforeLoad — portal.access.denied audit', () => {
-  it('emits portal.access.denied for an authenticated unauthorized visitor', async () => {
+  it('calls recordPortalAccessDeniedFn for an authenticated unauthorized visitor', async () => {
     mockEvaluateMyPortalAccessFn.mockResolvedValueOnce({ granted: false, reason: 'unauthorized' })
 
     const context = makeContext({ id: 'user_1', email: 'x@y.com', principalType: 'user' })
@@ -136,18 +144,14 @@ describe('_portal beforeLoad — portal.access.denied audit', () => {
     }
 
     // Wait for the fire-and-forget void promise to settle
-    await vi.waitFor(() => expect(mockRecordAuditEvent).toHaveBeenCalled())
+    await vi.waitFor(() => expect(mockRecordPortalAccessDeniedFn).toHaveBeenCalled())
 
-    expect(mockRecordAuditEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        event: 'portal.access.denied',
-        outcome: 'failure',
-        metadata: expect.objectContaining({ reason: 'unauthorized' }),
-      })
+    expect(mockRecordPortalAccessDeniedFn).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { reason: 'unauthorized' } })
     )
   })
 
-  it('does NOT emit portal.access.denied for an anonymous visitor', async () => {
+  it('does NOT call recordPortalAccessDeniedFn for an anonymous visitor', async () => {
     mockEvaluateMyPortalAccessFn.mockResolvedValueOnce({
       granted: false,
       reason: 'unauthenticated',
@@ -160,24 +164,20 @@ describe('_portal beforeLoad — portal.access.denied audit', () => {
       // expected
     }
 
-    await vi.waitFor(() =>
-      expect(
-        mockRecordAuditEvent.mock.calls.filter((c) => c[0]?.event === 'portal.access.denied')
-      ).toHaveLength(0)
-    )
+    // Allow any microtasks to flush
+    await new Promise((r) => setTimeout(r, 0))
+    expect(mockRecordPortalAccessDeniedFn).not.toHaveBeenCalled()
   })
 
-  it('does NOT emit portal.access.denied when access is granted', async () => {
+  it('does NOT call recordPortalAccessDeniedFn when access is granted', async () => {
     mockEvaluateMyPortalAccessFn.mockResolvedValueOnce({ granted: true, reason: 'team' })
 
     const context = makeContext({ id: 'user_1', email: 'admin@y.com', principalType: 'user' })
     // Should not throw when granted
     await runBeforeLoad(context).catch(() => {})
 
-    await vi.waitFor(() =>
-      expect(
-        mockRecordAuditEvent.mock.calls.filter((c) => c[0]?.event === 'portal.access.denied')
-      ).toHaveLength(0)
-    )
+    // Allow any microtasks to flush
+    await new Promise((r) => setTimeout(r, 0))
+    expect(mockRecordPortalAccessDeniedFn).not.toHaveBeenCalled()
   })
 })

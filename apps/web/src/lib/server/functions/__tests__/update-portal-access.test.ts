@@ -54,15 +54,12 @@ vi.mock('@/lib/server/domains/settings/settings.service', () => ({
   updatePortalConfig: hoisted.mockUpdatePortalConfig,
 }))
 
-// updatePortalAccessFn is handler index 0 in portal-access.ts
-// (the first createServerFn without inputValidator captures evaluateMyPortalAccessFn,
-//  but it has no inputValidator so it's just .handler; the second has inputValidator
-//  — resolving: we import the module and check which handler it is)
-// Actually: evaluateMyPortalAccessFn uses createServerFn({ method: 'GET' }).handler(...)  → pushes 1 handler
-//           updatePortalAccessFn uses createServerFn({ method: 'POST' }).inputValidator(...).handler(...) → pushes 1 handler
-// So handlers[0] = evaluateMyPortalAccess, handlers[1] = updatePortalAccess.
+// Handler registration order in portal-access.ts:
+//   0  evaluateMyPortalAccessFn      — .handler(...)
+//   1  recordPortalAccessDeniedFn    — .inputValidator(...).handler(...)
+//   2  updatePortalAccessFn          — .inputValidator(...).handler(...)
 
-const UPDATE_PORTAL_ACCESS = 1
+const UPDATE_PORTAL_ACCESS = 2
 
 let updatePortalAccessHandler: AnyHandler
 

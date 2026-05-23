@@ -10,9 +10,11 @@ import { DEFAULT_PORTAL_CONFIG } from '@/lib/shared/types/settings'
 import { generateThemeCSS, getGoogleFontsUrl } from '@/lib/shared/theme'
 import { resolveLocale } from '@/lib/shared/i18n'
 import { PortalIntlProvider } from '@/components/portal-intl-provider'
-import { evaluateMyPortalAccessFn } from '@/lib/server/functions/portal-access'
+import {
+  evaluateMyPortalAccessFn,
+  recordPortalAccessDeniedFn,
+} from '@/lib/server/functions/portal-access'
 import { redactSettingsForClient } from '@/lib/server/domains/settings/redact'
-import { recordAuditEvent } from '@/lib/server/audit/log'
 
 /** Resolve locale from Accept-Language header on the server. */
 const getPortalLocale = createServerFn({ method: 'GET' }).handler(async () => {
@@ -42,25 +44,10 @@ export const Route = createFileRoute('/_portal')({
       const session = context.session
       const isAuthenticated = !!session?.user && session.user.principalType !== 'anonymous'
       if (isAuthenticated) {
-        void (async () => {
-          try {
-            const { getRequestHeaders } = await import('@tanstack/react-start/server')
-            await recordAuditEvent({
-              event: 'portal.access.denied',
-              outcome: 'failure',
-              actor: {
-                userId: session!.user.id,
-                email: session!.user.email,
-                type: 'user',
-              },
-              headers: getRequestHeaders() as Headers,
-              target: { type: 'settings', id: 'portal_config' },
-              metadata: { reason: accessResult.reason },
-            })
-          } catch {
-            /* best-effort — never block the gate throw */
-          }
-        })()
+        // Best-effort, fire-and-forget. The server fn handles all server-only
+        // imports + actor resolution + the audit emit. `.catch()` suppresses
+        // the unhandled-rejection so the gate throw below is never affected.
+        void recordPortalAccessDeniedFn({ data: { reason: accessResult.reason } }).catch(() => {})
       }
 
       // Both denied cases (unauthenticated + unauthorized) render an in-place

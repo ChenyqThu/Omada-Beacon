@@ -223,6 +223,54 @@ export const evaluateMyPortalAccessFn = createServerFn({ method: 'GET' }).handle
 })
 
 // ---------------------------------------------------------------------------
+// Audit: portal.access.denied (fire-and-forget from _portal.tsx beforeLoad)
+// ---------------------------------------------------------------------------
+
+const recordPortalAccessDeniedSchema = z.object({
+  reason: z.enum(['unauthenticated', 'unauthorized']),
+})
+
+/**
+ * Server fn: emit a `portal.access.denied` audit event for an authenticated
+ * visitor blocked by the portal gate. Called fire-and-forget from
+ * `_portal.tsx`'s `beforeLoad`. Best-effort: any failure is swallowed by
+ * `recordAuditEvent` itself; the caller .catch()es to suppress promise
+ * rejection so the gate throw isn't affected.
+ *
+ * Resolves the actor server-side from the request session so the route
+ * file doesn't need to import server-only modules (`@tanstack/react-start/server`
+ * is rejected by Vite's import-protection plugin in client-bundled code).
+ */
+export const recordPortalAccessDeniedFn = createServerFn({ method: 'POST' })
+  .inputValidator(recordPortalAccessDeniedSchema)
+  .handler(async ({ data }) => {
+    const { auth } = await import('@/lib/server/auth/index')
+    const headers = getRequestHeaders()
+    let session: Awaited<ReturnType<typeof auth.api.getSession>> | null = null
+    try {
+      session = await auth.api.getSession({ headers })
+    } catch {
+      // best-effort
+    }
+    if (!session?.user) {
+      // No authenticated session — nothing to audit (gate-side already filters).
+      return
+    }
+    await recordAuditEvent({
+      event: 'portal.access.denied',
+      outcome: 'failure',
+      actor: {
+        userId: session.user.id as UserId,
+        email: session.user.email,
+        type: 'user',
+      },
+      headers,
+      target: { type: 'settings', id: 'portal_config' },
+      metadata: { reason: data.reason },
+    })
+  })
+
+// ---------------------------------------------------------------------------
 // Domain normalization helpers
 // ---------------------------------------------------------------------------
 
