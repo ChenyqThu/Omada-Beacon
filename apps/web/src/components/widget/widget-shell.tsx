@@ -122,7 +122,7 @@ export function WidgetShell({
       setPortalCtaError(true)
       return
     }
-    const portalUrl = `${window.location.origin}/?ott=${encodeURIComponent(ott)}`
+    const portalUrl = `${window.location.origin}/auth/widget-handoff?ott=${encodeURIComponent(ott)}`
     sendToHost({ type: 'quackback:navigate', url: portalUrl })
   }, [])
 

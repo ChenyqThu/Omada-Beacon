@@ -125,6 +125,7 @@ export {
   user,
   userRelations,
   verification,
+  widgetOriginSession,
   // Schema tables - boards
   boards,
   boardsRelations,

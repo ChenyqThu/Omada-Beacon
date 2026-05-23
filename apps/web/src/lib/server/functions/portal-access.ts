@@ -7,6 +7,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeaders } from '@tanstack/react-start/server'
 import { requireAuth } from './auth-helpers'
 import { getPortalConfig, updatePortalConfig } from '@/lib/server/domains/settings/settings.service'
+import { getWidgetConfig } from '@/lib/server/domains/settings/settings.widget'
 import { actorFromAuth, recordAuditEvent } from '@/lib/server/audit/log'
 import {
   evaluatePortalAccess,
@@ -133,13 +134,34 @@ export async function resolvePortalAccessForRequest(): Promise<PortalAccessDecis
     }
   }
 
-  // Read the full portal config server-side — never leaves this function.
+  // Look up the widget origin marker for the current session.
+  // Fail CLOSED on DB error: a lookup failure never grants widget access.
+  let hasViaWidgetMarker = false
+  if (isAuthenticated && session?.session?.id) {
+    const { widgetOriginSession } = await import('@/lib/server/db')
+    try {
+      const markerRow = await db.query.widgetOriginSession.findFirst({
+        where: eq(widgetOriginSession.sessionId, session.session.id),
+        columns: { sessionId: true },
+      })
+      hasViaWidgetMarker = !!markerRow
+    } catch {
+      // DB error — fail closed (no widget marker).
+      hasViaWidgetMarker = false
+    }
+  }
+
+  // Read the full portal config + widget config server-side — never leaves this function.
   // A missing/unreadable config must NOT throw: fail open to a public portal
   // so an un-onboarded install keeps working. `getPortalConfig` throws
   // (NotFoundError) when there is no settings row.
   let result: PortalAccessResult
   try {
-    const portalConfig = await getPortalConfig()
+    const [portalConfig, widgetConfig] = await Promise.all([
+      getPortalConfig(),
+      getWidgetConfig().catch(() => null),
+    ])
+    const identifyVerificationEnabled = widgetConfig?.identifyVerification ?? false
     result = evaluatePortalAccess({
       visibility: portalConfig.access?.visibility ?? 'public',
       role,
@@ -149,6 +171,8 @@ export async function resolvePortalAccessForRequest(): Promise<PortalAccessDecis
       allowedDomains: portalConfig.access?.allowedDomains ?? [],
       hasAcceptedPortalInvite,
       widgetSignInEnabled: portalConfig.access?.widgetSignIn ?? false,
+      hasViaWidgetMarker,
+      identifyVerificationEnabled,
     })
   } catch {
     // No settings row / config unreadable — treat the portal as public.

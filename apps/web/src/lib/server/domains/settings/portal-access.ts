@@ -57,11 +57,27 @@ export interface PortalAccessContext {
   hasAcceptedPortalInvite?: boolean
   /**
    * True when the workspace admin has enabled widget sign-in on this
-   * private portal. When set, any portal-signed-in user (role='user')
-   * gains access — the widget mints an OTT and the portal's OttHandler
-   * exchanges it for a session cookie. Defaults to `false`.
+   * private portal. When set, portal sessions that originated from the
+   * widget OTT handoff route gain access (requires both
+   * `hasViaWidgetMarker` and `identifyVerificationEnabled`).
+   * Defaults to `false`.
    */
   widgetSignInEnabled?: boolean
+  /**
+   * True when the current session has a row in `widget_origin_session`,
+   * meaning it was created via the `/auth/widget-handoff` OTT exchange.
+   * Prevents any self-registered portal user from gaining the widget
+   * grant without going through the handoff flow. Defaults to `false`.
+   */
+  hasViaWidgetMarker?: boolean
+  /**
+   * True when the workspace widget requires HMAC-verified identity
+   * (i.e. `identifyVerification=true` in the widget config). When off,
+   * anyone who typed an email in the widget becomes "identified" and
+   * could mint an OTT — granting portal access in that case would
+   * bypass the verified-identity intent. Defaults to `false`.
+   */
+  identifyVerificationEnabled?: boolean
 }
 
 /** Discriminated union — narrows cleanly in if/switch. */
@@ -96,15 +112,21 @@ function emailDomain(email: string | null): string | null {
  * 2. Team member (admin | member) → granted.
  * 3. Verified email on allowed-domain list → granted.
  * 4. Accepted portal invite (email match, verified) → granted.
- * 5. Widget sign-in enabled + authenticated portal user → granted.
+ * 5. Widget sign-in: enabled + authenticated + via-widget marker + HMAC mode → granted.
  * 6. No real session → unauthenticated (redirect to login).
  * 7. Authenticated but no matching grant → unauthorized (show access-denied screen).
  *
  * Ordering: team > domain > invite > widget. The widget branch is intentionally
  * last among grant paths so that a more-specific grant (team, domain, invite)
- * is preferred when the user qualifies for multiple paths. The widget branch
- * admits any role='user' principal when widgetSignInEnabled — sign-in happens
- * via the one-time-token flow (widget mints OTT, portal OttHandler sets session).
+ * is preferred when the user qualifies for multiple paths.
+ *
+ * Widget branch requires THREE conditions beyond `isAuthenticated`:
+ *   - `widgetSignInEnabled` — admin explicitly enabled widget sign-in.
+ *   - `hasViaWidgetMarker` — the session was created via the handoff route
+ *     (prevents self-registered portal users from gaining the grant).
+ *   - `identifyVerificationEnabled` — workspace requires HMAC-verified
+ *     widget identity (prevents email-capture mode from granting portal
+ *     access, which would bypass the verified-identity intent).
  */
 export function evaluatePortalAccess(ctx: PortalAccessContext): PortalAccessResult {
   // 1. Public portal — open to everyone.
@@ -134,10 +156,19 @@ export function evaluatePortalAccess(ctx: PortalAccessContext): PortalAccessResu
   }
 
   // 5. Widget sign-in grant.
-  //    When the admin enables widgetSignIn, any portal-signed-in user (role='user')
-  //    gets in. Sign-in happens via the one-time-token flow initiated from the widget.
-  //    Anonymous principals do NOT qualify — isAuthenticated must be true.
-  if ((ctx.widgetSignInEnabled ?? false) && ctx.isAuthenticated && ctx.role === 'user') {
+  //    Three guards beyond authentication:
+  //      - widgetSignInEnabled: admin opted in.
+  //      - hasViaWidgetMarker: session was minted by the handoff route, not by
+  //        any other sign-up path. Blocks self-registered users from using this branch.
+  //      - identifyVerificationEnabled: workspace enforces HMAC-verified widget
+  //        identity. Blocks email-capture (unverified) widget sessions from gaining
+  //        portal access — email-capture mode was never meant to imply portal trust.
+  if (
+    (ctx.widgetSignInEnabled ?? false) &&
+    ctx.isAuthenticated &&
+    (ctx.hasViaWidgetMarker ?? false) &&
+    (ctx.identifyVerificationEnabled ?? false)
+  ) {
     return { granted: true, reason: 'widget' }
   }
 

@@ -42,16 +42,21 @@ vi.mock('@/lib/server/auth/index', () => ({
 
 const mockPrincipalFindFirst = vi.fn()
 const mockInvitationFindFirst = vi.fn()
+const mockWidgetOriginSessionFindFirst = vi.fn()
 
 vi.mock('@/lib/server/db', () => ({
   db: {
     query: {
       principal: { findFirst: (...args: unknown[]) => mockPrincipalFindFirst(...args) },
       invitation: { findFirst: (...args: unknown[]) => mockInvitationFindFirst(...args) },
+      widgetOriginSession: {
+        findFirst: (...args: unknown[]) => mockWidgetOriginSessionFindFirst(...args),
+      },
     },
   },
   principal: { userId: 'userId' },
   invitation: { email: 'email', kind: 'kind', status: 'status' },
+  widgetOriginSession: { sessionId: 'sessionId' },
   eq: vi.fn(),
   and: vi.fn((...args: unknown[]) => args),
   sql: vi.fn((parts: TemplateStringsArray) => parts.raw[0]),
@@ -64,6 +69,14 @@ const mockGetPortalConfig = vi.fn()
 vi.mock('@/lib/server/domains/settings/settings.service', () => ({
   getPortalConfig: () => mockGetPortalConfig(),
   updatePortalConfig: vi.fn(),
+}))
+
+// --- Mock: widget config (static import target) ---
+
+const mockGetWidgetConfig = vi.fn()
+
+vi.mock('@/lib/server/domains/settings/settings.widget', () => ({
+  getWidgetConfig: () => mockGetWidgetConfig(),
 }))
 
 // --- Mock: audit log (imported by portal-access.ts) ---
@@ -79,6 +92,10 @@ beforeEach(() => {
   vi.clearAllMocks()
   // Default: no accepted portal invite.
   mockInvitationFindFirst.mockResolvedValue(null)
+  // Default: no widget origin marker.
+  mockWidgetOriginSessionFindFirst.mockResolvedValue(null)
+  // Default: identifyVerification off (email-capture mode).
+  mockGetWidgetConfig.mockResolvedValue({ identifyVerification: false })
 })
 
 describe('resolvePortalAccessForRequest — no-settings-safe', () => {
@@ -311,5 +328,98 @@ describe('resolvePortalAccessForRequest — portal invite grant', () => {
     await resolvePortalAccessForRequest()
 
     expect(mockInvitationFindFirst).not.toHaveBeenCalled()
+  })
+})
+
+describe('resolvePortalAccessForRequest — widget origin marker', () => {
+  const SESSION_WITH_ID = {
+    user: { id: 'user_wgt', email: 'widget@example.com', emailVerified: true },
+    session: { id: 'sess_abc123' },
+  }
+
+  it('hasViaWidgetMarker=true when a widget_origin_session row exists for the session', async () => {
+    mockGetSession.mockResolvedValue(SESSION_WITH_ID)
+    mockPrincipalFindFirst.mockResolvedValue({ type: 'user', role: 'user' })
+    mockWidgetOriginSessionFindFirst.mockResolvedValue({ sessionId: 'sess_abc123' })
+    mockGetWidgetConfig.mockResolvedValue({ identifyVerification: true })
+    mockGetPortalConfig.mockResolvedValue({
+      access: { visibility: 'private', allowedDomains: [], widgetSignIn: true },
+    })
+
+    const result = await resolvePortalAccessForRequest()
+
+    // All four conditions met → widget grant.
+    expect(result).toEqual({ granted: true, reason: 'widget' })
+  })
+
+  it('hasViaWidgetMarker=false (deny) when no widget_origin_session row', async () => {
+    mockGetSession.mockResolvedValue(SESSION_WITH_ID)
+    mockPrincipalFindFirst.mockResolvedValue({ type: 'user', role: 'user' })
+    mockWidgetOriginSessionFindFirst.mockResolvedValue(null)
+    mockGetWidgetConfig.mockResolvedValue({ identifyVerification: true })
+    mockGetPortalConfig.mockResolvedValue({
+      access: { visibility: 'private', allowedDomains: [], widgetSignIn: true },
+    })
+
+    const result = await resolvePortalAccessForRequest()
+
+    expect(result.granted).toBe(false)
+    if (!result.granted) expect(result.reason).toBe('unauthorized')
+  })
+
+  it('fails CLOSED on widget_origin_session DB error (treats as no marker)', async () => {
+    mockGetSession.mockResolvedValue(SESSION_WITH_ID)
+    mockPrincipalFindFirst.mockResolvedValue({ type: 'user', role: 'user' })
+    mockWidgetOriginSessionFindFirst.mockRejectedValue(new Error('DB_ERROR'))
+    mockGetWidgetConfig.mockResolvedValue({ identifyVerification: true })
+    mockGetPortalConfig.mockResolvedValue({
+      access: { visibility: 'private', allowedDomains: [], widgetSignIn: true },
+    })
+
+    const result = await resolvePortalAccessForRequest()
+
+    // DB error → fail closed → no marker → widget grant denied.
+    expect(result.granted).toBe(false)
+    if (!result.granted) expect(result.reason).toBe('unauthorized')
+  })
+
+  it('identifyVerificationEnabled=true when getWidgetConfig returns identifyVerification=true', async () => {
+    mockGetSession.mockResolvedValue(SESSION_WITH_ID)
+    mockPrincipalFindFirst.mockResolvedValue({ type: 'user', role: 'user' })
+    mockWidgetOriginSessionFindFirst.mockResolvedValue({ sessionId: 'sess_abc123' })
+    mockGetWidgetConfig.mockResolvedValue({ identifyVerification: true })
+    mockGetPortalConfig.mockResolvedValue({
+      access: { visibility: 'private', allowedDomains: [], widgetSignIn: true },
+    })
+
+    const result = await resolvePortalAccessForRequest()
+    // identifyVerification=true + marker + widgetSignIn → widget granted.
+    expect(result).toEqual({ granted: true, reason: 'widget' })
+  })
+
+  it('email-capture widget user (identifyVerification=false) cannot gain widget grant', async () => {
+    mockGetSession.mockResolvedValue(SESSION_WITH_ID)
+    mockPrincipalFindFirst.mockResolvedValue({ type: 'user', role: 'user' })
+    mockWidgetOriginSessionFindFirst.mockResolvedValue({ sessionId: 'sess_abc123' })
+    mockGetWidgetConfig.mockResolvedValue({ identifyVerification: false })
+    mockGetPortalConfig.mockResolvedValue({
+      access: { visibility: 'private', allowedDomains: [], widgetSignIn: true },
+    })
+
+    const result = await resolvePortalAccessForRequest()
+
+    expect(result.granted).toBe(false)
+    if (!result.granted) expect(result.reason).toBe('unauthorized')
+  })
+
+  it('skips marker lookup for unauthenticated callers', async () => {
+    mockGetSession.mockResolvedValue(null)
+    mockGetPortalConfig.mockResolvedValue({
+      access: { visibility: 'public', allowedDomains: [] },
+    })
+
+    await resolvePortalAccessForRequest()
+
+    expect(mockWidgetOriginSessionFindFirst).not.toHaveBeenCalled()
   })
 })

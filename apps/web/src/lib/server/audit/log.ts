@@ -68,6 +68,9 @@ export type AuditEventType =
   | 'portal.invite.revoked'
   // v1 portal widget sign-in toggle
   | 'portal.widget_signin.changed'
+  // v1 widget OTT handoff
+  | 'portal.widget_handshake.consumed'
+  | 'portal.widget_handshake.invalid'
 
 export type AuditEventOutcome = 'success' | 'failure'
 

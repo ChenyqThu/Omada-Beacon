@@ -628,3 +628,25 @@ export const oauthConsentRelations = relations(oauthConsent, ({ one }) => ({
     references: [user.id],
   }),
 }))
+
+/**
+ * Widget origin session marker table.
+ *
+ * Records sessions that were created via the widget OTT handoff route
+ * (`/auth/widget-handoff?ott=...`). The portal access evaluator requires
+ * a row here before granting the `widget` reason — prevents any
+ * self-registered portal user from sneaking in via that grant branch.
+ *
+ * PK on session_id is the lookup key (one row per session at most).
+ * Index on user_id supports cleanup of orphaned rows when a user's
+ * sessions expire.
+ */
+export const widgetOriginSession = pgTable(
+  'widget_origin_session',
+  {
+    sessionId: text('session_id').primaryKey(),
+    userId: text('user_id').notNull(),
+    markedAt: timestamp('marked_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('widget_origin_session_user_id_idx').on(table.userId)]
+)
