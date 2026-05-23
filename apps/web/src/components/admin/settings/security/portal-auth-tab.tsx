@@ -1,7 +1,8 @@
 import { useState, useTransition, useRef } from 'react'
-import { useRouter } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import {
   ArrowPathIcon,
+  ArrowRightIcon,
   EnvelopeIcon,
   GlobeAltIcon,
   KeyIcon,
@@ -10,12 +11,11 @@ import {
   PlusIcon,
   XMarkIcon,
 } from '@heroicons/react/24/solid'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
 import { MethodRow } from '@/components/admin/settings/auth-shared/method-row'
 import { OAuthProviderGrid } from '@/components/admin/settings/auth-shared/oauth-provider-grid'
 import { AuthProviderCredentialsDialog } from '@/components/admin/settings/portal-auth/auth-provider-credentials-dialog'
@@ -25,14 +25,9 @@ import { WarningBox } from '@/components/shared/warning-box'
 import { AUTH_PROVIDERS } from '@/lib/shared/auth-providers'
 import { updatePortalConfigFn } from '@/lib/server/functions/settings'
 import { updatePortalAccessFn } from '@/lib/server/functions/portal-access'
-import {
-  sendPortalInviteFn,
-  cancelPortalInviteFn,
-  resendPortalInviteFn,
-  fetchPortalInvitesFn,
-  getPortalInviteLinkFn,
-} from '@/lib/server/functions/portal-invites'
 import { listSegmentsFn } from '@/lib/server/functions/admin'
+import { InvitePeopleDialog } from '@/components/admin/users/invite-people-dialog'
+import { usePortalInvites } from '@/components/admin/users/use-portal-invites'
 import { isPathManagedFromBootstrap } from '@/lib/client/config-file'
 import { useRouteContext } from '@tanstack/react-router'
 import { cn } from '@/lib/shared/utils'
@@ -720,404 +715,119 @@ function SegmentMultiSelect({ segments, value, onChange, disabled }: SegmentMult
 // PortalInvitesSection
 // ---------------------------------------------------------------------------
 
-type PortalInvite = {
-  id: string
-  email: string
-  status: string | null
-  kind: string | null
-  createdAt: string
-  lastSentAt: string | null
-  expiresAt: string
-}
-
-function formatInviteDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-const PORTAL_INVITES_QUERY_KEY = ['portal', 'invites'] as const
-
-function InviteStatusBadge({ status }: { status: string | null }) {
-  switch (status) {
-    case 'pending':
-      return (
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-          Pending
-        </Badge>
-      )
-    case 'accepted':
-      return (
-        <Badge
-          variant="outline"
-          className="border-green-500/30 text-green-600 text-[10px] px-1.5 py-0"
-        >
-          Accepted
-        </Badge>
-      )
-    case 'canceled':
-      return (
-        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-          Revoked
-        </Badge>
-      )
-    case 'expired':
-      return (
-        <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-          Expired
-        </Badge>
-      )
-    default:
-      return (
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-          {status ?? 'Unknown'}
-        </Badge>
-      )
-  }
-}
-
-interface InviteRowProps {
-  invite: PortalInvite
-  onRevoke: (id: string) => Promise<void>
-  onResend: (id: string) => Promise<void>
-  revoking: boolean
-  resending: boolean
-}
-
-function InviteRow({ invite, onRevoke, onResend, revoking, resending }: InviteRowProps) {
-  const [confirmRevoke, setConfirmRevoke] = useState(false)
-  const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied' | 'error'>('idle')
-  const sentDate = invite.lastSentAt ?? invite.createdAt
-
-  const handleRevokeClick = () => {
-    if (!confirmRevoke) {
-      setConfirmRevoke(true)
-      return
-    }
-    setConfirmRevoke(false)
-    void onRevoke(invite.id)
-  }
-
-  const handleCopyLink = async () => {
-    if (copyState === 'copying') return
-    setCopyState('copying')
-    try {
-      const result = await getPortalInviteLinkFn({ data: { inviteId: invite.id } })
-      await navigator.clipboard.writeText(result.inviteLink)
-      setCopyState('copied')
-      setTimeout(() => setCopyState('idle'), 3000)
-    } catch {
-      setCopyState('error')
-      setTimeout(() => setCopyState('idle'), 3000)
-    }
-  }
+/**
+ * Compact summary of portal invitations rendered inside the Portal Visibility
+ * card. The full list (resend / revoke / copy-link / status filter) lives on
+ * /admin/users?invites=pending — this section just shows counts and CTAs:
+ *  - [+ Invite people] opens the same dialog that the Invitations view uses
+ *  - [Manage invites →] deep-links to the full management view
+ *
+ * Keeping send-in-place + manage-elsewhere means an admin who just wants to
+ * fire off invitations doesn't have to leave the Portal settings page, while
+ * the cluttered per-row controls live in their natural home next to People.
+ */
+function PortalInvitesSection() {
+  const portal = usePortalInvites()
+  const totalCount = portal.invites.length
 
   return (
-    <li className="flex items-center justify-between gap-3 rounded-md border border-border/50 bg-muted/20 px-3 py-2">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm">{invite.email}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">Sent {formatInviteDate(sentDate)}</p>
-      </div>
-      <InviteStatusBadge status={invite.status} />
-      {invite.status === 'pending' && (
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => void handleCopyLink()}
-            disabled={copyState === 'copying' || revoking || resending}
-            className="h-7 px-2 text-xs"
-            title="Mint a fresh sign-in link and copy it to your clipboard"
-          >
-            {copyState === 'copying' && <ArrowPathIcon className="mr-1 h-3.5 w-3.5 animate-spin" />}
-            {copyState === 'copied'
-              ? 'Copied — link valid 10 min'
-              : copyState === 'error'
-                ? 'Copy failed'
-                : 'Copy link'}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => void onResend(invite.id)}
-            disabled={resending || revoking}
-            className="h-7 px-2 text-xs"
-          >
-            {resending ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : 'Resend'}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleRevokeClick}
-            disabled={resending || revoking}
-            className={cn(
-              'h-7 px-2 text-xs',
-              confirmRevoke
-                ? 'border border-destructive/40 text-destructive hover:bg-destructive/10'
-                : 'text-muted-foreground hover:text-destructive'
-            )}
-          >
-            {revoking ? (
-              <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
-            ) : confirmRevoke ? (
-              'Confirm revoke'
-            ) : (
-              'Revoke'
-            )}
+    <div className="mt-6 border-t border-border/50 pt-6 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">Email invites</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Invite specific people by email. They&apos;ll get a magic link to sign in and access the
+            portal.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={portal.openDialog}>
+            <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
+            Invite people
           </Button>
         </div>
+      </div>
+
+      <InviteSummary
+        loading={portal.isLoading}
+        totalCount={totalCount}
+        pendingCount={portal.pendingCount}
+        acceptedCount={portal.acceptedCount}
+      />
+
+      {/* Inline success summary after a send — modal closes, this fades. */}
+      {portal.lastSentSummary && (
+        <p className="text-xs text-emerald-700 dark:text-emerald-400" role="status">
+          {portal.lastSentSummary}
+        </p>
       )}
-    </li>
+
+      <InvitePeopleDialog
+        open={portal.dialogOpen}
+        onOpenChange={portal.onOpenChange}
+        emailsInput={portal.emailsInput}
+        messageInput={portal.messageInput}
+        emailError={portal.emailError}
+        batchResults={portal.batchResults}
+        sendBusy={portal.sendBusy}
+        onEmailsChange={portal.onEmailsChange}
+        onMessageChange={portal.onMessageChange}
+        onSend={portal.onSend}
+      />
+    </div>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Email-list parsing helpers for the multi-email textarea
-// ---------------------------------------------------------------------------
-
-function parseEmailList(raw: string): string[] {
-  return raw
-    .split(/[\s,;]+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-}
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-function partitionValidEmails(list: string[]): { valid: string[]; invalid: string[] } {
-  const valid: string[] = []
-  const invalid: string[] = []
-  for (const e of list) {
-    if (EMAIL_RE.test(e)) valid.push(e.toLowerCase())
-    else invalid.push(e)
-  }
-  return { valid, invalid }
-}
-
 /**
- * Email-invite sub-section rendered inside the Portal Visibility card.
- *
- * Intentionally uses its own busy state(s) — invite mutations write to the
- * `invitation` table, completely separate from the portal-config/access
- * saves guarded by `accessBusy` in the parent. The two concerns do not
- * race and should not share a lock.
+ * One-line summary + Manage link. Splits the load state and the populated
+ * state so the layout doesn't jitter once counts arrive.
  */
-function PortalInvitesSection() {
-  const queryClient = useQueryClient()
-
-  const { data: invites, isLoading: invitesLoading } = useQuery<PortalInvite[]>({
-    queryKey: PORTAL_INVITES_QUERY_KEY,
-    queryFn: () => fetchPortalInvitesFn(),
-    staleTime: 30 * 1000,
-  })
-
-  const [emailsInput, setEmailsInput] = useState('')
-  const [messageInput, setMessageInput] = useState('')
-  const [emailError, setEmailError] = useState<string | null>(null)
-  const [batchResults, setBatchResults] = useState<null | {
-    sent: number
-    failed: Array<{ email: string; error: string }>
-  }>(null)
-  const [sendBusy, setSendBusy] = useState(false)
-  const [resendingId, setResendingId] = useState<string | null>(null)
-  const [revokingId, setRevokingId] = useState<string | null>(null)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const [resendConfirm, setResendConfirm] = useState<string | null>(null)
-
-  const refetch = () => queryClient.invalidateQueries({ queryKey: PORTAL_INVITES_QUERY_KEY })
-
-  const handleSend = async () => {
-    if (sendBusy) return
-    setEmailError(null)
-    setBatchResults(null)
-
-    const raw = parseEmailList(emailsInput)
-    if (raw.length === 0) {
-      setEmailError('Enter at least one email address.')
-      return
-    }
-    if (raw.length > 50) {
-      setEmailError('You can send at most 50 invites at a time. Trim the list and try again.')
-      return
-    }
-    const { valid, invalid } = partitionValidEmails(raw)
-    if (invalid.length > 0) {
-      setEmailError(`Invalid email${invalid.length > 1 ? 's' : ''}: ${invalid.join(', ')}`)
-      return
-    }
-
-    setSendBusy(true)
-    try {
-      const message = messageInput.trim() || undefined
-      const result = await sendPortalInviteFn({ data: { emails: valid, message } })
-      const sent = result.results.filter((r) => r.ok).length
-      const failed = result.results.filter(
-        (r): r is { email: string; ok: false; error: string } => !r.ok
-      )
-      setBatchResults({ sent, failed })
-      if (sent > 0) {
-        setEmailsInput('')
-        setMessageInput('')
-        void refetch()
-      }
-    } catch (err) {
-      setEmailError(err instanceof Error ? err.message : 'Failed to send invites.')
-    } finally {
-      setSendBusy(false)
-    }
+function InviteSummary({
+  loading,
+  totalCount,
+  pendingCount,
+  acceptedCount,
+}: {
+  loading: boolean
+  totalCount: number
+  pendingCount: number
+  acceptedCount: number
+}) {
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+        <span>Loading invites…</span>
+      </div>
+    )
   }
 
-  const handleResend = async (id: string) => {
-    setActionError(null)
-    setResendingId(id)
-    setResendConfirm(null)
-    try {
-      await resendPortalInviteFn({ data: { inviteId: id } })
-      setResendConfirm(id)
-      void refetch()
-      // Clear the brief confirmation after 3 s
-      setTimeout(() => setResendConfirm((prev) => (prev === id ? null : prev)), 3000)
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to resend invite.')
-    } finally {
-      setResendingId(null)
-    }
+  if (totalCount === 0) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        No invites sent yet — use Invite people to send the first one.
+      </p>
+    )
   }
 
-  const handleRevoke = async (id: string) => {
-    setActionError(null)
-    setRevokingId(id)
-    try {
-      await cancelPortalInviteFn({ data: { inviteId: id } })
-      void refetch()
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to revoke invite.')
-    } finally {
-      setRevokingId(null)
-    }
-  }
-
-  const anyBusy = sendBusy || resendingId !== null || revokingId !== null
+  const summary = [
+    pendingCount > 0 ? `${pendingCount} pending` : null,
+    acceptedCount > 0 ? `${acceptedCount} accepted` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
-    <div className="mt-6 border-t border-border/50 pt-6 space-y-4">
-      <div>
-        <p className="text-sm font-medium">Email invites</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Invite specific people by email. They&apos;ll get a magic link to sign in and access the
-          portal.
-        </p>
-      </div>
-
-      {/* Send form */}
-      <div className="space-y-3">
-        <label className="block">
-          <span className="text-sm font-medium">Email addresses</span>
-          <Textarea
-            value={emailsInput}
-            onChange={(e) => {
-              setEmailsInput(e.target.value)
-              if (emailError) setEmailError(null)
-            }}
-            placeholder={'alice@acme.com, bob@acme.com\ncarol@acme.com'}
-            rows={3}
-            className="mt-1.5 font-mono text-sm"
-            disabled={anyBusy}
-            aria-label="Email addresses to invite"
-            aria-invalid={!!emailError}
-          />
-          <span className="text-xs text-muted-foreground mt-1 block">
-            Separate addresses with commas, spaces, or newlines. Up to 50 at a time.
-          </span>
-        </label>
-
-        <label className="block">
-          <span className="text-sm font-medium">Personal message (optional)</span>
-          <Textarea
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            placeholder="Hi! We'd love your feedback on the new beta."
-            rows={2}
-            className="mt-1.5 text-sm"
-            maxLength={500}
-            disabled={anyBusy}
-            aria-label="Optional personal message"
-          />
-        </label>
-
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            onClick={() => void handleSend()}
-            disabled={sendBusy || !emailsInput.trim()}
-          >
-            {sendBusy ? <ArrowPathIcon className="mr-2 h-3 w-3 animate-spin" /> : null}
-            Send invites
-          </Button>
-        </div>
-
-        {emailError && (
-          <p className="text-xs text-destructive" role="alert">
-            {emailError}
-          </p>
-        )}
-
-        {batchResults && (
-          <div
-            className={cn(
-              'rounded-md border p-2 text-xs',
-              batchResults.failed.length === 0
-                ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
-                : 'border-amber-500/30 bg-amber-500/5 text-amber-800 dark:text-amber-400'
-            )}
-            role="status"
-          >
-            <p className="font-medium">
-              {batchResults.sent} sent
-              {batchResults.failed.length > 0 ? `, ${batchResults.failed.length} failed` : ''}.
-            </p>
-            {batchResults.failed.length > 0 && (
-              <ul className="mt-1 list-disc pl-4 space-y-0.5">
-                {batchResults.failed.map((f) => (
-                  <li key={f.email}>
-                    <span className="font-mono">{f.email}</span> — {f.error}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Action-level error (resend/revoke) */}
-      {actionError && <p className="text-xs text-destructive">{actionError}</p>}
-
-      {/* Invite list */}
-      {invitesLoading ? (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
-          <span>Loading invites…</span>
-        </div>
-      ) : invites && invites.length > 0 ? (
-        <>
-          {resendConfirm && <p className="text-xs text-muted-foreground">Invite resent.</p>}
-          <ul className="space-y-1.5" role="list" aria-label="Portal invites">
-            {invites.map((inv) => (
-              <InviteRow
-                key={inv.id}
-                invite={inv}
-                onRevoke={handleRevoke}
-                onResend={handleResend}
-                revoking={revokingId === inv.id}
-                resending={resendingId === inv.id}
-              />
-            ))}
-          </ul>
-        </>
-      ) : (
-        <p className="text-xs text-muted-foreground">No invites sent yet.</p>
-      )}
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-xs text-muted-foreground">{summary || `${totalCount} invites`}</p>
+      <Link
+        to="/admin/users"
+        search={{ invites: 'pending' as const }}
+        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline underline-offset-4"
+      >
+        Manage invites
+        <ArrowRightIcon className="h-3 w-3" />
+      </Link>
     </div>
   )
 }

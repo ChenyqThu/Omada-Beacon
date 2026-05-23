@@ -8,7 +8,9 @@ import {
   TrashIcon,
   BoltIcon,
   ArrowPathIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/solid'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { cn } from '@/lib/shared/utils'
 import type { SegmentListItem } from '@/lib/client/hooks/use-segments-queries'
 
@@ -24,6 +26,13 @@ interface UsersSegmentNavProps {
   onDeleteSegment: (segment: SegmentListItem) => void
   onEvaluateSegment?: (segmentId: string) => void
   isEvaluating?: string | null
+  /**
+   * `?invites=<status>` is set, so the Invitations entry should render
+   * active and All-users should not.
+   */
+  inInvitesMode?: boolean
+  /** Pending-invite count for the Invitations entry badge. */
+  invitesPendingCount?: number
 }
 
 export function UsersSegmentNav({
@@ -38,16 +47,80 @@ export function UsersSegmentNav({
   onDeleteSegment,
   onEvaluateSegment,
   isEvaluating,
+  inInvitesMode,
+  invitesPendingCount,
 }: UsersSegmentNavProps) {
   const hasSelection = selectedSegmentIds.length > 0
+  const navigate = useNavigate()
 
   return (
     <div className="space-y-0">
       <div className="pb-4">
-        {/* Header */}
-        <div className="flex w-full items-center justify-between py-1">
+        {/* Views group — top-level navigation between the main user list
+            and the standalone Invitations view. No header here: at one
+            indent level the items read as the sidebar's primary entries
+            and the SEGMENTS subheader below provides the grouping cue. */}
+        <div className="space-y-1">
+          {/* All users — clearing both segment selection and invites mode
+              brings the user back here. */}
+          <button
+            type="button"
+            onClick={() => {
+              if (inInvitesMode) {
+                void navigate({
+                  from: '/admin/users',
+                  search: (prev) => ({ ...prev, invites: undefined }),
+                  replace: true,
+                })
+              } else if (hasSelection) {
+                onClearSegments()
+              }
+            }}
+            className={cn(
+              'w-full text-left px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-2',
+              !hasSelection && !inInvitesMode
+                ? 'bg-muted text-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            )}
+          >
+            <UsersIcon className="h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1 truncate">All users</span>
+            <span className="text-[10px] text-muted-foreground/60 shrink-0 tabular-nums">
+              {totalUserCount}
+            </span>
+          </button>
+
+          {/* Invitations — sibling of All users. Clicking enters invites
+              mode with the pending status by default; the InvitationsView
+              itself lets admins flip between status sub-tabs. */}
+          <Link
+            to="/admin/users"
+            from="/admin/users"
+            search={(prev) => ({ ...prev, invites: 'pending' as const })}
+            replace
+            className={cn(
+              'w-full text-left px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-2',
+              inInvitesMode
+                ? 'bg-muted text-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            )}
+          >
+            <EnvelopeIcon className="h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1 truncate">Invitations</span>
+            {invitesPendingCount !== undefined && invitesPendingCount > 0 && (
+              <span className="text-[10px] text-muted-foreground/60 shrink-0 tabular-nums">
+                {invitesPendingCount}
+              </span>
+            )}
+          </Link>
+        </div>
+
+        {/* Segments group — its own labelled section. The +-button now
+            lives next to the SEGMENTS header where it belongs (the
+            previous placement under USERS implied 'create user'). */}
+        <div className="mt-5 flex w-full items-center justify-between py-1">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Users
+            Segments
           </span>
           <button
             type="button"
@@ -60,29 +133,6 @@ export function UsersSegmentNav({
         </div>
 
         <div className="mt-2 space-y-1">
-          {/* All users */}
-          <button
-            type="button"
-            onClick={() => {
-              if (hasSelection) {
-                onClearSegments()
-              }
-            }}
-            className={cn(
-              'w-full text-left px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-2',
-              !hasSelection
-                ? 'bg-muted text-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            )}
-          >
-            <UsersIcon className="h-3.5 w-3.5 shrink-0" />
-            <span className="flex-1 truncate">All users</span>
-            <span className="text-[10px] text-muted-foreground/60 shrink-0 tabular-nums">
-              {totalUserCount}
-            </span>
-          </button>
-
-          {/* Segments */}
           {isLoading ? (
             <div className="space-y-1">
               {[1, 2, 3].map((i) => (
