@@ -331,6 +331,118 @@ describe('resolvePortalAccessForRequest — portal invite grant', () => {
   })
 })
 
+// ---------------------------------------------------------------------------
+// Fix #4 — invite lookup must use case-insensitive email comparison
+// ---------------------------------------------------------------------------
+
+describe('resolvePortalAccessForRequest — case-insensitive invite lookup', () => {
+  it('grants reason=invite when session email is mixed-case but invite is lowercase', async () => {
+    // The send path normalizes to lowercase on insert. An OAuth provider may
+    // return a mixed-case address stored on the session as-is. The resolver
+    // must lowercase before the SQL lookup.
+    mockGetSession.mockResolvedValue({
+      user: { id: 'user_inv', email: 'Alice@Example.com', emailVerified: true },
+    })
+    mockPrincipalFindFirst.mockResolvedValue({ type: 'user', role: 'user' })
+    // Simulates DB row with lowercase email matching the lowercased session email.
+    mockInvitationFindFirst.mockResolvedValue({ id: 'invite_1' })
+    mockGetPortalConfig.mockResolvedValue({
+      access: { visibility: 'private', allowedDomains: [] },
+    })
+
+    const result = await resolvePortalAccessForRequest()
+
+    expect(result).toEqual({ granted: true, reason: 'invite' })
+    // The lookup must have been called (not skipped due to emailVerified=true).
+    expect(mockInvitationFindFirst).toHaveBeenCalled()
+  })
+
+  it('passes lowercased email to the invite DB query', async () => {
+    const eqMock = vi.fn((col: unknown, val: unknown) => ({ col, val }))
+    // Override the module-level eq mock for this test.
+    const { eq: _origEq } = await import('@/lib/server/db')
+    void _origEq
+    // We check the eq mock directly — it records the value passed for the
+    // email column (invitation.email). The email field stub is 'email' (string).
+    mockGetSession.mockResolvedValue({
+      user: { id: 'user_inv', email: 'MixedCase@EXAMPLE.COM', emailVerified: true },
+    })
+    mockPrincipalFindFirst.mockResolvedValue({ type: 'user', role: 'user' })
+    mockInvitationFindFirst.mockResolvedValue(null)
+    mockGetPortalConfig.mockResolvedValue({
+      access: { visibility: 'private', allowedDomains: [] },
+    })
+    void eqMock
+
+    await resolvePortalAccessForRequest()
+
+    // The invite lookup was triggered (emailVerified=true, isAuthenticated).
+    expect(mockInvitationFindFirst).toHaveBeenCalled()
+    // The invitation.email value passed via the module-level `eq` mock must
+    // be the lowercased form. The mock returns { col, val } tuples.
+    // invitation.email stub = 'email'; the value arg should be lowercase.
+    const { eq: moduleEq } = await import('@/lib/server/db')
+    const eqCalls = (moduleEq as unknown as ReturnType<typeof vi.fn>).mock.calls
+    const emailEqCall = eqCalls.find((c: unknown[]) => c[0] === 'email' && typeof c[1] === 'string')
+    expect(emailEqCall).toBeDefined()
+    if (emailEqCall) {
+      expect(emailEqCall[1]).toBe('mixedcase@example.com')
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Fix #6 — accepted invites must not expire (no expires_at filter in resolver)
+// ---------------------------------------------------------------------------
+
+describe('resolvePortalAccessForRequest — accepted invites are permanent', () => {
+  it('grants invite access even when the invite was sent >14 days ago', async () => {
+    // Invite was sent 20 days ago, accepted on day 2. Without the fix, the
+    // expires_at filter (< now) would exclude this row and deny access.
+    mockGetSession.mockResolvedValue({
+      user: { id: 'user_inv', email: 'alice@example.com', emailVerified: true },
+    })
+    mockPrincipalFindFirst.mockResolvedValue({ type: 'user', role: 'user' })
+    // Simulates DB returning the old accepted row (regardless of expires_at).
+    mockInvitationFindFirst.mockResolvedValue({ id: 'invite_old' })
+    mockGetPortalConfig.mockResolvedValue({
+      access: { visibility: 'private', allowedDomains: [] },
+    })
+
+    const result = await resolvePortalAccessForRequest()
+
+    expect(result).toEqual({ granted: true, reason: 'invite' })
+  })
+
+  it('does NOT use an expires_at filter when looking up accepted invites', async () => {
+    // The resolver must pass only 3 conditions to the accepted-invite query:
+    // email, kind='portal', status='accepted'. If an expires_at condition is
+    // also passed, the old sql`` template tag would be called — verify it is absent.
+    const { sql: sqlMock } = await import('@/lib/server/db')
+    // Cast through unknown to satisfy TS — sqlMock is vi.fn() in this test file.
+    const sqlCalls = (sqlMock as unknown as ReturnType<typeof vi.fn>).mock.calls
+
+    mockGetSession.mockResolvedValue({
+      user: { id: 'user_inv', email: 'bob@example.com', emailVerified: true },
+    })
+    mockPrincipalFindFirst.mockResolvedValue({ type: 'user', role: 'user' })
+    mockInvitationFindFirst.mockResolvedValue({ id: 'invite_1' })
+    mockGetPortalConfig.mockResolvedValue({
+      access: { visibility: 'private', allowedDomains: [] },
+    })
+
+    await resolvePortalAccessForRequest()
+
+    // After the fix, no sql`` template call should contain 'expires_at'
+    // (the old code used dbSql`("invitation"."expires_at" IS NULL OR ...)`).
+    const expiresAtSqlCall = sqlCalls.find((c: unknown[]) => {
+      const parts = c[0] as { raw: string[] }
+      return parts?.raw?.some((s: string) => s.includes('expires_at'))
+    })
+    expect(expiresAtSqlCall).toBeUndefined()
+  })
+})
+
 describe('resolvePortalAccessForRequest — widget origin marker', () => {
   const SESSION_WITH_ID = {
     user: { id: 'user_wgt', email: 'widget@example.com', emailVerified: true },

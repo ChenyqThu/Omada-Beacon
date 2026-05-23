@@ -78,7 +78,12 @@ vi.mock('@/lib/server/audit/log', () => ({
 vi.mock('@/lib/server/db', () => {
   const insertChain = { values: hoisted.mockDbInsert }
   const updateChain = {
-    set: () => ({ where: hoisted.mockDbUpdate }),
+    set: () => ({
+      where: (...args: unknown[]) => {
+        hoisted.mockDbUpdate(...args)
+        return { returning: () => Promise.resolve([{ id: 'invite_1' }]) }
+      },
+    }),
   }
   return {
     db: {
@@ -86,12 +91,19 @@ vi.mock('@/lib/server/db', () => {
       insert: () => insertChain,
       update: () => updateChain,
     },
-    invitation: { id: 'id', email: 'email', kind: 'kind', status: 'status' },
+    invitation: {
+      id: 'id',
+      email: 'email',
+      kind: 'kind',
+      status: 'status',
+      expiresAt: 'expiresAt',
+    },
     principal: { userId: 'userId', role: 'role', id: 'id' },
     user: { email: 'email', id: 'id' },
     eq: vi.fn((col, val) => ({ col, val })),
     and: vi.fn((...args: unknown[]) => args),
     or: vi.fn((...args: unknown[]) => args),
+    gt: vi.fn((col, val) => ({ col, val })),
     sql: vi.fn((parts: TemplateStringsArray) => parts.raw[0]),
   }
 })
@@ -392,5 +404,73 @@ describe('acceptPortalInviteFn — happy path', () => {
     )
     const after = (auditCall![0] as { after: { email: string } }).after
     expect(after.email).toBe(PENDING_INVITE.email)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Fix #5 — acceptPortalInviteFn must require emailVerified
+// ---------------------------------------------------------------------------
+
+describe('acceptPortalInviteFn — emailVerified gate (security)', () => {
+  it('returns email_not_verified when session emailVerified=false', async () => {
+    hoisted.mockGetSession.mockResolvedValue({
+      session: { id: 'sess_1', userId: SESSION_USER.id },
+      user: { ...SESSION_USER, emailVerified: false },
+    })
+
+    const result = await acceptHandler({ data: { inviteId: 'invite_1' } })
+    expect((result as { status: string }).status).toBe('email_not_verified')
+  })
+
+  it('does NOT update the invite when emailVerified=false', async () => {
+    hoisted.mockGetSession.mockResolvedValue({
+      session: { id: 'sess_1', userId: SESSION_USER.id },
+      user: { ...SESSION_USER, emailVerified: false },
+    })
+
+    await acceptHandler({ data: { inviteId: 'invite_1' } })
+    expect(hoisted.mockDbUpdate).not.toHaveBeenCalled()
+  })
+
+  it('does NOT record an audit event when emailVerified=false', async () => {
+    hoisted.mockGetSession.mockResolvedValue({
+      session: { id: 'sess_1', userId: SESSION_USER.id },
+      user: { ...SESSION_USER, emailVerified: false },
+    })
+
+    await acceptHandler({ data: { inviteId: 'invite_1' } })
+    expect(hoisted.mockRecordAuditEvent).not.toHaveBeenCalled()
+  })
+
+  it('SECURITY: attacker scenario — pre-registered victim email (unverified) + invite to that email → email_not_verified, audit clean', async () => {
+    // Attacker pre-registered victim@example.com via password auth (unverified).
+    // Admin sends a portal invite to victim@example.com.
+    // Attacker receives the invite link (forwarded) and hits it in their session.
+    // Result: email_not_verified — invite stays pending, audit log un-polluted.
+    const ATTACKER_INVITE = { ...PENDING_INVITE, email: 'victim@example.com' }
+    hoisted.mockDbQuery.invitation.findFirst.mockResolvedValue(ATTACKER_INVITE)
+    hoisted.mockGetSession.mockResolvedValue({
+      session: { id: 'sess_attacker', userId: 'user_attacker' },
+      user: {
+        ...SESSION_USER,
+        id: 'user_attacker',
+        email: 'victim@example.com', // matches invite — same address, pre-registered
+        emailVerified: false, // not verified yet
+      },
+    })
+
+    const result = await acceptHandler({ data: { inviteId: 'invite_1' } })
+
+    expect((result as { status: string }).status).toBe('email_not_verified')
+    expect(hoisted.mockDbUpdate).not.toHaveBeenCalled()
+    expect(hoisted.mockRecordAuditEvent).not.toHaveBeenCalled()
+  })
+
+  it('accepts normally when emailVerified=true', async () => {
+    // Default SESSION_USER has emailVerified: true
+    const result = await acceptHandler({ data: { inviteId: 'invite_1' } })
+    const r = result as { status: string; alreadyAccepted: boolean }
+    expect(r.status).toBe('accepted')
+    expect(r.alreadyAccepted).toBe(false)
   })
 })

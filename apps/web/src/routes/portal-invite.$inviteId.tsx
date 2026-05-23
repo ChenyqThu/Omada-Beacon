@@ -24,7 +24,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-type LoaderData = AcceptPortalInviteResult | { status: 'not_found' }
+type LoaderData = AcceptPortalInviteResult | { status: 'not_found' } | { status: 'error' }
 
 // ---------------------------------------------------------------------------
 // Route
@@ -57,13 +57,24 @@ export const Route = createFileRoute('/portal-invite/$inviteId')({
       }
 
       const message = err instanceof Error ? err.message : ''
+
+      // Unauthenticated — redirect to login with a callback so the user lands
+      // back here after signing in.
+      if (message === 'Authentication required') {
+        throw redirect({
+          to: '/auth/login',
+          search: { callbackUrl: `/portal-invite/${inviteId}` },
+        })
+      }
+
       if (message === 'PORTAL_INVITE_NOT_FOUND') {
         return { status: 'not_found' }
       }
 
-      // Unexpected error — surface as not_found rather than a raw stack trace.
+      // Unexpected error — log it and show a generic message instead of
+      // misleading the user with "invite not found".
       console.error('[route:portal-invite] unexpected error:', err)
-      return { status: 'not_found' }
+      return { status: 'error' }
     }
   },
   component: PortalInvitePage,
@@ -115,10 +126,20 @@ function getMessage(
         title: 'Wrong account',
         body: 'This invite was sent to a different email address. Please sign in with the address it was sent to, then open the link again.',
       }
+    case 'email_not_verified':
+      return {
+        title: 'Verify your email first',
+        body: 'Your email address needs to be verified before you can accept this invitation. Please check your inbox for a verification email, then try the invite link again.',
+      }
     case 'not_found':
       return {
         title: 'Invite not found',
         body: 'This invitation could not be found. It may have already been used or does not exist.',
+      }
+    case 'error':
+      return {
+        title: 'Something went wrong',
+        body: 'An unexpected error occurred. Please try again later or contact the workspace admin.',
       }
     default:
       return {

@@ -45,6 +45,8 @@ const hoisted = vi.hoisted(() => ({
   mockRecordAuditEvent: vi.fn(),
   mockDbInsert: vi.fn(),
   mockDbUpdate: vi.fn(),
+  mockDbReturning: vi.fn(),
+  mockDbSet: vi.fn(),
   mockDbQuery: {
     user: { findFirst: vi.fn() },
     principal: { findFirst: vi.fn() },
@@ -73,7 +75,15 @@ vi.mock('@/lib/server/audit/log', () => ({
 vi.mock('@/lib/server/db', () => {
   const insertChain = { values: hoisted.mockDbInsert }
   const updateChain = {
-    set: () => ({ where: hoisted.mockDbUpdate }),
+    set: (payload: unknown) => {
+      hoisted.mockDbSet(payload)
+      return {
+        where: (...args: unknown[]) => {
+          hoisted.mockDbUpdate(...args)
+          return { returning: hoisted.mockDbReturning }
+        },
+      }
+    },
   }
   return {
     db: {
@@ -86,12 +96,14 @@ vi.mock('@/lib/server/db', () => {
       email: 'email',
       kind: 'kind',
       status: 'status',
+      expiresAt: 'expiresAt',
     },
     principal: { userId: 'userId', role: 'role', id: 'id' },
     user: { email: 'email', id: 'id' },
     eq: vi.fn((col, val) => ({ col, val })),
     and: vi.fn((...args: unknown[]) => args),
     or: vi.fn((...args: unknown[]) => args),
+    gt: vi.fn((col, val) => ({ col, val })),
     sql: vi.fn((parts: TemplateStringsArray) => parts.raw[0]),
   }
 })
@@ -162,6 +174,9 @@ beforeEach(async () => {
   hoisted.mockGenerateId.mockReturnValue('invite_test')
   hoisted.mockDbInsert.mockResolvedValue(undefined)
   hoisted.mockDbUpdate.mockResolvedValue(undefined)
+  hoisted.mockDbSet.mockReturnValue(undefined)
+  // Default for .returning(): one row affected (normal path)
+  hoisted.mockDbReturning.mockResolvedValue([{ id: 'invite_1' }])
 
   // Default: no existing user/invite
   hoisted.mockDbQuery.user.findFirst.mockResolvedValue(null)
@@ -487,5 +502,128 @@ describe('fetchPortalInvitesFn', () => {
 
     const result = await (fetchHandler as () => Promise<unknown>)()
     expect(result).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Fix #7 — sendPortalInviteFn dup-pending check must ignore expired
+// ---------------------------------------------------------------------------
+
+describe('sendPortalInviteFn — expired pending invite is not a blocker', () => {
+  it('succeeds when the only existing pending invite is past its expiresAt', async () => {
+    // The duplicate-check query (with the gt(expiresAt, now) filter) returns
+    // null because the stale row is excluded — the findFirst mock simulates this.
+    hoisted.mockDbQuery.invitation.findFirst.mockResolvedValue(null)
+
+    const result = await sendHandler({ data: { email: 'returning@example.com' } })
+    expect((result as { inviteId: string }).inviteId).toBe('invite_test')
+  })
+
+  it('still blocks when a non-expired pending invite exists', async () => {
+    hoisted.mockDbQuery.invitation.findFirst.mockResolvedValue({
+      id: 'invite_active',
+      status: 'pending',
+      kind: 'portal',
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    })
+
+    await expect(sendHandler({ data: { email: 'someone@example.com' } })).rejects.toThrow(
+      'pending portal invitation has already been sent'
+    )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Fix #8 — cancelPortalInviteFn race guard (concurrent accept)
+// ---------------------------------------------------------------------------
+
+describe('cancelPortalInviteFn — race guard', () => {
+  const PENDING_INV = {
+    id: 'invite_1',
+    kind: 'portal',
+    status: 'pending',
+    email: 'user@example.com',
+  }
+
+  it('returns no_op_already_accepted when the UPDATE affects 0 rows', async () => {
+    hoisted.mockDbQuery.invitation.findFirst.mockResolvedValue(PENDING_INV)
+    // Simulate: row was concurrently accepted — WHERE status='pending' matches nothing.
+    hoisted.mockDbReturning.mockResolvedValue([])
+
+    const result = await cancelHandler({ data: { inviteId: 'invite_1' } })
+    expect((result as { status: string }).status).toBe('no_op_already_accepted')
+  })
+
+  it('does NOT record an audit event on race no-op', async () => {
+    hoisted.mockDbQuery.invitation.findFirst.mockResolvedValue(PENDING_INV)
+    hoisted.mockDbReturning.mockResolvedValue([])
+
+    await cancelHandler({ data: { inviteId: 'invite_1' } })
+    expect(hoisted.mockRecordAuditEvent).not.toHaveBeenCalled()
+  })
+
+  it('returns status=canceled and records audit when UPDATE affects 1 row (normal path)', async () => {
+    hoisted.mockDbQuery.invitation.findFirst.mockResolvedValue(PENDING_INV)
+    hoisted.mockDbReturning.mockResolvedValue([{ id: 'invite_1' }])
+
+    const result = await cancelHandler({ data: { inviteId: 'invite_1' } })
+    expect((result as { status: string }).status).toBe('canceled')
+
+    const auditCall = hoisted.mockRecordAuditEvent.mock.calls.find(
+      (c) => (c[0] as { event: string }).event === 'portal.invite.revoked'
+    )
+    expect(auditCall).toBeDefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Fix #9 — resendPortalInviteFn must extend expiresAt
+// ---------------------------------------------------------------------------
+
+describe('resendPortalInviteFn — extends expiresAt', () => {
+  it('sets expiresAt to ~14 days from now on resend', async () => {
+    const nearExpiry = new Date(Date.now() + 2 * 60 * 60 * 1000) // 2 hours left
+    hoisted.mockDbQuery.invitation.findFirst.mockResolvedValue({
+      id: 'invite_1',
+      kind: 'portal',
+      status: 'pending',
+      email: 'user@example.com',
+      expiresAt: nearExpiry,
+    })
+
+    const before = Date.now()
+    await resendHandler({ data: { inviteId: 'invite_1' } })
+    const after = Date.now()
+
+    expect(hoisted.mockDbSet).toHaveBeenCalled()
+    const setPayload = hoisted.mockDbSet.mock.calls[0][0] as {
+      lastSentAt: Date
+      expiresAt: Date
+    }
+
+    // expiresAt must be ~14 days from the time of resend, not the old near-expiry.
+    const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000
+    const expiresAtMs = setPayload.expiresAt.getTime()
+    expect(expiresAtMs).toBeGreaterThanOrEqual(before + FOURTEEN_DAYS_MS - 5000)
+    expect(expiresAtMs).toBeLessThanOrEqual(after + FOURTEEN_DAYS_MS + 5000)
+  })
+
+  it('also updates lastSentAt on resend', async () => {
+    const futureDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+    hoisted.mockDbQuery.invitation.findFirst.mockResolvedValue({
+      id: 'invite_1',
+      kind: 'portal',
+      status: 'pending',
+      email: 'user@example.com',
+      expiresAt: futureDate,
+    })
+
+    const before = Date.now()
+    await resendHandler({ data: { inviteId: 'invite_1' } })
+    const after = Date.now()
+
+    const setPayload = hoisted.mockDbSet.mock.calls[0][0] as { lastSentAt: Date }
+    expect(setPayload.lastSentAt.getTime()).toBeGreaterThanOrEqual(before)
+    expect(setPayload.lastSentAt.getTime()).toBeLessThanOrEqual(after + 100)
   })
 })

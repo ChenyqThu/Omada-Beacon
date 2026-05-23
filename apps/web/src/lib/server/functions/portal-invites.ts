@@ -14,7 +14,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeaders } from '@tanstack/react-start/server'
 import type { InviteId, UserId } from '@quackback/ids'
 import { generateId } from '@quackback/ids'
-import { db, invitation, principal, user, eq, and, or, sql } from '@/lib/server/db'
+import { db, invitation, principal, user, eq, and, gt, or, sql } from '@/lib/server/db'
 import { requireAuth } from './auth-helpers'
 import { actorFromAuth, recordAuditEvent } from '@/lib/server/audit/log'
 import { getBaseUrl } from '@/lib/server/config'
@@ -97,12 +97,15 @@ export const sendPortalInviteFn = createServerFn({ method: 'POST' })
       }
     }
 
-    // Reject if a pending portal invite already exists.
+    // Reject if a non-expired pending portal invite already exists.
+    // An expired pending row no longer blocks — a fresh invite can be sent.
+    const now = new Date()
     const existingInvite = await db.query.invitation.findFirst({
       where: and(
         eq(invitation.email, email),
         eq(invitation.kind, 'portal'),
-        eq(invitation.status, 'pending')
+        eq(invitation.status, 'pending'),
+        gt(invitation.expiresAt, now)
       ),
     })
     if (existingInvite) {
@@ -110,7 +113,6 @@ export const sendPortalInviteFn = createServerFn({ method: 'POST' })
     }
 
     const inviteId = generateId('invite')
-    const now = new Date()
     const expiresAt = new Date(now.getTime() + PORTAL_INVITE_EXPIRY_MS)
 
     await db.insert(invitation).values({
@@ -183,10 +185,26 @@ export const cancelPortalInviteFn = createServerFn({ method: 'POST' })
       throw new Error(`Cannot cancel an invitation that is already ${inv.status}.`)
     }
 
-    await db
+    // Include status='pending' in the WHERE clause to guard against a concurrent
+    // accept that flips the row between the SELECT above and this UPDATE.
+    // If the row was concurrently accepted, affected rows = 0 — treat as no-op
+    // and skip the audit event; the admin's next list refresh will see the new state.
+    const updated = await db
       .update(invitation)
       .set({ status: 'canceled' })
-      .where(and(eq(invitation.id, inviteId), eq(invitation.kind, 'portal')))
+      .where(
+        and(
+          eq(invitation.id, inviteId),
+          eq(invitation.kind, 'portal'),
+          eq(invitation.status, 'pending')
+        )
+      )
+      .returning({ id: invitation.id })
+
+    if (updated.length === 0) {
+      console.log(`[fn:portal-invites] cancelPortalInviteFn: no-op (row concurrently mutated)`)
+      return { inviteId, status: 'no_op_already_accepted' as const }
+    }
 
     await recordAuditEvent({
       event: 'portal.invite.revoked',
@@ -198,7 +216,7 @@ export const cancelPortalInviteFn = createServerFn({ method: 'POST' })
     })
 
     console.log(`[fn:portal-invites] cancelPortalInviteFn: canceled`)
-    return { inviteId }
+    return { inviteId, status: 'canceled' as const }
   })
 
 // ---------------------------------------------------------------------------
@@ -250,9 +268,11 @@ export const resendPortalInviteFn = createServerFn({ method: 'POST' })
       logoUrl,
     })
 
+    const resendNow = new Date()
+    const freshExpiresAt = new Date(resendNow.getTime() + PORTAL_INVITE_EXPIRY_MS)
     await db
       .update(invitation)
-      .set({ lastSentAt: new Date() })
+      .set({ lastSentAt: resendNow, expiresAt: freshExpiresAt })
       .where(and(eq(invitation.id, inviteId), eq(invitation.kind, 'portal')))
 
     await recordAuditEvent({
@@ -328,6 +348,7 @@ export type AcceptPortalInviteResult =
   | { status: 'canceled' }
   | { status: 'expired' }
   | { status: 'mismatch' }
+  | { status: 'email_not_verified' }
 
 /**
  * Accept a portal-access invitation for the currently signed-in user.
@@ -380,6 +401,21 @@ export const acceptPortalInviteFn = createServerFn({ method: 'POST' })
         `[fn:portal-invites] acceptPortalInviteFn: email mismatch invite=${inv.email} session=${sessionEmail}`
       )
       return { status: 'mismatch' }
+    }
+
+    // Reject unverified-email callers before any state mutation or audit.
+    // Two failure modes prevented:
+    //   (a) A legit user with an unverified address accepts and is then stuck
+    //       because the portal gate requires emailVerified=true.
+    //   (b) An attacker who pre-registered the victim's address (unverified)
+    //       could otherwise accept the invite under their session, polluting
+    //       the audit log and marking the invite consumed before the real
+    //       owner clicks the link.
+    if (!session.user.emailVerified) {
+      console.warn(
+        `[fn:portal-invites] acceptPortalInviteFn: email not verified session=${sessionEmail}`
+      )
+      return { status: 'email_not_verified' }
     }
 
     // Idempotent: already accepted — no second audit event.

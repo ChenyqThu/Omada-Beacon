@@ -116,14 +116,20 @@ export async function resolvePortalAccessForRequest(): Promise<PortalAccessDecis
   // outage never grants access to a private portal.
   let hasAcceptedPortalInvite = false
   if (isAuthenticated && emailVerified && userEmail) {
-    const { invitation, and: dbAnd, sql: dbSql } = await import('@/lib/server/db')
+    const { invitation, and: dbAnd } = await import('@/lib/server/db')
+    // Lowercase the session email before the SQL comparison — the send path
+    // always normalizes to lowercase on insert, but an OAuth provider may
+    // return a mixed-case address that is stored on the session as-is.
+    const normalizedEmail = userEmail.toLowerCase()
     try {
       const inviteRow = await db.query.invitation.findFirst({
         where: dbAnd(
-          eq(invitation.email, userEmail),
+          eq(invitation.email, normalizedEmail),
           eq(invitation.kind, 'portal'),
-          eq(invitation.status, 'accepted'),
-          dbSql`("invitation"."expires_at" IS NULL OR "invitation"."expires_at" > now())`
+          // Accepted invites are permanent until revoked — expiry only governs
+          // pending invites. Dropping the expires_at check here prevents a
+          // user losing access 14 days after the invite was sent.
+          eq(invitation.status, 'accepted')
         ),
         columns: { id: true },
       })
