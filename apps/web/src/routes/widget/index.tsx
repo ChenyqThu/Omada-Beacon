@@ -81,6 +81,10 @@ export const Route = createFileRoute('/widget/')({
       },
       imageUploadsInWidget: settings?.publicWidgetConfig?.imageUploadsInWidget ?? true,
       defaultBoard: settings?.publicWidgetConfig?.defaultBoard,
+      portalAccess: {
+        isPrivate: settings?.publicPortalConfig?.portalAccess?.isPrivate ?? false,
+        widgetSignIn: settings?.publicPortalConfig?.portalAccess?.widgetSignIn ?? false,
+      },
     }
   },
   component: WidgetPage,
@@ -115,6 +119,7 @@ function WidgetPage() {
     tabs,
     imageUploadsInWidget,
     defaultBoard,
+    portalAccess,
   } = Route.useLoaderData()
   const { isIdentified, ensureSession } = useWidgetAuth()
   const canVote = isIdentified || features.anonymousVoting
@@ -253,6 +258,7 @@ function WidgetPage() {
       onTabChange={handleTabChange}
       onBack={shellOnBack}
       enabledTabs={tabs}
+      portalAccess={portalAccess}
     >
       {view === 'changelog' && <WidgetChangelog onEntrySelect={handleChangelogEntrySelect} />}
 

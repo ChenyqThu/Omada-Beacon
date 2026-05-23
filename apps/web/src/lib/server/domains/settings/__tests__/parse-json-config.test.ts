@@ -1,10 +1,41 @@
 import { describe, it, expect } from 'vitest'
 import { parseJsonConfig } from '../settings.helpers'
-import { DEFAULT_PORTAL_CONFIG, DEFAULT_WIDGET_CONFIG } from '../settings.types'
+import {
+  DEFAULT_PORTAL_CONFIG,
+  DEFAULT_WIDGET_CONFIG,
+  type PublicPortalConfig,
+} from '../settings.types'
 
 describe('DEFAULT_PORTAL_CONFIG', () => {
   it('DEFAULT_PORTAL_CONFIG carries a moderationDefault of none', () => {
     expect(DEFAULT_PORTAL_CONFIG.moderationDefault).toEqual({ requireApproval: 'none' })
+  })
+
+  it('DEFAULT_PORTAL_CONFIG has widgetSignIn defaulting to false', () => {
+    expect(DEFAULT_PORTAL_CONFIG.access?.widgetSignIn).toBe(false)
+  })
+})
+
+describe('PublicPortalConfig.portalAccess', () => {
+  it('portalAccess shape includes widgetSignIn', () => {
+    // Verify the type carries widgetSignIn (build-time type assertion via satisfies)
+    const cfg = {
+      oauth: {},
+      features: DEFAULT_PORTAL_CONFIG.features,
+      portalAccess: { isPrivate: true, widgetSignIn: false },
+    } satisfies PublicPortalConfig
+    expect(cfg.portalAccess?.isPrivate).toBe(true)
+    expect(cfg.portalAccess?.widgetSignIn).toBe(false)
+  })
+
+  it('portalAccess.widgetSignIn is boolean', () => {
+    const cfg: PublicPortalConfig = {
+      oauth: {},
+      features: DEFAULT_PORTAL_CONFIG.features,
+      portalAccess: { isPrivate: false, widgetSignIn: true },
+    }
+    expect(typeof cfg.portalAccess?.widgetSignIn).toBe('boolean')
+    expect(cfg.portalAccess?.widgetSignIn).toBe(true)
   })
 })
 

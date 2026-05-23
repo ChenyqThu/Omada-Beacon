@@ -446,9 +446,12 @@ async function createAuth() {
         expiresIn: 600,
       }),
 
-      // One-time token plugin for cross-domain session transfer (used by /get-started)
+      // One-time token plugin for cross-domain session transfer.
+      // 10 minutes: the portal handshake path needs more headroom than the
+      // default — the user may take time between clicking the widget CTA and
+      // the portal page loading (slow connection, tab restore, etc.).
       oneTimeToken({
-        expiresIn: 60, // 1 minute - tokens are used immediately after generation
+        expiresIn: 600,
       }),
 
       // JWT plugin — signs access tokens, exposes /api/auth/jwks for verification

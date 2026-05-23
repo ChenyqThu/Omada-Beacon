@@ -533,11 +533,11 @@ export interface PublicPortalConfig {
   /** Welcome card on the portal index. Absent / disabled = nothing rendered. */
   welcomeCard?: PortalWelcomeCard
   /**
-   * Client-safe access control indicator. Only `isPrivate` is exposed;
-   * `allowedDomains` and `widgetSignIn` remain server-only (see
-   * `PortalAccessConfig` and `evaluateMyPortalAccessFn`).
+   * Client-safe access control indicator. `isPrivate` and `widgetSignIn`
+   * are exposed so the widget can decide whether to show the "Go to portal"
+   * CTA. `allowedDomains` remains server-only.
    */
-  portalAccess?: { isPrivate: boolean }
+  portalAccess?: { isPrivate: boolean; widgetSignIn: boolean }
 }
 
 // =============================================================================

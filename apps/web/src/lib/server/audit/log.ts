@@ -66,9 +66,6 @@ export type AuditEventType =
   | 'portal.invite.sent'
   | 'portal.invite.accepted'
   | 'portal.invite.revoked'
-  // v1 portal widget sign-in handshake
-  | 'portal.widget_handshake.consumed'
-  | 'portal.widget_handshake.invalid'
   // v1 portal widget sign-in toggle
   | 'portal.widget_signin.changed'
 
