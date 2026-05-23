@@ -160,13 +160,11 @@ describe('_portal beforeLoad — portal.access.denied audit', () => {
       // expected
     }
 
-    // Give any async operations time to complete
-    await new Promise((r) => setTimeout(r, 10))
-
-    const deniedCalls = mockRecordAuditEvent.mock.calls.filter(
-      (c) => c[0]?.event === 'portal.access.denied'
+    await vi.waitFor(() =>
+      expect(
+        mockRecordAuditEvent.mock.calls.filter((c) => c[0]?.event === 'portal.access.denied')
+      ).toHaveLength(0)
     )
-    expect(deniedCalls).toHaveLength(0)
   })
 
   it('does NOT emit portal.access.denied when access is granted', async () => {
@@ -176,11 +174,10 @@ describe('_portal beforeLoad — portal.access.denied audit', () => {
     // Should not throw when granted
     await runBeforeLoad(context).catch(() => {})
 
-    await new Promise((r) => setTimeout(r, 10))
-
-    const deniedCalls = mockRecordAuditEvent.mock.calls.filter(
-      (c) => c[0]?.event === 'portal.access.denied'
+    await vi.waitFor(() =>
+      expect(
+        mockRecordAuditEvent.mock.calls.filter((c) => c[0]?.event === 'portal.access.denied')
+      ).toHaveLength(0)
     )
-    expect(deniedCalls).toHaveLength(0)
   })
 })

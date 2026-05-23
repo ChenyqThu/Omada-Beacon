@@ -42,20 +42,25 @@ export const Route = createFileRoute('/_portal')({
       const session = context.session
       const isAuthenticated = !!session?.user && session.user.principalType !== 'anonymous'
       if (isAuthenticated) {
-        void recordAuditEvent({
-          event: 'portal.access.denied',
-          outcome: 'failure',
-          actor: {
-            userId: session!.user.id,
-            email: session!.user.email,
-            type: 'user',
-          },
-          headers: (await import('@tanstack/react-start/server').then((m) =>
-            m.getRequestHeaders()
-          )) as Headers,
-          target: { type: 'settings', id: 'portal_config' },
-          metadata: { reason: accessResult.reason },
-        }).catch(() => {})
+        void (async () => {
+          try {
+            const { getRequestHeaders } = await import('@tanstack/react-start/server')
+            await recordAuditEvent({
+              event: 'portal.access.denied',
+              outcome: 'failure',
+              actor: {
+                userId: session!.user.id,
+                email: session!.user.email,
+                type: 'user',
+              },
+              headers: getRequestHeaders() as Headers,
+              target: { type: 'settings', id: 'portal_config' },
+              metadata: { reason: accessResult.reason },
+            })
+          } catch {
+            /* best-effort — never block the gate throw */
+          }
+        })()
       }
 
       // Both denied cases (unauthenticated + unauthorized) render an in-place

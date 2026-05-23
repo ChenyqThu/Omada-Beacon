@@ -896,6 +896,7 @@ export async function handleSignInFailureAudit(ctx: {
 
   // Extract the attempted email. Never log passwords, tokens, or other
   // credential material — only the email address + stable reason code.
+  // token? is intentionally not destructured — PII guard: never read magic-link tokens
   const body = ctx.body as { email?: unknown; token?: unknown } | undefined
   const attemptedEmail = typeof body?.email === 'string' ? body.email : null
 

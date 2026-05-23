@@ -31,6 +31,7 @@ function failedCtx(opts: {
   email?: string
   password?: string
   token?: string
+  otp?: string
   withSession?: boolean
 }) {
   return {
@@ -40,6 +41,7 @@ function failedCtx(opts: {
       ...(opts.email !== undefined ? { email: opts.email } : {}),
       ...(opts.password !== undefined ? { password: opts.password } : {}),
       ...(opts.token !== undefined ? { token: opts.token } : {}),
+      ...(opts.otp !== undefined ? { otp: opts.otp } : {}),
     },
     context: opts.withSession
       ? {
@@ -128,6 +130,15 @@ describe('handleSignInFailureAudit — magic-link verify path', () => {
     const call = mockRecordAuditEvent.mock.calls[0][0]
     expect(call.event).toBe('auth.signin.failed')
     expect(call.metadata).toMatchObject({ reason: 'INVALID_MAGIC_LINK' })
+  })
+
+  it('does NOT log the OTP value in the audit row (PII guard)', async () => {
+    await handleSignInFailureAudit(
+      failedCtx({ path: '/sign-in/email-otp', email: 'user@example.com', otp: '123456' })
+    )
+
+    const call = mockRecordAuditEvent.mock.calls[0][0]
+    expect(JSON.stringify(call)).not.toContain('123456')
   })
 })
 
