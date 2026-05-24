@@ -363,6 +363,25 @@ describe('<BoardAccessForm> segments query states', () => {
 // Error rendering
 // ---------------------------------------------------------------------------
 
+describe('<BoardAccessForm> belt-and-braces submit guard', () => {
+  // The disabled Save button gates the happy path. But a `disabled`
+  // attribute doesn't prevent every submit channel: Enter key on a
+  // focused input fires the form's submit handler directly. The
+  // onSubmit handler must re-check the same condition the disable
+  // logic uses, so neither bypasses the other.
+
+  it('does NOT call mutate when submit fires with segments selected + zero ticked (Enter-key bypass)', async () => {
+    renderForm({ kind: 'segments', segmentIds: [] })
+    // Fire the form's native submit directly — what an Enter keypress
+    // on a focused field would trigger inside this form.
+    const formEl = screen.getByRole('button', { name: /save changes/i }).closest('form')!
+    fireEvent.submit(formEl)
+    // Wait a tick for react-hook-form's async handleSubmit to flush.
+    await new Promise((r) => setTimeout(r, 50))
+    expect(mutate).not.toHaveBeenCalled()
+  })
+})
+
 describe('<BoardAccessForm> mutation error', () => {
   it('renders the mutation error message when the save fails', () => {
     useUpdateBoardAccessSpy.mockReturnValue({

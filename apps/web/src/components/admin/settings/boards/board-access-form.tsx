@@ -55,6 +55,13 @@ interface FormValues {
   segmentIds: string[]
 }
 
+/** Exhaustiveness guard — if BoardAudience gains a new kind, the
+ *  switch below produces a compile error rather than silently
+ *  returning undefined and crashing the form at mount. */
+function assertNever(x: never): never {
+  throw new Error(`Unhandled BoardAudience variant: ${JSON.stringify(x)}`)
+}
+
 function audienceToFormValues(audience: BoardAudience): FormValues {
   switch (audience.kind) {
     case 'public':
@@ -63,14 +70,22 @@ function audienceToFormValues(audience: BoardAudience): FormValues {
       return { visibility: audience.kind, segmentIds: [] }
     case 'segments':
       return { visibility: 'segments', segmentIds: audience.segmentIds }
+    default:
+      return assertNever(audience)
   }
 }
 
 function formValuesToAudience(values: FormValues): BoardAudience {
-  if (values.visibility === 'segments') {
-    return { kind: 'segments', segmentIds: values.segmentIds }
+  switch (values.visibility) {
+    case 'public':
+    case 'authenticated':
+    case 'team':
+      return { kind: values.visibility }
+    case 'segments':
+      return { kind: 'segments', segmentIds: values.segmentIds }
+    default:
+      return assertNever(values.visibility)
   }
-  return { kind: values.visibility }
 }
 
 export function BoardAccessForm({ board }: BoardAccessFormProps) {
@@ -91,6 +106,14 @@ export function BoardAccessForm({ board }: BoardAccessFormProps) {
   const noSegmentsSelected = isSegments && segmentIds.length === 0
 
   async function onSubmit(values: FormValues) {
+    // Belt-and-braces: the disabled Save button covers the click path,
+    // but an Enter-key submit from a focused input bypasses `disabled`.
+    // Re-check the same condition here so neither channel can land an
+    // empty allowlist on the server (the schema also rejects this, but
+    // we'd rather not round-trip an obviously-invalid payload).
+    if (values.visibility === 'segments' && values.segmentIds.length === 0) {
+      return
+    }
     mutation.mutate({
       boardId: board.id,
       audience: formValuesToAudience(values),
@@ -127,25 +150,25 @@ export function BoardAccessForm({ board }: BoardAccessFormProps) {
                   className="grid gap-3"
                 >
                   <AccessOption
-                    id="visibility-public"
+                    value="public"
                     icon={GlobeAltIcon}
                     label="Public"
                     description="Anyone can view this board on your portal, including unsigned visitors. Signed-in users can vote, comment, and submit feedback."
                   />
                   <AccessOption
-                    id="visibility-authenticated"
+                    value="authenticated"
                     icon={UsersIcon}
                     label="Authenticated"
                     description="Any signed-in portal user can view this board. Hidden from anonymous visitors and search indexes."
                   />
                   <AccessOption
-                    id="visibility-team"
+                    value="team"
                     icon={LockClosedIcon}
                     label="Team only"
                     description="Only admins and team members can view this board."
                   />
                   <AccessOption
-                    id="visibility-segments"
+                    value="segments"
                     icon={TagIcon}
                     label="Specific segments"
                     description="Only members of the segments you pick can view this board."
@@ -213,24 +236,27 @@ export function BoardAccessForm({ board }: BoardAccessFormProps) {
   )
 }
 
-/** Single radio card — same visual treatment for all four kinds. */
+/** Single radio card — same visual treatment for all four kinds.
+ *  `value` is the audience kind sent to the form; `id` is derived
+ *  from it so callers don't have to keep two strings in sync. */
 function AccessOption({
-  id,
+  value,
   icon: Icon,
   label,
   description,
 }: {
-  id: string
+  value: RadioVisibility
   icon: React.ComponentType<{ className?: string }>
   label: string
   description: string
 }) {
+  const id = `visibility-${value}`
   return (
     <Label
       htmlFor={id}
       className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50 [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
     >
-      <RadioGroupItem value={id.replace(/^visibility-/, '')} id={id} className="mt-0.5" />
+      <RadioGroupItem value={value} id={id} className="mt-0.5" />
       <div className="flex-1 space-y-1">
         <div className="flex items-center gap-2">
           <Icon className="h-4 w-4" />
