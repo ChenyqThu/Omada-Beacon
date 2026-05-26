@@ -99,6 +99,7 @@ vi.mock('@/lib/server/domains/segments/segment-membership.service', () => ({
 }))
 
 import { resolvePortalAccessForRequest } from '../portal-access'
+import { NotFoundError } from '@/lib/shared/errors'
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -112,24 +113,55 @@ beforeEach(() => {
   mockSegmentIdsForPrincipal.mockResolvedValue(new Set())
 })
 
-describe('resolvePortalAccessForRequest — no-settings-safe', () => {
-  it('returns granted/public when getPortalConfig throws (no settings row)', async () => {
+describe('resolvePortalAccessForRequest — config-throw contract', () => {
+  it('returns granted/public when getPortalConfig throws NotFoundError (no settings row)', async () => {
     mockGetSession.mockResolvedValue(null)
-    mockGetPortalConfig.mockRejectedValue(new Error('SETTINGS_NOT_FOUND'))
+    mockGetPortalConfig.mockRejectedValue(
+      new NotFoundError('SETTINGS_NOT_FOUND', 'Settings not found')
+    )
 
     const result = await resolvePortalAccessForRequest()
 
     expect(result).toEqual({ granted: true, reason: 'public' })
   })
 
-  it('does not throw when the portal config is unreadable', async () => {
+  it('fails CLOSED for an anonymous caller when getPortalConfig throws a non-NotFoundError', async () => {
+    // Regression: a transient DB / cache error during config read must NOT
+    // silently render a private portal as public. Anonymous → unauthenticated.
     mockGetSession.mockResolvedValue(null)
     mockGetPortalConfig.mockRejectedValue(new Error('DATABASE_ERROR'))
 
-    await expect(resolvePortalAccessForRequest()).resolves.toEqual({
-      granted: true,
-      reason: 'public',
+    const result = await resolvePortalAccessForRequest()
+
+    expect(result.granted).toBe(false)
+    if (!result.granted) {
+      expect(result.reason).toBe('unauthenticated')
+    }
+  })
+
+  it('fails CLOSED for an authenticated caller when getPortalConfig throws a non-NotFoundError', async () => {
+    // Same regression for an authenticated user — must NOT default to
+    // granted/public. Authenticated callers get the unauthorized screen.
+    mockGetSession.mockResolvedValue({
+      user: { id: 'user_1', email: 'user@acme.com', emailVerified: true },
     })
+    mockPrincipalFindFirst.mockResolvedValue({ type: 'user', role: 'user' })
+    mockGetPortalConfig.mockRejectedValue(new Error('DATABASE_ERROR'))
+
+    const result = await resolvePortalAccessForRequest()
+
+    expect(result.granted).toBe(false)
+    if (!result.granted) {
+      expect(result.reason).toBe('unauthorized')
+    }
+  })
+
+  it('does not throw out of the function on any config error', async () => {
+    // Never-throw contract must hold for both branches.
+    mockGetSession.mockResolvedValue(null)
+    mockGetPortalConfig.mockRejectedValue(new Error('DATABASE_ERROR'))
+
+    await expect(resolvePortalAccessForRequest()).resolves.toBeDefined()
   })
 })
 

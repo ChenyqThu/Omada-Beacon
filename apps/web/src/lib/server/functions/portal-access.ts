@@ -9,6 +9,7 @@ import { requireAuth } from './auth-helpers'
 import { getPortalConfig, updatePortalConfig } from '@/lib/server/domains/settings/settings.service'
 import { getWidgetConfig } from '@/lib/server/domains/settings/settings.widget'
 import { actorFromAuth, recordAuditEvent } from '@/lib/server/audit/log'
+import { NotFoundError } from '@/lib/shared/errors'
 import {
   evaluatePortalAccess,
   type PortalAccessResult,
@@ -161,9 +162,11 @@ export const resolvePortalAccessForRequest = createServerOnlyFn(
     }
 
     // Read the full portal config + widget config server-side — never leaves this function.
-    // A missing/unreadable config must NOT throw: fail open to a public portal
-    // so an un-onboarded install keeps working. `getPortalConfig` throws
-    // (NotFoundError) when there is no settings row.
+    // Two distinct failure modes:
+    //   - NotFoundError (no settings row): fresh un-onboarded install, fail
+    //     OPEN to a public portal so it keeps working.
+    //   - Anything else (DB error, JSON parse, transient infra): fail CLOSED.
+    //     A private portal must never silently become public on transient errors.
     let result: PortalAccessResult
     try {
       const [portalConfig, widgetConfig] = await Promise.all([
@@ -201,9 +204,19 @@ export const resolvePortalAccessForRequest = createServerOnlyFn(
         identifyVerificationEnabled,
         isInAllowedSegment,
       })
-    } catch {
-      // No settings row / config unreadable — treat the portal as public.
-      return { granted: true, reason: 'public' }
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        // No settings row — un-onboarded install, treat as public.
+        return { granted: true, reason: 'public' }
+      }
+      // Any other throw (DB error, cache deserialization, etc.) must fail
+      // closed. An authenticated visitor gets the unauthorized screen; an
+      // anonymous one gets bounced to login.
+      console.error('[fn:portal-access] resolve failed, failing closed:', err)
+      return {
+        granted: false,
+        reason: isAuthenticated ? 'unauthorized' : 'unauthenticated',
+      }
     }
 
     // Return only the decision. Never include allowedDomains, widgetSignIn,
