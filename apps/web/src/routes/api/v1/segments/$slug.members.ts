@@ -7,13 +7,41 @@ import {
   notFoundResponse,
   handleDomainError,
 } from '@/lib/server/domains/api/responses'
-import { db, segments, eq, and, isNull } from '@/lib/server/db'
+import { db, segments, principal, eq, and, isNull, inArray } from '@/lib/server/db'
 import { addMember, removeMember } from '@/lib/server/domains/segments/segment-membership.service'
 import type { PrincipalId } from '@quackback/ids'
 
 const MutateBody = z.object({
   principalIds: z.array(z.string()).min(1).max(1000),
 })
+
+/**
+ * Resolve which of the supplied principalIds actually exist (and are not
+ * soft-deleted) so the batch loop can't waste cycles or land partial
+ * state on unknown ids. Returns the validated subset PLUS the list of
+ * ids that did not resolve, so the caller can report partial failure
+ * to the client honestly.
+ */
+async function validatePrincipals(
+  requested: string[]
+): Promise<{ valid: PrincipalId[]; missing: string[] }> {
+  if (requested.length === 0) return { valid: [], missing: [] }
+  // Dedupe so a duplicate id in the body doesn't double-add or
+  // double-remove (REST callers occasionally include dupes when paging).
+  const unique = Array.from(new Set(requested))
+  const rows = await db
+    .select({ id: principal.id })
+    .from(principal)
+    .where(inArray(principal.id, unique as PrincipalId[]))
+  const found = new Set(rows.map((r) => String(r.id)))
+  const valid: PrincipalId[] = []
+  const missing: string[] = []
+  for (const id of unique) {
+    if (found.has(id)) valid.push(id as PrincipalId)
+    else missing.push(id)
+  }
+  return { valid, missing }
+}
 
 export const Route = createFileRoute('/api/v1/segments/$slug/members')({
   server: {
@@ -25,6 +53,11 @@ export const Route = createFileRoute('/api/v1/segments/$slug/members')({
        * Resolves the segment by `slug` (unique on non-deleted rows). Adding
        * with source='api' — the source-priority guard inside addMember
        * means we never demote a manual admin assignment.
+       *
+       * Returns actual-result counts (`added`, `failed`) instead of the
+       * raw request count. Unknown / soft-deleted principalIds are
+       * surfaced in `failed` so the caller knows the loop wasn't all
+       * applied silently.
        */
       POST: async ({ request, params }) => {
         try {
@@ -37,20 +70,35 @@ export const Route = createFileRoute('/api/v1/segments/$slug/members')({
           })
           if (!segment) return notFoundResponse('Segment')
 
-          for (const principalId of body.principalIds) {
-            await addMember({
-              principalId: principalId as PrincipalId,
-              segmentId: segment.id,
-              source: 'api',
-              actor: {
-                userId: null,
-                email: null,
-                role: auth.role,
-              },
-              headers: request.headers,
-            })
-          }
-          return successResponse({ added: body.principalIds.length })
+          const { valid, missing } = await validatePrincipals(body.principalIds)
+
+          // Per-principal mutations run in parallel — addMember is
+          // idempotent under the source-priority guard so concurrency
+          // is safe. allSettled keeps a single transient failure from
+          // dropping every later id silently.
+          const settled = await Promise.allSettled(
+            valid.map((principalId) =>
+              addMember({
+                principalId,
+                segmentId: segment.id,
+                source: 'api',
+                actor: {
+                  userId: null,
+                  email: null,
+                  role: auth.role,
+                },
+                headers: request.headers,
+              })
+            )
+          )
+
+          const failed = [...missing]
+          settled.forEach((r, i) => {
+            if (r.status === 'rejected') failed.push(String(valid[i]))
+          })
+          const added = settled.filter((r) => r.status === 'fulfilled').length
+
+          return successResponse({ added, failed })
         } catch (error) {
           if (error instanceof z.ZodError) return badRequestResponse(error.message)
           return handleDomainError(error)
@@ -60,6 +108,9 @@ export const Route = createFileRoute('/api/v1/segments/$slug/members')({
       /**
        * DELETE /api/v1/segments/:slug/members
        * Remove the given principalIds from the segment.
+       *
+       * Returns actual `removed` count + `failed` list of ids that
+       * didn't resolve (unknown principal, or the DELETE threw).
        */
       DELETE: async ({ request, params }) => {
         try {
@@ -72,19 +123,30 @@ export const Route = createFileRoute('/api/v1/segments/$slug/members')({
           })
           if (!segment) return notFoundResponse('Segment')
 
-          for (const principalId of body.principalIds) {
-            await removeMember({
-              principalId: principalId as PrincipalId,
-              segmentId: segment.id,
-              actor: {
-                userId: null,
-                email: null,
-                role: auth.role,
-              },
-              headers: request.headers,
-            })
-          }
-          return successResponse({ removed: body.principalIds.length })
+          const { valid, missing } = await validatePrincipals(body.principalIds)
+
+          const settled = await Promise.allSettled(
+            valid.map((principalId) =>
+              removeMember({
+                principalId,
+                segmentId: segment.id,
+                actor: {
+                  userId: null,
+                  email: null,
+                  role: auth.role,
+                },
+                headers: request.headers,
+              })
+            )
+          )
+
+          const failed = [...missing]
+          settled.forEach((r, i) => {
+            if (r.status === 'rejected') failed.push(String(valid[i]))
+          })
+          const removed = settled.filter((r) => r.status === 'fulfilled').length
+
+          return successResponse({ removed, failed })
         } catch (error) {
           if (error instanceof z.ZodError) return badRequestResponse(error.message)
           return handleDomainError(error)

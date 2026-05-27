@@ -41,6 +41,16 @@ export const Route = createFileRoute('/changelog/feed')({
             })
           : []
 
+        // Per-caller portal-access decisions can't share a public CDN
+        // cache: a granted caller would seed the cache with content that
+        // every subsequent denied caller would then receive. Use
+        // `private` to keep the response per-browser, and `Vary: Cookie`
+        // so any cookie-aware intermediary keys correctly. Public
+        // portals match `granted=true` for everyone, so the practical
+        // cost (no shared CDN cache) is small — and the alternative is
+        // a real data leak.
+        const cacheControl = 'private, max-age=300'
+
         // Build RSS XML
         const rssXml = buildRssFeed({
           title: `${siteName} Changelog`,
@@ -59,7 +69,8 @@ export const Route = createFileRoute('/changelog/feed')({
         return new Response(rssXml, {
           headers: {
             'Content-Type': 'application/rss+xml; charset=utf-8',
-            'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+            'Cache-Control': cacheControl,
+            Vary: 'Cookie',
           },
         })
       },

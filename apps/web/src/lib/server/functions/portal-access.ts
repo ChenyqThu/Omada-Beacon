@@ -363,7 +363,29 @@ export const updatePortalAccessFn = createServerFn({ method: 'POST' })
     const nextWidgetSignIn =
       data.widgetSignIn !== undefined ? data.widgetSignIn : (before.access?.widgetSignIn ?? false)
 
-    const nextSegmentIds = data.allowedSegmentIds ?? before.access?.allowedSegmentIds ?? []
+    // Validate any newly-supplied allowedSegmentIds against the segments
+    // table: drop unknown / soft-deleted ids, dedupe. Without this step
+    // an admin (or attacker who acquired admin) can store garbage strings
+    // in portalConfig.access.allowedSegmentIds — they'd never match a
+    // membership at runtime, but the audit log captures the garbage as
+    // an "intended change" and the UI re-displays them on the next load.
+    let nextSegmentIds: SegmentId[]
+    if (data.allowedSegmentIds === undefined) {
+      nextSegmentIds = (before.access?.allowedSegmentIds ?? []) as SegmentId[]
+    } else if (data.allowedSegmentIds.length === 0) {
+      nextSegmentIds = []
+    } else {
+      const requested = Array.from(new Set(data.allowedSegmentIds))
+      const { db, segments: segmentsTable, inArray, isNull, and } = await import('@/lib/server/db')
+      const found = await db
+        .select({ id: segmentsTable.id })
+        .from(segmentsTable)
+        .where(
+          and(inArray(segmentsTable.id, requested as SegmentId[]), isNull(segmentsTable.deletedAt))
+        )
+      const valid = new Set(found.map((r) => String(r.id)))
+      nextSegmentIds = requested.filter((id) => valid.has(id)) as SegmentId[]
+    }
 
     const updated = await updatePortalConfig({
       access: {

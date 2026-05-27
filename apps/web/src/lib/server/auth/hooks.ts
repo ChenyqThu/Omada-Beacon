@@ -508,14 +508,26 @@ async function readSsoClaims(userId: `user_${string}`): Promise<Record<string, u
 type SessionCtx = Parameters<typeof import('better-auth/cookies').deleteSessionCookie>[0]
 
 /**
- * Drop a freshly-created session: delete the row, clear the cookie.
- * Both the hard-binding and role-policy branches need this.
+ * Drop a freshly-created session: delete the row, clear the cookie,
+ * and null out `ctx.context.newSession` so any after-hook later in the
+ * chain that reads it (handleCountryCapture, future country-aware
+ * side-effects, etc.) can't act on a revoked session by mistake.
+ *
+ * Better Auth populates `ctx.context.newSession` when the verify path
+ * mints a session, and our callbacks don't clear it on revoke unless we
+ * do it here — every revoke path must funnel through this helper.
  */
-async function revokeSession(ctx: SessionCtx, token: string): Promise<void> {
+export async function revokeSession(ctx: SessionCtx, token: string): Promise<void> {
   const { db, session: sessionTable, eq } = await import('@/lib/server/db')
   await db.delete(sessionTable).where(eq(sessionTable.token, token))
   const { deleteSessionCookie } = await import('better-auth/cookies')
   deleteSessionCookie(ctx)
+  const ctxWithNewSession = ctx as SessionCtx & {
+    context?: { newSession?: unknown | null }
+  }
+  if (ctxWithNewSession.context && 'newSession' in ctxWithNewSession.context) {
+    ctxWithNewSession.context.newSession = null
+  }
 }
 
 export async function handleCallbackPolicyCleanup(

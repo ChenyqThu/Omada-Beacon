@@ -4,8 +4,8 @@
  * Pure function — no DB, no mocks needed.
  */
 import { describe, it, expect } from 'vitest'
-import { redactSettingsForClient } from '../redact'
-import type { PortalConfig } from '../settings.types'
+import { redactSettingsForClient } from '../redact-portal-config'
+import type { PortalConfig } from '@/lib/server/domains/settings/settings.types'
 
 const ACCESS_POLICY = {
   visibility: 'private' as const,

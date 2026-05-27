@@ -178,7 +178,8 @@ export const BUILTIN_FIELDS = [
     label: 'Last Active (days ago)',
     type: 'number',
     group: 'account',
-    description: 'How many days ago the most recent session was created.',
+    description:
+      'How many days ago the user was last active (most recent session refresh, or sign-in if never refreshed).',
     // evaluator: OPERATOR_SQL + is_set (has ever signed in) / is_not_set (never signed in)
     operators: [
       { value: 'gt', label: 'more than (days ago)' },

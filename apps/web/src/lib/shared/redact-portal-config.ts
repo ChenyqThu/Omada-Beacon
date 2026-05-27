@@ -1,4 +1,4 @@
-import type { PortalConfig, PortalAccessConfig } from './settings.types'
+import type { PortalConfig, PortalAccessConfig } from '@/lib/server/domains/settings/settings.types'
 
 /** Redacted access shape — visibility only. */
 type RedactedAccess = Pick<PortalAccessConfig, 'visibility'>

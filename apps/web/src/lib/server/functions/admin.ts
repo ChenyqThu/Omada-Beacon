@@ -1343,8 +1343,13 @@ export const assignUsersToSegmentFn = createServerFn({ method: 'POST' })
       `[fn:admin] assignUsersToSegmentFn: segmentId=${data.segmentId}, count=${data.principalIds.length}`
     )
     try {
-      await requireAuth({ roles: ['admin', 'member'] })
-      await assignUsersToSegment(data.segmentId as SegmentId, data.principalIds as PrincipalId[])
+      const auth = await requireAuth({ roles: ['admin', 'member'] })
+      const { actorFromAuth } = await import('@/lib/server/audit/log')
+      await assignUsersToSegment(
+        data.segmentId as SegmentId,
+        data.principalIds as PrincipalId[],
+        actorFromAuth(auth)
+      )
       console.log(`[fn:admin] assignUsersToSegmentFn: assigned`)
       return { segmentId: data.segmentId, assigned: data.principalIds.length }
     } catch (error) {

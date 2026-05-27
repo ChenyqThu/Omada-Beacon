@@ -37,6 +37,28 @@ const hoisted = vi.hoisted(() => ({
   mockRecordAuditEvent: vi.fn(),
   mockGetPortalConfig: vi.fn(),
   mockUpdatePortalConfig: vi.fn(),
+  // db mock for the new allowedSegmentIds existence validator —
+  // returns every requested id as valid by default, so existing tests
+  // that don't care about validation behavior keep passing.
+  mockSegmentExistenceSelect: vi.fn().mockReturnValue({
+    from: vi.fn().mockReturnValue({
+      where: vi.fn().mockImplementation(async () => mockValidSegmentRows()),
+    }),
+  }),
+  mockValidSegmentRowsState: { rows: [] as Array<{ id: string }> },
+}))
+
+// Pull current rows lazily so tests can mutate the array before invoking the handler.
+function mockValidSegmentRows() {
+  return hoisted.mockValidSegmentRowsState.rows
+}
+
+vi.mock('@/lib/server/db', () => ({
+  db: { select: hoisted.mockSegmentExistenceSelect },
+  segments: { id: 'segments.id', deletedAt: 'segments.deleted_at' },
+  inArray: vi.fn((col, vals) => ({ kind: 'inArray', col, vals })),
+  isNull: vi.fn((col) => ({ kind: 'isNull', col })),
+  and: vi.fn((...parts) => ({ kind: 'and', parts })),
 }))
 
 vi.mock('@/lib/server/functions/auth-helpers', () => ({
@@ -329,6 +351,9 @@ describe('updatePortalAccessFn allowedSegmentIds', () => {
     hoisted.mockUpdatePortalConfig.mockResolvedValue({
       access: { visibility: 'private', allowedDomains: [], allowedSegmentIds: ['seg_1', 'seg_2'] },
     })
+    // The new existence-validator must see both ids as valid so the
+    // handler proceeds with the full list.
+    hoisted.mockValidSegmentRowsState.rows = [{ id: 'seg_1' }, { id: 'seg_2' }]
 
     await updatePortalAccessHandler({
       data: { visibility: 'private', allowedSegmentIds: ['seg_1', 'seg_2'] },
@@ -358,6 +383,7 @@ describe('updatePortalAccessFn allowedSegmentIds', () => {
     hoisted.mockUpdatePortalConfig.mockResolvedValue({
       access: { visibility: 'private', allowedDomains: [], allowedSegmentIds: ['seg_1'] },
     })
+    hoisted.mockValidSegmentRowsState.rows = [{ id: 'seg_1' }]
 
     await updatePortalAccessHandler({
       data: { visibility: 'private', allowedSegmentIds: ['seg_1'] },

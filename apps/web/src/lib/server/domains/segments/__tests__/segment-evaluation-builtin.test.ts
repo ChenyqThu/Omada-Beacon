@@ -315,11 +315,20 @@ describe('evaluator — country attribute (ISO-3166 alpha-2)', () => {
 })
 
 describe('evaluator — last_active_days_ago attribute (derived from session)', () => {
-  it('gt operator emits an EXTRACT-from-MAX(session.created_at) comparison', async () => {
+  it('uses MAX(updated_at, created_at) so refreshed sessions count as active', async () => {
+    // Regression: previously the comparison was against MAX(s.created_at)
+    // alone. Better Auth refreshes sessions on activity by bumping
+    // updated_at, leaving created_at frozen at sign-in — so a long-lived
+    // active session looked stale (created weeks ago, even though the
+    // user was actively browsing). COALESCE(updated_at, created_at)
+    // recovers the intended "last active" semantics; created_at is the
+    // fallback for older rows that pre-date the updated_at bump.
     mockSegment = makeSegment([{ attribute: 'last_active_days_ago', operator: 'gt', value: 30 }])
     await evaluateDynamicSegment('segment_test' as never)
     expect(capturedSql).toContain('EXTRACT(EPOCH FROM')
-    expect(capturedSql).toContain('MAX(s.created_at)')
+    expect(capturedSql).toContain('s.updated_at')
+    expect(capturedSql).toContain('s.created_at')
+    expect(capturedSql).toContain('COALESCE')
     expect(capturedSql).toContain('session s')
     expect(capturedSql).toContain('s.user_id = u.id')
     expect(capturedSql).toContain('86400')

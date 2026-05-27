@@ -221,12 +221,21 @@ function buildConditionSql(condition: SegmentCondition): ReturnType<typeof sql> 
     }
 
     case 'last_active_days_ago': {
-      // EXTRACT returns NULL when the user has no session — NULL fails every
-      // comparison, so users who never signed in correctly do not match
-      // numeric predicates. Use is_set / is_not_set for that audience.
+      // "Last active" must reflect actual activity, not just sign-in time.
+      // Better Auth refreshes sessions on activity by bumping updated_at
+      // while leaving created_at at the original sign-in instant — so
+      // MAX(created_at) alone would mark a long-lived active session as
+      // stale. COALESCE(updated_at, created_at) recovers the intended
+      // semantics; created_at is the fallback for rows that pre-date the
+      // updated_at bump.
+      //
+      // EXTRACT returns NULL when the user has no session — NULL fails
+      // every comparison, so users who never signed in correctly do not
+      // match numeric predicates. Use is_set / is_not_set for that
+      // audience.
       const sqlOp = OPERATOR_SQL[operator]
       if (!sqlOp) return null
-      return sql`EXTRACT(EPOCH FROM (NOW() - (SELECT MAX(s.created_at) FROM session s WHERE s.user_id = u.id))) / 86400 ${sql.raw(sqlOp)} ${Number(value)}`
+      return sql`EXTRACT(EPOCH FROM (NOW() - (SELECT MAX(COALESCE(s.updated_at, s.created_at)) FROM session s WHERE s.user_id = u.id))) / 86400 ${sql.raw(sqlOp)} ${Number(value)}`
     }
 
     case 'signup_source': {

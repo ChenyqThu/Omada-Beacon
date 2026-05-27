@@ -12,6 +12,7 @@ import { db, eq, and, inArray, isNull, sql, asc, segments, userSegments } from '
 import type { SegmentId, PrincipalId } from '@quackback/ids'
 import { createId } from '@quackback/ids'
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/shared/errors'
+import type { AuditActor } from '@/lib/server/audit/log'
 import { slugify } from '@/lib/shared/utils/string'
 import type {
   Segment,
@@ -231,7 +232,8 @@ export async function deleteSegment(segmentId: SegmentId): Promise<void> {
  */
 export async function assignUsersToSegment(
   segmentId: SegmentId,
-  principalIds: PrincipalId[]
+  principalIds: PrincipalId[],
+  actor: AuditActor | null = null
 ): Promise<void> {
   const segment = await getSegment(segmentId)
   if (!segment) {
@@ -251,10 +253,10 @@ export async function assignUsersToSegment(
       principalId,
       segmentId,
       source: 'manual',
-      // No actor here — the caller's audit context is unknown at this layer.
-      // Callers that need an audit trail (admin UI, REST API) should use
-      // addMember directly; this bulk helper is for batch imports + tests.
-      actor: null,
+      // Pass the caller's actor so admin-triggered bulk adds emit
+      // segment.member.added audit rows. System / unauthenticated
+      // callers pass null and the audit no-ops by design.
+      actor,
     })
   }
 }

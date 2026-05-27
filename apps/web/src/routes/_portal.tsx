@@ -14,7 +14,7 @@ import {
   evaluateMyPortalAccessFn,
   recordPortalAccessDeniedFn,
 } from '@/lib/server/functions/portal-access'
-import { redactSettingsForClient } from '@/lib/server/domains/settings/redact'
+import { redactSettingsForClient } from '@/lib/shared/redact-portal-config'
 
 /** Resolve locale from Accept-Language header on the server. */
 const getPortalLocale = createServerFn({ method: 'GET' }).handler(async () => {

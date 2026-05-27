@@ -40,8 +40,16 @@ ALTER TABLE "boards" DROP COLUMN IF EXISTS "is_public";
 -- ---------------------------------------------------------------
 ALTER TABLE "segments" ADD COLUMN IF NOT EXISTS "slug" text;
 
+-- COALESCE catches the empty-string case: a name with no alphanumeric
+-- characters (e.g. "!!!", "---") produces an empty trim result after the
+-- regex_replace strips everything. Fall back to "segment-<6-char-id>"
+-- so the NOT NULL constraint below holds and the unique-slug routing
+-- gives every row an addressable name.
 UPDATE "segments"
-SET "slug" = trim(both '-' from regexp_replace(lower("name"), '[^a-z0-9]+', '-', 'g'))
+SET "slug" = COALESCE(
+  NULLIF(trim(both '-' from regexp_replace(lower("name"), '[^a-z0-9]+', '-', 'g')), ''),
+  'segment-' || substr("id"::text, 1, 6)
+)
 WHERE "slug" IS NULL;
 
 -- Resolve any duplicate slugs by appending a 6-char id suffix.

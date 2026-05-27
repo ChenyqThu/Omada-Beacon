@@ -63,6 +63,15 @@ export const user = pgTable(
     uniqueIndex('user_email_idx')
       .on(table.email)
       .where(sql`email IS NOT NULL`),
+    // Partial b-tree on country / locale — both are referenced by the
+    // dynamic-segment evaluator (IN / ILIKE predicates) and the column
+    // is sparse, so partial indexes keep the on-disk footprint small.
+    index('user_country_idx')
+      .on(table.country)
+      .where(sql`country IS NOT NULL`),
+    index('user_locale_idx')
+      .on(table.locale)
+      .where(sql`locale IS NOT NULL`),
   ]
 )
 

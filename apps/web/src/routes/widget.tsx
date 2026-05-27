@@ -6,7 +6,7 @@ import { generateThemeCSS, getGoogleFontsUrl } from '@/lib/shared/theme'
 import { resolveLocale } from '@/lib/shared/i18n'
 import { WidgetAuthProvider } from '@/components/widget/widget-auth-provider'
 import { extractSessionTokenFromCookie } from '@/lib/server/functions/portal-session-token'
-import { redactSettingsForClient } from '@/lib/server/domains/settings/redact'
+import { redactSettingsForClient } from '@/lib/shared/redact-portal-config'
 
 const setIframeHeaders = createServerFn({ method: 'GET' }).handler(async () => {
   setResponseHeader('Content-Security-Policy', 'frame-ancestors *')
