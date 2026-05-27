@@ -278,7 +278,7 @@ vi.mock('@/lib/server/db', () => ({
 import { ForbiddenError, NotFoundError, ConflictError } from '@/lib/shared/errors'
 
 // Indexes correspond to declaration order in moderation.ts:
-// 0=listPendingPosts, 1=listPendingComments, 2=approve, 3=reject, 4=getModerationStatus
+// 0=listPendingPosts, 1=listPendingComments, 2=approve, 3=approveComment, 4=reject, 5=getModerationStatus
 function listPendingPosts(): Handler {
   return hoisted.handlersByIndex[0]
 }
@@ -289,11 +289,15 @@ function listPendingComments(): Handler {
 function approve(): Handler {
   return hoisted.handlersByIndex[2]
 }
-function reject(): Handler {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- accessor reserved for forthcoming comment-moderation tests; index slot must stay correct
+function approveComment(): Handler {
   return hoisted.handlersByIndex[3]
 }
-function getModerationStatusHandler(): Handler {
+function reject(): Handler {
   return hoisted.handlersByIndex[4]
+}
+function getModerationStatusHandler(): Handler {
+  return hoisted.handlersByIndex[5]
 }
 
 // Import after mocks so handlers are captured.

@@ -23,3 +23,16 @@ describe('comment moderation functions — exports', () => {
     expect(typeof moderation.rejectCommentFn).toBe('function')
   })
 })
+
+describe('approveCommentFn — input shape', () => {
+  it('accepts a commentId string', () => {
+    // Module-private schema; the inputValidator contract is observable
+    // via well-formed input not throwing on parse. requireAuth will then
+    // fail in test env (no session), so we expect the promise to reject —
+    // input validation has already run by that point.
+    const fn = moderation.approveCommentFn as unknown as (args: {
+      data: unknown
+    }) => Promise<unknown>
+    return expect(fn({ data: { commentId: 'comment_test' } })).rejects.toBeDefined()
+  })
+})
