@@ -171,7 +171,7 @@ export function useUpdateBoard() {
 export function useUpdateBoardAccess() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: { boardId: BoardId; audience?: BoardAudience }) =>
+    mutationFn: (input: { boardId: BoardId; audience?: BoardAudience; access?: BoardAccess }) =>
       updateBoardAccessFn({ data: input }),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: boardKeys.lists() })
@@ -179,16 +179,23 @@ export function useUpdateBoardAccess() {
       const previousList = queryClient.getQueryData<Board[]>(boardKeys.lists())
       const previousDetail = queryClient.getQueryData<Board>(boardKeys.detail(input.boardId))
 
+      // Compute the optimistic patch: when `access` is provided directly, write
+      // only `access` (mirrors the server's access-wins logic in T16). When only
+      // `audience` is provided, dual-write both via `clientAudienceToAccess`.
+      const accessPatch: Partial<Pick<Board, 'audience' | 'access'>> =
+        input.access !== undefined
+          ? { access: input.access }
+          : input.audience !== undefined
+            ? { audience: input.audience, access: clientAudienceToAccess(input.audience) }
+            : {}
+
       queryClient.setQueryData<Board[]>(boardKeys.lists(), (old) =>
         old?.map((board) =>
           board.id !== input.boardId
             ? board
             : {
                 ...board,
-                ...(input.audience !== undefined && {
-                  audience: input.audience,
-                  access: clientAudienceToAccess(input.audience),
-                }),
+                ...accessPatch,
                 updatedAt: new Date(),
               }
         )
@@ -197,10 +204,7 @@ export function useUpdateBoardAccess() {
       if (previousDetail) {
         queryClient.setQueryData<Board>(boardKeys.detail(input.boardId), {
           ...previousDetail,
-          ...(input.audience !== undefined && {
-            audience: input.audience,
-            access: clientAudienceToAccess(input.audience),
-          }),
+          ...accessPatch,
           updatedAt: new Date(),
         })
       }
