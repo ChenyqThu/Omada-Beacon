@@ -18,6 +18,7 @@ import { postStatuses } from './statuses'
 import { postExternalLinks } from './external-links'
 import { feedbackSuggestions } from './feedback'
 import { principal } from './auth'
+import { MODERATION_STATES } from '../types'
 import type { TiptapContent } from '../types'
 
 // Custom tsvector type for full-text search
@@ -259,6 +260,12 @@ export const comments = pgTable(
       () => principal.id,
       { onDelete: 'set null' }
     ),
+    // Moderation state for per-board approval gating
+    moderationState: text('moderation_state', {
+      enum: MODERATION_STATES,
+    })
+      .notNull()
+      .default('published'),
   },
   (table) => [
     index('comments_post_id_idx').on(table.postId),
@@ -267,6 +274,7 @@ export const comments = pgTable(
     index('comments_created_at_idx').on(table.createdAt),
     // Composite index for comment listings
     index('comments_post_created_at_idx').on(table.postId, table.createdAt),
+    index('comments_moderation_state_idx').on(table.moderationState),
   ]
 )
 
