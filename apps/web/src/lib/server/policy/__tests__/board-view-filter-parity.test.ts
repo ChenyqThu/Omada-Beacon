@@ -180,6 +180,10 @@ if (resolved) {
 describe.skipIf(!dbAvailable)('boardViewFilter ↔ canViewBoard parity (execution-level)', () => {
   beforeAll(async () => {
     if (!activeDb) return
+    // Crash-safety belt: sweep any leftover rows from prior crashed runs
+    // before seeding. The per-run afterAll is the primary cleanup path;
+    // this catches rows that leaked when the runner died mid-test.
+    await activeDb.delete(boards).where(sql`${boards.slug} LIKE 'parity-%'`)
     for (const { name, access } of accessShapes) {
       const id = createId('board') as BoardId
       const slug = `parity-${runSuffix}-${name}`
@@ -208,12 +212,10 @@ describe.skipIf(!dbAvailable)('boardViewFilter ↔ canViewBoard parity (executio
   afterAll(async () => {
     if (!activeDb) return
     try {
-      for (const b of seeded) {
-        await activeDb.delete(boards).where(eq(boards.id, b.id))
-      }
-      if (deletedBoardId) {
-        await activeDb.delete(boards).where(eq(boards.id, deletedBoardId))
-      }
+      // Targeted cleanup of THIS run's rows via the unique fingerprint.
+      // Pairs with the beforeAll pre-sweep so even a crash here is
+      // recovered by the next run.
+      await activeDb.delete(boards).where(sql`${boards.slug} LIKE ${`parity-${runSuffix}-%`}`)
     } finally {
       await closeDb?.()
     }
