@@ -40,12 +40,42 @@ vi.mock('@/lib/server/functions/auth-helpers', () => ({
 vi.mock('./workspace', () => ({ getSettings: vi.fn() }))
 
 // Mock the boards-service surface that the existing boards.ts imports.
+// `audienceToAccess` is a pure derivation — stub it with the same mapping the
+// real implementation uses, so the dual-write assertion can check the shape.
+type StubAccessTier = 'anonymous' | 'authenticated' | 'team' | 'segments'
+function stubAudienceToAccess(audience: { kind: string; segmentIds?: string[] }): {
+  view: StubAccessTier
+  comment: StubAccessTier
+  submit: StubAccessTier
+  segmentIds: string[]
+  approval: { posts: boolean; comments: boolean }
+} {
+  const tier: StubAccessTier =
+    audience.kind === 'public'
+      ? 'anonymous'
+      : audience.kind === 'authenticated'
+        ? 'authenticated'
+        : audience.kind === 'team'
+          ? 'team'
+          : audience.kind === 'segments'
+            ? 'segments'
+            : 'anonymous'
+  return {
+    view: tier,
+    comment: tier,
+    submit: tier,
+    segmentIds: audience.kind === 'segments' ? (audience.segmentIds ?? []) : [],
+    approval: { posts: false, comments: false },
+  }
+}
+
 vi.mock('@/lib/server/domains/boards/board.service', () => ({
   listBoards: vi.fn(),
   getBoardById: vi.fn(),
   createBoard: vi.fn(),
   updateBoard: vi.fn(),
   deleteBoard: vi.fn(),
+  audienceToAccess: vi.fn(stubAudienceToAccess),
 }))
 
 vi.mock('@/lib/server/domains/settings/settings.helpers', () => ({
@@ -56,6 +86,7 @@ vi.mock('@/lib/server/domains/settings/settings.helpers', () => ({
 type BoardRow = {
   id: string
   audience: { kind: string; segmentIds?: string[] }
+  access?: Record<string, unknown>
 }
 const state: {
   boards: BoardRow[]
@@ -259,5 +290,43 @@ describe('updateBoardAccessFn — segments audience persists segmentIds[]', () =
       kind: 'segments',
       segmentIds: ['segment_a', 'segment_b'],
     })
+  })
+})
+
+describe('updateBoardAccessFn — dual-write audience + derived access', () => {
+  // Until T16 rewrites this handler to accept an access payload directly, the
+  // legacy `audience` column and the new `access` column must move together —
+  // otherwise canViewBoard (post-Phase 2) reads stale tier data after every
+  // audience change.
+  beforeEach(() => {
+    mockRequireAuth.mockResolvedValue(AUTH_ADMIN)
+    state.boards = [{ id: 'board_1', audience: { kind: 'public' }, access: { view: 'anonymous' } }]
+  })
+
+  it('writes both audience and derived access to the same update', async () => {
+    await getUpdateBoardAccessFn()({
+      data: { boardId: 'board_1', audience: { kind: 'team' } },
+    })
+    expect(state.updates).toHaveLength(1)
+    const patch = state.updates[0] as { audience?: unknown; access?: unknown }
+    expect(patch.audience).toEqual({ kind: 'team' })
+    expect(patch.access).toMatchObject({
+      view: 'team',
+      comment: 'team',
+      submit: 'team',
+    })
+  })
+
+  it('audit before/after capture both audience and access', async () => {
+    await getUpdateBoardAccessFn()({
+      data: { boardId: 'board_1', audience: { kind: 'team' } },
+    })
+    expect(state.auditEvents).toHaveLength(1)
+    const before = state.auditEvents[0].before as { audience: unknown; access: unknown }
+    const after = state.auditEvents[0].after as { audience: unknown; access: unknown }
+    expect(before.audience).toEqual({ kind: 'public' })
+    expect(before.access).toBeDefined()
+    expect(after.audience).toEqual({ kind: 'team' })
+    expect(after.access).toMatchObject({ view: 'team', comment: 'team', submit: 'team' })
   })
 })

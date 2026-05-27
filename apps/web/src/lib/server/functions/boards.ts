@@ -15,6 +15,7 @@ import {
   createBoard,
   updateBoard,
   deleteBoard,
+  audienceToAccess,
 } from '@/lib/server/domains/boards/board.service'
 import { invalidateSettingsCache } from '@/lib/server/domains/settings/settings.helpers'
 
@@ -329,7 +330,13 @@ export const updateBoardAccessFn = createServerFn({ method: 'POST' })
     if (!before) throw new NotFoundError('BOARD_NOT_FOUND', `Board ${data.boardId} not found`)
 
     const updates: Record<string, unknown> = {}
-    if (data.audience) updates.audience = data.audience
+    if (data.audience) {
+      // Dual-write until T16: keep the additive `access` column in lockstep
+      // with the legacy `audience` so canViewBoard (post-Phase 2) doesn't
+      // read stale tier data on every audience change.
+      updates.audience = data.audience
+      updates.access = audienceToAccess(data.audience)
+    }
     if (Object.keys(updates).length === 0) return { ok: true }
 
     await db
@@ -342,8 +349,8 @@ export const updateBoardAccessFn = createServerFn({ method: 'POST' })
         event: 'board.audience.changed',
         actor: actorFromAuth(auth),
         target: { type: 'board', id: data.boardId },
-        before: { audience: before.audience },
-        after: { audience: data.audience },
+        before: { audience: before.audience, access: before.access },
+        after: { audience: data.audience, access: audienceToAccess(data.audience) },
       })
     }
 
