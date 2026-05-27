@@ -18,6 +18,7 @@
 
 import {
   db,
+  and,
   boards,
   eq,
   inArray,
@@ -113,10 +114,16 @@ export async function createPost(
     },
   })
 
-  // Validate board exists and get status in parallel
+  // Validate board exists and get status in parallel.
+  // The deletedAt filter here is load-bearing: rehostExternalImages (below) uploads
+  // to S3 before the locked recheck inside the transaction. Without this filter, a
+  // soft-deleted board would only be rejected AFTER the S3 write, orphaning the
+  // uploaded objects.
   const needsDefaultStatus = !input.statusId
   const [board, statusResult] = await Promise.all([
-    db.query.boards.findFirst({ where: eq(boards.id, input.boardId) }),
+    db.query.boards.findFirst({
+      where: and(eq(boards.id, input.boardId), isNull(boards.deletedAt)),
+    }),
     needsDefaultStatus
       ? db
           .select()

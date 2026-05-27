@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BoardId, PrincipalId, StatusId } from '@quackback/ids'
 
 const recordAuditEvent = vi.fn()
+const rehostExternalImages = vi.fn(async (json: unknown) => json)
 
 const insertedRows: Record<string, unknown[]> = { posts: [], votes: [], postTags: [] }
 const subscribeToPost = vi.fn()
@@ -103,6 +104,7 @@ vi.mock('@/lib/server/db', async () => {
     postTags: { __name: 'postTags' },
     votes: { __name: 'votes' },
     eq: vi.fn(),
+    and: vi.fn((...args: unknown[]) => args),
     sql: realSql,
   }
 })
@@ -129,7 +131,8 @@ vi.mock('@/lib/server/markdown-tiptap', () => ({
 }))
 
 vi.mock('@/lib/server/content/rehost-images', () => ({
-  rehostExternalImages: vi.fn(async (json: unknown) => json),
+  rehostExternalImages: (...args: unknown[]) =>
+    rehostExternalImages(...(args as Parameters<typeof rehostExternalImages>)),
 }))
 
 // createPost runs a tier-limit gate after validation. Stub the
@@ -406,7 +409,39 @@ describe('createPost TOCTOU board re-check', () => {
     insertedRows.votes.length = 0
     insertedRows.postTags.length = 0
     subscribeToPost.mockClear()
+    rehostExternalImages.mockClear()
     txLockedBoardRows.value = [{ deletedAt: null }]
+  })
+
+  it('rejects a soft-deleted board in the precheck BEFORE rehostExternalImages runs (no S3 leak)', async () => {
+    // The precheck filters isNull(boards.deletedAt). When the row is already
+    // soft-deleted at the start of createPost, findFirst returns undefined and
+    // the request must throw BOARD_NOT_FOUND BEFORE rehostExternalImages is
+    // invoked — otherwise the S3 uploads orphan when the (later) locked
+    // re-check throws.
+    const { db } = await import('@/lib/server/db')
+    vi.mocked(db.query.boards.findFirst).mockResolvedValueOnce(undefined)
+
+    const { createPost } = await import('../post.service')
+    const principalId = 'principal_user' as unknown as PrincipalId
+
+    await expect(
+      createPost(
+        {
+          boardId: 'board_b' as unknown as BoardId,
+          title: 'Pre-deleted post',
+          content: 'Body',
+          statusId: 'status_open' as unknown as StatusId,
+        },
+        { principalId }
+      )
+    ).rejects.toThrow(/BOARD_NOT_FOUND|not found/i)
+
+    // The S3 rehost path must never run when the board fails the precheck.
+    expect(rehostExternalImages).not.toHaveBeenCalled()
+    // And nothing must reach the DB either.
+    expect(insertedRows.posts).toHaveLength(0)
+    expect(insertedRows.votes).toHaveLength(0)
   })
 
   it('throws BOARD_NOT_FOUND when the board is soft-deleted between the precheck and the locked re-check', async () => {
