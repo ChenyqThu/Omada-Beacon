@@ -8,15 +8,7 @@ import type { BoardId } from '@quackback/ids'
 import type { BoardSettings, SetupState } from '@/lib/server/db'
 import { requireAuth } from './auth-helpers'
 import { getSettings } from './workspace'
-import {
-  db,
-  settings,
-  boards,
-  eq,
-  ACCESS_TIERS,
-  ACCESS_TIER_RANK,
-  type AccessTier,
-} from '@/lib/server/db'
+import { db, settings, boards, eq, type AccessTier } from '@/lib/server/db'
 import {
   listBoards,
   getBoardById,
@@ -25,66 +17,17 @@ import {
   deleteBoard,
 } from '@/lib/server/domains/boards/board.service'
 import { invalidateSettingsCache } from '@/lib/server/domains/settings/settings.helpers'
+import { boardAccessSchema } from '@/lib/shared/schemas/boards'
+
+// Re-export for back-compat: existing test imports `boardAccessSchema`
+// from '../boards'. The actual definition lives in @/lib/shared/schemas/boards
+// alongside the other board schemas, keeping it out of the client → server
+// import-protection chain.
+export { boardAccessSchema }
 
 // ============================================
 // Schemas
 // ============================================
-
-/**
- * Validation for the per-action `BoardAccess` payload (view/comment/submit
- * + segmentIds + approval). Enforces the spec's tier-rank invariants so a
- * board can't accidentally land in a contradictory state (e.g. anonymous
- * comments on a team-only-visible board).
- *
- * Invariants:
- *  - `comment.rank >= view.rank` (can't be more permissive than view)
- *  - `submit.rank >= view.rank`
- *  - If ANY tier is `'segments'`, `segmentIds.length >= 1` (empty allowlist
- *    would hide the board from everyone in that tier)
- *  - `segmentIds.length <= 50` (board capacity cap)
- *
- * Exported so a unit test can exercise the shape directly. T16 wires this
- * into `updateBoardAccessFn`.
- */
-const tierSchema = z.enum(ACCESS_TIERS)
-
-export const boardAccessSchema = z
-  .object({
-    view: tierSchema,
-    comment: tierSchema,
-    submit: tierSchema,
-    segmentIds: z.array(z.string()).max(50, 'At most 50 segments per board.'),
-    approval: z.object({
-      posts: z.boolean(),
-      comments: z.boolean(),
-    }),
-  })
-  .superRefine((val, ctx) => {
-    if (ACCESS_TIER_RANK[val.comment] < ACCESS_TIER_RANK[val.view]) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['comment'],
-        message: 'Comment tier cannot be more permissive than view.',
-      })
-    }
-    if (ACCESS_TIER_RANK[val.submit] < ACCESS_TIER_RANK[val.view]) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['submit'],
-        message: 'Submit tier cannot be more permissive than view.',
-      })
-    }
-    const anyTierSegments =
-      val.view === 'segments' || val.comment === 'segments' || val.submit === 'segments'
-    if (anyTierSegments && val.segmentIds.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['segmentIds'],
-        message:
-          'Pick at least one segment — empty allowlist hides the board from everyone in that tier.',
-      })
-    }
-  })
 
 const createBoardSchema = z.object({
   name: z
