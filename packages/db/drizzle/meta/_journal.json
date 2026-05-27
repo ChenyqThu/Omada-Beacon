@@ -533,6 +533,13 @@
       "when": 1779148800000,
       "tag": "0075_invitation_account_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1779235200000,
+      "tag": "0076_user_email_lower_idx",
+      "breakpoints": true
     }
   ]
 }

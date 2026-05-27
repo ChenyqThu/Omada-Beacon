@@ -96,4 +96,23 @@ describe('assignUsersToSegment — admin audit (G11)', () => {
     const arg = mockAddMember.mock.calls[0][0] as { actor: unknown }
     expect(arg.actor).toBeNull()
   })
+
+  it('returns the real assigned count (validated ids only, not the input length)', async () => {
+    const { assignUsersToSegment } = await import('../segment.service')
+    // ALICE is valid; UNKNOWN does not exist in the principal table.
+    const UNKNOWN = generateId('principal') as PrincipalId
+
+    // Override the validation select so only ALICE is echoed back.
+    const dbMod = await import('@/lib/server/db')
+    vi.mocked(dbMod.db.select).mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([{ id: ALICE }]),
+      }),
+    } as unknown as ReturnType<typeof dbMod.db.select>)
+
+    const result = await assignUsersToSegment(SEGMENT_ID, [ALICE, UNKNOWN], ADMIN_ACTOR)
+
+    expect(result).toEqual({ assigned: 1 })
+    expect(mockAddMember).toHaveBeenCalledTimes(1)
+  })
 })

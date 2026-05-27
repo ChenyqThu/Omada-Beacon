@@ -164,6 +164,11 @@ vi.mock('@/lib/server/domains/embeddings/embedding.service', () => ({
   generateEmbedding: vi.fn().mockResolvedValue(null),
 }))
 
+vi.mock('@/lib/server/domains/posts/post.access', () => ({
+  assertPostViewable: vi.fn().mockResolvedValue(undefined),
+  assertCommentViewable: vi.fn().mockResolvedValue(undefined),
+}))
+
 // ---------------------------------------------------------------------------
 // Handler indices
 // ---------------------------------------------------------------------------
@@ -174,6 +179,7 @@ const CREATE_PUBLIC_POST = 5
 const LIST_PUBLIC_ROADMAPS = 7
 const GET_PUBLIC_ROADMAP_POSTS = 8
 const GET_ROADMAP_POSTS_BY_STATUS = 9
+const GET_VOTE_SIDEBAR_DATA = 10
 const FIND_SIMILAR_POSTS = 11
 
 beforeEach(async () => {
@@ -509,6 +515,40 @@ describe('findSimilarPostsFn — portal-visibility gate', () => {
 // could post / vote / comment without ever being granted portal access.
 // The fix calls resolvePortalAccessForRequest() at the top of each write
 // handler; denials short-circuit with an Unauthorized error.
+
+describe('getVoteSidebarDataFn — portal-visibility gate', () => {
+  it('returns the non-voting default when the portal is private and the caller is unauthorized', async () => {
+    mockResolvePortalAccess.mockResolvedValue({ granted: false, reason: 'unauthorized' })
+
+    const result = (await publicPostsHandlers[GET_VOTE_SIDEBAR_DATA]({
+      data: { postId: 'pst_x' },
+    })) as { isMember: boolean; canVote: boolean; hasVoted: boolean }
+
+    // Denied callers must not learn whether they've voted, whether
+    // they're a member, or whether the post even exists.
+    expect(result.isMember).toBe(false)
+    expect(result.canVote).toBe(false)
+    expect(result.hasVoted).toBe(false)
+    expect(mockResolvePortalAccess).toHaveBeenCalled()
+  })
+
+  it('returns the non-voting default when the post is not viewable under its board audience', async () => {
+    mockResolvePortalAccess.mockResolvedValue({ granted: true, reason: 'public' })
+    // assertPostViewable mock throws NotFound → handler must catch and
+    // return the safe default rather than leaking via a stack trace.
+    const { assertPostViewable } = await import('@/lib/server/domains/posts/post.access')
+    vi.mocked(assertPostViewable).mockRejectedValueOnce(
+      Object.assign(new Error('not found'), { name: 'NotFoundError' })
+    )
+
+    const result = (await publicPostsHandlers[GET_VOTE_SIDEBAR_DATA]({
+      data: { postId: 'pst_blocked' },
+    })) as { isMember: boolean; canVote: boolean; hasVoted: boolean }
+
+    expect(result.canVote).toBe(false)
+    expect(result.hasVoted).toBe(false)
+  })
+})
 
 describe('write-path portal-visibility gates (G6)', () => {
   it('createPublicPostFn calls the portal-access resolver before any side effects', async () => {

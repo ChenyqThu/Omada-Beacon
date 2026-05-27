@@ -4,11 +4,11 @@
  * Handles adding and removing emoji reactions on comments.
  */
 
-import { db, eq, and, comments, commentReactions } from '@/lib/server/db'
+import { db, eq, and, commentReactions } from '@/lib/server/db'
 import { type CommentId, type PrincipalId } from '@quackback/ids'
-import { NotFoundError } from '@/lib/shared/errors'
 import { aggregateReactions } from '@/lib/shared'
-import { canViewPost, isTeamActor, type Actor } from '@/lib/server/policy'
+import { type Actor } from '@/lib/server/policy'
+import { assertCommentViewable } from '@/lib/server/domains/posts/post.access'
 import type { ReactionResult } from './comment.types'
 
 /**
@@ -29,38 +29,12 @@ export async function addReaction(
   actor: Actor
 ): Promise<ReactionResult> {
   console.log(`[domain:comments] addReaction: commentId=${commentId}, emoji=${emoji}`)
-  // Verify comment exists with post and board in single query
-  const comment = await db.query.comments.findFirst({
-    where: eq(comments.id, commentId),
-    with: {
-      post: {
-        with: { board: true },
-      },
-    },
-  })
-  if (!comment) {
-    throw new NotFoundError('COMMENT_NOT_FOUND', `Comment with ID ${commentId} not found`)
-  }
-  if (!comment.post || !comment.post.board) {
-    throw new NotFoundError('POST_NOT_FOUND', `Post with ID ${comment.postId} not found`)
-  }
-  // Audience + moderation + private-comment gate. Treat denials as
-  // "not found" so we don't leak existence to denied callers. Private
-  // comments are team-only — non-team actors can never react.
-  const viewDecision = canViewPost(
-    actor,
-    {
-      moderationState: comment.post.moderationState,
-      principalId: comment.post.principalId,
-    },
-    { audience: comment.post.board.audience }
-  )
-  if (!viewDecision.allowed) {
-    throw new NotFoundError('COMMENT_NOT_FOUND', `Comment with ID ${commentId} not found`)
-  }
-  if (comment.isPrivate && !isTeamActor(actor)) {
-    throw new NotFoundError('COMMENT_NOT_FOUND', `Comment with ID ${commentId} not found`)
-  }
+  // Single chokepoint for comment access: audience + moderation +
+  // isPrivate + isNull(deletedAt) on comment/post/board. Previously this
+  // function did its own canViewPost+isPrivate inline but didn't check
+  // any of the deletedAt columns — so a reaction could be added to a
+  // soft-deleted comment / post / board.
+  await assertCommentViewable(commentId, actor)
 
   // Atomically insert reaction (uses unique constraint to prevent duplicates)
   const inserted = await db
@@ -108,38 +82,8 @@ export async function removeReaction(
   actor: Actor
 ): Promise<ReactionResult> {
   console.log(`[domain:comments] removeReaction: commentId=${commentId}, emoji=${emoji}`)
-  // Verify comment exists with post and board in single query
-  const comment = await db.query.comments.findFirst({
-    where: eq(comments.id, commentId),
-    with: {
-      post: {
-        with: { board: true },
-      },
-    },
-  })
-  if (!comment) {
-    throw new NotFoundError('COMMENT_NOT_FOUND', `Comment with ID ${commentId} not found`)
-  }
-  if (!comment.post || !comment.post.board) {
-    throw new NotFoundError('POST_NOT_FOUND', `Post with ID ${comment.postId} not found`)
-  }
-  // Same audience + isPrivate guard as addReaction. Denied callers
-  // shouldn't be able to probe existence by attempting to remove a
-  // reaction (the response shape would otherwise differ).
-  const viewDecision = canViewPost(
-    actor,
-    {
-      moderationState: comment.post.moderationState,
-      principalId: comment.post.principalId,
-    },
-    { audience: comment.post.board.audience }
-  )
-  if (!viewDecision.allowed) {
-    throw new NotFoundError('COMMENT_NOT_FOUND', `Comment with ID ${commentId} not found`)
-  }
-  if (comment.isPrivate && !isTeamActor(actor)) {
-    throw new NotFoundError('COMMENT_NOT_FOUND', `Comment with ID ${commentId} not found`)
-  }
+  // Same chokepoint as addReaction — see notes there.
+  await assertCommentViewable(commentId, actor)
 
   // Directly delete (no need to check first - idempotent operation)
   await db

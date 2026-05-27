@@ -23,7 +23,7 @@ import {
 import type { NotificationId, PrincipalId } from '@quackback/ids'
 import { createId } from '@quackback/ids'
 import { NotFoundError } from '@/lib/shared/errors'
-import { ANONYMOUS_ACTOR, boardViewFilter, type Actor } from '@/lib/server/policy'
+import { ANONYMOUS_ACTOR, boardViewFilter, canViewPost, type Actor } from '@/lib/server/policy'
 import type {
   CreateNotificationInput,
   NotificationType,
@@ -102,9 +102,17 @@ export async function getNotificationsForMember(
 
   const where = unreadOnly ? and(baseWhere, isNull(inAppNotifications.readAt)) : baseWhere
 
-  // Get notifications with post details. The boards join applies
-  // boardViewFilter so audience-restricted posts come back with
-  // null board fields — the mapper then hides the post preview.
+  // Get notifications with post details. Both joins are filtered:
+  //   - posts: only join non-deleted rows. A soft-deleted post would
+  //     otherwise still satisfy `eq(notifications.postId, posts.id)`
+  //     and its stored title would leak via row.postTitle even though
+  //     the post is gone.
+  //   - boards: also gated by boardViewFilter(actor) so an audience-
+  //     restricted board returns null boardSlug.
+  // The mapper below treats any deny (no post OR no board) as a
+  // redaction — both the link AND the stored title/body/metadata
+  // (which embed the post title and comment preview) are replaced
+  // with a neutral placeholder.
   const rows = await db
     .select({
       id: inAppNotifications.id,
@@ -119,11 +127,17 @@ export async function getNotificationsForMember(
       archivedAt: inAppNotifications.archivedAt,
       createdAt: inAppNotifications.createdAt,
       postTitle: posts.title,
+      postModerationState: posts.moderationState,
+      postPrincipalId: posts.principalId,
       boardSlug: boards.slug,
+      boardAudience: boards.audience,
     })
     .from(inAppNotifications)
-    .leftJoin(posts, eq(inAppNotifications.postId, posts.id))
-    .leftJoin(boards, and(eq(posts.boardId, boards.id), boardViewFilter(actor)))
+    .leftJoin(posts, and(eq(inAppNotifications.postId, posts.id), isNull(posts.deletedAt)))
+    .leftJoin(
+      boards,
+      and(eq(posts.boardId, boards.id), isNull(boards.deletedAt), boardViewFilter(actor))
+    )
     .where(where)
     .orderBy(desc(inAppNotifications.createdAt))
     .limit(limit)
@@ -144,31 +158,52 @@ export async function getNotificationsForMember(
   const unreadCount = unreadResult[0]?.count ?? 0
 
   const notifications: NotificationWithPost[] = rows.map((row) => {
-    // Audience denial: postId is set but the gated join (boardViewFilter)
-    // produced no boardSlug. The post link is hidden via `post: null`,
-    // but the STORED title and body embed the post title and a comment
-    // preview — leaking the audience-restricted content. Replace them
-    // with a neutral placeholder so the row still has a sensible label
-    // without disclosing the post text. Metadata is also stripped since
-    // it can carry actor names and the same preview fields.
-    const audienceDenied = row.postId !== null && row.boardSlug === null
+    // Three ways a postId-bearing notification can be denied:
+    //   1. The board's audience excludes the actor (boardViewFilter
+    //      returned null boardSlug).
+    //   2. The post is soft-deleted (left join returned null because
+    //      of the isNull(posts.deletedAt) filter above).
+    //   3. The post is in a moderation state the actor can't see
+    //      (pending/spam for non-team, except own-pending) — checked
+    //      explicitly via canViewPost.
+    // Any of those redact title/body/metadata to a neutral placeholder
+    // so the row stays in the feed without disclosing post text or
+    // comment preview embedded at notification creation time.
+    let denied = false
+    if (row.postId !== null) {
+      if (!row.postTitle || !row.boardSlug || !row.boardAudience) {
+        // The post was deleted, the board was deleted, or the
+        // board-audience join was filtered out.
+        denied = true
+      } else {
+        const decision = canViewPost(
+          actor,
+          {
+            moderationState: row.postModerationState ?? 'published',
+            principalId: row.postPrincipalId,
+          },
+          { audience: row.boardAudience }
+        )
+        if (!decision.allowed) denied = true
+      }
+    }
     return {
       id: row.id,
       principalId: row.principalId,
       type: row.type as NotificationType,
-      title: audienceDenied ? 'Notification' : row.title,
-      body: audienceDenied ? 'This activity is no longer visible to you.' : row.body,
+      title: denied ? 'Notification' : row.title,
+      body: denied ? 'This activity is no longer visible to you.' : row.body,
       postId: row.postId,
       commentId: row.commentId,
-      metadata: audienceDenied ? null : (row.metadata as Record<string, unknown> | null),
+      metadata: denied ? null : (row.metadata as Record<string, unknown> | null),
       readAt: row.readAt,
       archivedAt: row.archivedAt,
       createdAt: row.createdAt,
       post:
-        row.postId && row.boardSlug
+        row.postId && row.postTitle && row.boardSlug && !denied
           ? {
               id: row.postId,
-              title: row.postTitle!,
+              title: row.postTitle,
               boardSlug: row.boardSlug,
             }
           : null,

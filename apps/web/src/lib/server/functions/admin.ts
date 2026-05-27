@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { createServerFn } from '@tanstack/react-start'
+import { getRequestHeaders } from '@tanstack/react-start/server'
 import {
   generateId,
   type InviteId,
@@ -274,7 +275,8 @@ export const updateMemberRoleFn = createServerFn({ method: 'POST' })
         data.principalId as PrincipalId,
         data.role,
         auth.principal.id,
-        actorFromAuth(auth)
+        actorFromAuth(auth),
+        getRequestHeaders()
       )
 
       console.log(`[fn:admin] updateMemberRoleFn: success`)
@@ -342,7 +344,8 @@ export const removeTeamMemberFn = createServerFn({ method: 'POST' })
       await removeTeamMember(
         data.principalId as PrincipalId,
         auth.principal.id,
-        actorFromAuth(auth)
+        actorFromAuth(auth),
+        getRequestHeaders()
       )
 
       console.log(`[fn:admin] removeTeamMemberFn: success`)
@@ -1394,13 +1397,14 @@ export const assignUsersToSegmentFn = createServerFn({ method: 'POST' })
     try {
       const auth = await requireAuth({ roles: ['admin', 'member'] })
       const { actorFromAuth } = await import('@/lib/server/audit/log')
-      await assignUsersToSegment(
+      const { assigned } = await assignUsersToSegment(
         data.segmentId as SegmentId,
         data.principalIds as PrincipalId[],
-        actorFromAuth(auth)
+        actorFromAuth(auth),
+        getRequestHeaders()
       )
-      console.log(`[fn:admin] assignUsersToSegmentFn: assigned`)
-      return { segmentId: data.segmentId, assigned: data.principalIds.length }
+      console.log(`[fn:admin] assignUsersToSegmentFn: assigned=${assigned}`)
+      return { segmentId: data.segmentId, assigned }
     } catch (error) {
       console.error(`[fn:admin] ❌ assignUsersToSegmentFn failed:`, error)
       throw error
@@ -1419,13 +1423,14 @@ export const removeUsersFromSegmentFn = createServerFn({ method: 'POST' })
     try {
       const auth = await requireAuth({ roles: ['admin', 'member'] })
       const { actorFromAuth } = await import('@/lib/server/audit/log')
-      await removeUsersFromSegment(
+      const { removed } = await removeUsersFromSegment(
         data.segmentId as SegmentId,
         data.principalIds as PrincipalId[],
-        actorFromAuth(auth)
+        actorFromAuth(auth),
+        getRequestHeaders()
       )
-      console.log(`[fn:admin] removeUsersFromSegmentFn: removed`)
-      return { segmentId: data.segmentId, removed: data.principalIds.length }
+      console.log(`[fn:admin] removeUsersFromSegmentFn: removed=${removed}`)
+      return { segmentId: data.segmentId, removed }
     } catch (error) {
       console.error(`[fn:admin] ❌ removeUsersFromSegmentFn failed:`, error)
       throw error

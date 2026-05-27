@@ -59,13 +59,21 @@ export async function sweepExpiredPortalInvites(): Promise<number> {
         eq(invitation.status, 'pending')
       )
     )
-    .returning({ id: invitation.id, email: invitation.email, createdAt: invitation.createdAt })
+    .returning({
+      id: invitation.id,
+      email: invitation.email,
+      createdAt: invitation.createdAt,
+      kind: invitation.kind,
+    })
 
   // Emit one audit row per invite that was actually flipped. Best-effort
   // — emit failures are logged but don't change the data outcome.
+  // Team-kind invites get their own event so audit reviewers can
+  // filter on event type alone without parsing metadata.
   for (const inv of actuallyExpired) {
+    const event = inv.kind === 'team' ? 'team.invite.expired' : 'portal.invite.expired'
     await recordAuditEvent({
-      event: 'portal.invite.expired',
+      event,
       outcome: 'success',
       actor: { type: 'system' },
       target: { type: 'invitation', id: inv.id },

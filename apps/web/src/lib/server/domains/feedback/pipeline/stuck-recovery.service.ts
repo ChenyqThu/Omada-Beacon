@@ -33,8 +33,10 @@ export async function recoverStuckItems(): Promise<void> {
       // Mark permanently failed. WHERE pins processingState to the
       // value we read so a concurrent legitimate transition (worker
       // finished extraction between our SELECT and UPDATE) isn't
-      // silently overwritten back to 'failed'.
-      await db
+      // silently overwritten back to 'failed'. `.returning()` lets us
+      // tell a real recovery from a no-op so we don't write a
+      // misleading audit row or enqueue a stale job.
+      const flipped = await db
         .update(rawFeedbackItems)
         .set({
           processingState: 'failed',
@@ -48,6 +50,8 @@ export async function recoverStuckItems(): Promise<void> {
             eq(rawFeedbackItems.processingState, item.processingState)
           )
         )
+        .returning({ id: rawFeedbackItems.id })
+      if (flipped.length === 0) continue
 
       await logPipelineEvent({
         eventType: 'recovery.max_attempts_exceeded',
@@ -63,9 +67,9 @@ export async function recoverStuckItems(): Promise<void> {
     }
 
     // Reset to ready_for_extraction and re-enqueue. Same source-state
-    // pin as the failure branch above — only rewind if the row is
-    // still in the intermediate state we read.
-    await db
+    // pin + returning() guard so we only log + enqueue when the UPDATE
+    // actually rewound the row.
+    const flipped = await db
       .update(rawFeedbackItems)
       .set({
         processingState: 'ready_for_extraction',
@@ -78,6 +82,8 @@ export async function recoverStuckItems(): Promise<void> {
           eq(rawFeedbackItems.processingState, item.processingState)
         )
       )
+      .returning({ id: rawFeedbackItems.id })
+    if (flipped.length === 0) continue
 
     await logPipelineEvent({
       eventType: 'recovery.raw_item_reset',
@@ -101,15 +107,18 @@ export async function recoverStuckItems(): Promise<void> {
   })
 
   for (const signal of stuckSignals) {
-    // Same pin as the raw-items loop above. We selected with
-    // processingState='interpreting'; if a concurrent worker has
-    // already flipped it to 'completed', the UPDATE is a no-op.
-    await db
+    // Same pin + returning() guard as the raw-items loop above. We
+    // selected with processingState='interpreting'; if a concurrent
+    // worker has already flipped it to 'completed', the UPDATE is a
+    // no-op and we skip the log + enqueue.
+    const flipped = await db
       .update(feedbackSignals)
       .set({ processingState: 'pending_interpretation', updatedAt: new Date() })
       .where(
         and(eq(feedbackSignals.id, signal.id), eq(feedbackSignals.processingState, 'interpreting'))
       )
+      .returning({ id: feedbackSignals.id })
+    if (flipped.length === 0) continue
 
     await logPipelineEvent({
       eventType: 'recovery.signal_reset',

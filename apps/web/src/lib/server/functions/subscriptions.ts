@@ -40,6 +40,13 @@ export const fetchSubscriptionStatus = createServerFn({ method: 'GET' })
     console.log(`[fn:subscriptions] fetchSubscriptionStatus: postId=${data.postId}`)
     try {
       const auth = await requireAuth({ roles: ['admin', 'member', 'user'] })
+      // Same gate as the write paths below. Without it, an authenticated
+      // portal user could probe any postId to confirm existence and
+      // learn their prior subscription level on team-only / segment-
+      // restricted boards. The round-2 fix patched a same-named
+      // function in functions/portal.ts; this is the one the
+      // subscription-bell UI actually imports.
+      await gateSubscriptionWrite(data.postId as PostId, auth)
 
       const { getSubscriptionStatus } =
         await import('@/lib/server/domains/subscriptions/subscription.service')

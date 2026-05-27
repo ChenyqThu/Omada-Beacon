@@ -244,8 +244,9 @@ export async function deleteSegment(segmentId: SegmentId): Promise<void> {
 export async function assignUsersToSegment(
   segmentId: SegmentId,
   principalIds: PrincipalId[],
-  actor: AuditActor | null = null
-): Promise<void> {
+  actor: AuditActor | null = null,
+  headers?: Headers
+): Promise<{ assigned: number }> {
   const segment = await getSegment(segmentId)
   if (!segment) {
     throw new NotFoundError('SEGMENT_NOT_FOUND', `Segment ${segmentId} not found`)
@@ -256,7 +257,7 @@ export async function assignUsersToSegment(
       'Cannot manually assign users to a dynamic segment'
     )
   }
-  if (principalIds.length === 0) return
+  if (principalIds.length === 0) return { assigned: 0 }
 
   // Validate principal ids up-front so one missing id doesn't FK-violate
   // mid-loop and abort the bulk. The REST endpoint has this; the admin
@@ -268,7 +269,7 @@ export async function assignUsersToSegment(
     .where(inArray(principalTable.id, principalIds))
   const validIds = new Set(validatedRows.map((r) => String(r.id)))
   const known = principalIds.filter((id) => validIds.has(id))
-  if (known.length === 0) return
+  if (known.length === 0) return { assigned: 0 }
 
   const { addMember } = await import('./segment-membership.service')
   for (const principalId of known) {
@@ -280,8 +281,10 @@ export async function assignUsersToSegment(
       // segment.member.added audit rows. System / unauthenticated
       // callers pass null and the audit no-ops by design.
       actor,
+      headers,
     })
   }
+  return { assigned: known.length }
 }
 
 /**
@@ -290,8 +293,9 @@ export async function assignUsersToSegment(
 export async function removeUsersFromSegment(
   segmentId: SegmentId,
   principalIds: PrincipalId[],
-  actor: AuditActor | null = null
-): Promise<void> {
+  actor: AuditActor | null = null,
+  headers?: Headers
+): Promise<{ removed: number }> {
   const segment = await getSegment(segmentId)
   if (!segment) {
     throw new NotFoundError('SEGMENT_NOT_FOUND', `Segment ${segmentId} not found`)
@@ -302,7 +306,7 @@ export async function removeUsersFromSegment(
       'Cannot manually remove users from a dynamic segment'
     )
   }
-  if (principalIds.length === 0) return
+  if (principalIds.length === 0) return { removed: 0 }
 
   // The previous implementation skipped removeMember for the bulk path
   // and went straight to a single DELETE — which meant every admin
@@ -322,11 +326,13 @@ export async function removeUsersFromSegment(
       await recordAuditEvent({
         event: 'segment.member.removed',
         actor,
+        headers,
         target: { type: 'segment', id: segmentId },
         metadata: { principalId: row.principalId, source: 'manual-bulk' },
       })
     }
   }
+  return { removed: removedRows.length }
 }
 
 // ============================================

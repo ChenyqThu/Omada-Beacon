@@ -790,6 +790,13 @@ Examples:
         if (flagDenied) return flagDenied
         const denied = requireScope(auth, 'read:help-center')
         if (denied) return denied
+        // Help-center MCP read surfaces unpublished drafts and articles
+        // under categories an admin marked private. The public help
+        // center site already serves the published+isPublic slice for
+        // anonymous and portal users; gating MCP read on team role
+        // matches the team-only intent of the inbox-style tools.
+        const roleDenied = requireTeamRole(auth)
+        if (roleDenied) return roleDenied
         try {
           return await searchArticles(args)
         } catch (err) {
@@ -799,11 +806,12 @@ Examples:
 
       const denied = requireScope(auth, 'read:feedback')
       if (denied) return denied
-      // showDeleted requires team role
-      if (args.showDeleted) {
-        const roleDenied = requireTeamRole(auth)
-        if (roleDenied) return roleDenied
-      }
+      // Posts and changelogs inbox-style listings expose pending /
+      // soft-deleted / draft / scheduled content alongside published
+      // rows. Gating these on team role keeps OAuth portal users out
+      // of the admin moderation surface.
+      const roleDenied = requireTeamRole(auth)
+      if (roleDenied) return roleDenied
       try {
         if (args.entity === 'changelogs') {
           return await searchChangelogs(args)
@@ -844,11 +852,20 @@ Examples:
           case 'post': {
             const denied = requireScope(auth, 'read:feedback')
             if (denied) return denied
+            // Posts here surface moderation/inbox fields (deletedAt,
+            // moderationState, pinnedCommentId, summaryJson...). Gate to
+            // team — portal users should hit the public portal API.
+            const roleDenied = requireTeamRole(auth)
+            if (roleDenied) return roleDenied
             return await getPostDetails(args.id as PostId)
           }
           case 'changelog': {
             const denied = requireScope(auth, 'read:feedback')
             if (denied) return denied
+            // get_details returns the raw entry including drafts /
+            // scheduled rows. Team-only matches the search gate.
+            const roleDenied = requireTeamRole(auth)
+            if (roleDenied) return roleDenied
             return await getChangelogDetails(args.id as ChangelogId)
           }
           case 'article': {
@@ -856,6 +873,13 @@ Examples:
             if (flagDenied) return flagDenied
             const denied = requireScope(auth, 'read:help-center')
             if (denied) return denied
+            // getArticleById doesn't enforce publishedAt or
+            // category.isPublic — so a portal user with the help-center
+            // OAuth scope could fetch drafts or private-category
+            // articles. The public help-center site has its own
+            // unauthenticated path for the published slice.
+            const roleDenied = requireTeamRole(auth)
+            if (roleDenied) return roleDenied
             return await getArticleDetails(args.id as HelpCenterArticleId)
           }
           case 'category': {
@@ -863,6 +887,10 @@ Examples:
             if (flagDenied) return flagDenied
             const denied = requireScope(auth, 'read:help-center')
             if (denied) return denied
+            // getCategoryById returns private categories too — keep
+            // symmetric with the article path.
+            const roleDenied = requireTeamRole(auth)
+            if (roleDenied) return roleDenied
             return await getCategoryDetails(args.id as HelpCenterCategoryId)
           }
           default:

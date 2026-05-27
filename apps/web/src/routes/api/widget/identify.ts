@@ -230,9 +230,16 @@ export const Route = createFileRoute('/api/widget/identify')({
         }
         const hasAttrs = Object.keys(validAttrs).length > 0
 
-        // Find or create user
+        // Find or create user. Case-insensitive on email — the team-role
+        // guard below would otherwise be bypassable by varying the
+        // casing of an admin's email ("ADMIN@x.com" wouldn't match the
+        // stored "admin@x.com" and a fresh user row would be created
+        // with role 'user' AND the same email address, breaking the
+        // "one email per account" invariant. The fix mirrors the
+        // segment-evaluator + recovery-codes case-insensitive lookups.
+        const normalizedEmail = identified.email.toLowerCase()
         let userRecord = await db.query.user.findFirst({
-          where: eq(user.email, identified.email),
+          where: sql`LOWER(${user.email}) = ${normalizedEmail}`,
         })
 
         // Team-role guard: refuse to mint a session-Bearer for an email
@@ -281,7 +288,10 @@ export const Route = createFileRoute('/api/widget/identify')({
             .values({
               id: generateId('user'),
               name: identified.name || identified.email.split('@')[0],
-              email: identified.email,
+              // Persist lowercase so future LOWER(email) lookups stay
+              // index-eligible and the "one email per account" invariant
+              // holds across mixed-case identify calls.
+              email: normalizedEmail,
               emailVerified: false,
               image: identified.avatarURL ?? null,
               metadata: hasAttrs ? JSON.stringify(validAttrs) : null,

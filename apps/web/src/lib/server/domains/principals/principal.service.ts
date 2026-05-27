@@ -216,7 +216,8 @@ export async function updateMemberRole(
   principalId: PrincipalId,
   newRole: 'admin' | 'member',
   actingPrincipalId: PrincipalId,
-  actor: AuditActor | null = null
+  actor: AuditActor | null = null,
+  headers?: Headers
 ): Promise<void> {
   // Cannot modify own role
   if (principalId === actingPrincipalId) {
@@ -266,6 +267,7 @@ export async function updateMemberRole(
       await recordAuditEvent({
         event: 'user.role.changed',
         actor,
+        headers,
         target: { type: 'principal', id: principalId },
         before: { role: previousRole },
         after: { role: newRole },
@@ -289,7 +291,8 @@ export async function updateMemberRole(
 export async function removeTeamMember(
   principalId: PrincipalId,
   actingPrincipalId: PrincipalId,
-  actor: AuditActor | null = null
+  actor: AuditActor | null = null,
+  headers?: Headers
 ): Promise<void> {
   // Cannot remove self
   if (principalId === actingPrincipalId) {
@@ -339,6 +342,7 @@ export async function removeTeamMember(
       await recordAuditEvent({
         event: 'user.removed',
         actor,
+        headers,
         target: { type: 'principal', id: principalId },
         before: { role: previousRole },
         after: { role: 'user' },

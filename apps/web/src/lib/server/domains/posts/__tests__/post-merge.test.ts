@@ -17,7 +17,14 @@ const scheduleDispatch = vi.fn().mockResolvedValue(undefined)
 function createUpdateChain() {
   const chain: Record<string, unknown> = {}
   chain.set = vi.fn(() => chain)
-  chain.where = vi.fn().mockResolvedValue(undefined)
+  // .where() either resolves directly (legacy callers) OR is followed
+  // by .returning() (new mergePost canonicalPostId-pin path). Return a
+  // thenable that yields undefined plus exposes .returning() for the
+  // round-3 add.
+  chain.where = vi.fn(() => ({
+    then: (onFulfilled: (v: void) => void) => Promise.resolve().then(onFulfilled),
+    returning: () => Promise.resolve([{ id: 'post_test_id' }]),
+  }))
   return chain
 }
 

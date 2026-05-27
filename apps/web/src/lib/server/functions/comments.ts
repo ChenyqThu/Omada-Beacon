@@ -233,7 +233,22 @@ export const userEditCommentFn = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     console.log(`[fn:comments] userEditCommentFn: commentId=${data.commentId}`)
     try {
+      // Portal-visibility gate + per-comment audience gate. Same shape
+      // as the userEditPostFn / userDeletePostFn fixes: the existing
+      // canEditComment policy only checks authorship + lock state, so
+      // an authenticated portal user could mutate a comment on a
+      // team-only or segment-restricted board they had no business
+      // seeing (or commenting on after the audience change).
+      const { resolvePortalAccessForRequest } = await import('./portal-access')
+      const access = await resolvePortalAccessForRequest()
+      if (!access.granted) {
+        throw new Error('Portal access required')
+      }
       const ctx = await requireAuth()
+      const { assertCommentViewable } = await import('@/lib/server/domains/posts/post.access')
+      const policyActor = await policyActorFromAuth(ctx)
+      await assertCommentViewable(data.commentId as CommentId, policyActor)
+
       const actor = { principalId: ctx.principal.id, role: ctx.principal.role }
 
       const result = await userEditComment(data.commentId as CommentId, data.content, actor, {
@@ -254,7 +269,16 @@ export const userDeleteCommentFn = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     console.log(`[fn:comments] userDeleteCommentFn: commentId=${data.commentId}`)
     try {
+      const { resolvePortalAccessForRequest } = await import('./portal-access')
+      const access = await resolvePortalAccessForRequest()
+      if (!access.granted) {
+        throw new Error('Portal access required')
+      }
       const ctx = await requireAuth()
+      const { assertCommentViewable } = await import('@/lib/server/domains/posts/post.access')
+      const policyActor = await policyActorFromAuth(ctx)
+      await assertCommentViewable(data.commentId as CommentId, policyActor)
+
       const actor = { principalId: ctx.principal.id, role: ctx.principal.role }
 
       await softDeleteComment(data.commentId as CommentId, actor)

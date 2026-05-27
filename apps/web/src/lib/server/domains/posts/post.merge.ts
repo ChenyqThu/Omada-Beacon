@@ -113,15 +113,29 @@ export async function mergePost(
   // ran without the link, the canonical absorbed votes from a duplicate
   // that's not actually a duplicate yet. Wrap in a transaction so a
   // crash between the two leaves a coherent state.
+  //
+  // The UPDATE WHERE pins `canonicalPostId IS NULL` to block a
+  // concurrent merge of the same duplicate to a DIFFERENT canonical
+  // (admin A picks X, admin B picks Y, both pass the pre-check).
+  // `.returning()` lets us detect the lost-race and throw rather than
+  // silently inflating the wrong canonical's vote count.
   const newVoteCount = await db.transaction(async (tx) => {
-    await tx
+    const claimed = await tx
       .update(posts)
       .set({
         canonicalPostId: canonicalPostId,
         mergedAt: new Date(),
         mergedByPrincipalId: actorPrincipalId,
       })
-      .where(eq(posts.id, duplicatePostId))
+      .where(and(eq(posts.id, duplicatePostId), isNull(posts.canonicalPostId)))
+      .returning({ id: posts.id })
+
+    if (claimed.length === 0) {
+      throw new ConflictError(
+        'ALREADY_MERGED',
+        'This post was just merged elsewhere — refresh and try again.'
+      )
+    }
 
     return recalculateCanonicalVoteCount(canonicalPostId, { resetMergeCheck: true }, tx)
   })

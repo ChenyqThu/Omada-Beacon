@@ -68,6 +68,11 @@ export type AuditEventType =
   | 'portal.invite.accepted'
   | 'portal.invite.revoked'
   | 'portal.invite.link_minted'
+  // Team-kind invitations live in the same `invitation` table as portal
+  // ones but route to admin/member onboarding (not portal access). The
+  // sweep emits a distinct event per kind so audit reviewers and
+  // compliance dashboards don't conflate the two.
+  | 'team.invite.expired'
   // v1 portal segment allowlist
   | 'portal.allowed_segments.changed'
   // v1 portal widget sign-in toggle

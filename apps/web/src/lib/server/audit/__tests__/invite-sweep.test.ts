@@ -150,6 +150,42 @@ describe('sweepExpiredPortalInvites', () => {
     )
   })
 
+  it('emits team.invite.expired for kind=team invites (not portal.invite.expired)', async () => {
+    // Regression: the sweep was widened to cover team invites but
+    // every expiry still surfaced as `portal.invite.expired`. Audit
+    // reviewers filtering by event type now miss team-invite expiries,
+    // and compliance dashboards conflate the two kinds.
+    const teamInvite = {
+      id: 'invite_team_1',
+      email: 'newhire@x.com',
+      kind: 'team',
+      status: 'pending',
+      expiresAt: new Date('2020-01-01'),
+      createdAt: new Date('2019-12-15'),
+    }
+    mockFindMany.mockResolvedValueOnce([teamInvite])
+    // The sweep's .returning() must surface kind so we can branch on
+    // it. Override the default mock to echo kind back in the row.
+    mockDbReturning.mockResolvedValueOnce([
+      {
+        id: 'invite_team_1',
+        email: 'newhire@x.com',
+        createdAt: teamInvite.createdAt,
+        kind: 'team',
+      },
+    ])
+
+    await sweepExpiredPortalInvites()
+
+    expect(mockRecordAuditEvent).toHaveBeenCalledTimes(1)
+    expect(mockRecordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'team.invite.expired',
+        target: { type: 'invitation', id: 'invite_team_1' },
+      })
+    )
+  })
+
   it('still updates status even when an audit emit fails (best-effort)', async () => {
     mockFindMany.mockResolvedValueOnce([fakeInvite('invite_1', 'a@x.com')])
     mockRecordAuditEvent.mockRejectedValueOnce(new Error('audit store down'))

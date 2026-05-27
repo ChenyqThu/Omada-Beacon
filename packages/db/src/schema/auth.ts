@@ -63,6 +63,12 @@ export const user = pgTable(
     uniqueIndex('user_email_idx')
       .on(table.email)
       .where(sql`email IS NOT NULL`),
+    // Functional index on LOWER(email) — backs the case-insensitive
+    // lookups in recovery-codes-consume.ts, segment.evaluation.ts, and
+    // routes/api/widget/identify.ts. Without it those queries seq-scan.
+    index('user_email_lower_idx')
+      .on(sql`LOWER(${table.email})`)
+      .where(sql`email IS NOT NULL`),
     // Partial b-tree on country / locale — both are referenced by the
     // dynamic-segment evaluator (IN / ILIKE predicates) and the column
     // is sparse, so partial indexes keep the on-disk footprint small.

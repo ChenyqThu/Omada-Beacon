@@ -686,6 +686,35 @@ export const getVoteSidebarDataFn = createServerFn({ method: 'GET' })
     try {
       const postId = data.postId as PostId
       const noSub = { subscribed: false, level: 'none' as const, reason: null }
+      const denied = { isMember: false, canVote: false, hasVoted: false, subscriptionStatus: noSub }
+
+      // Portal-visibility gate: a caller who can't see the portal must
+      // not learn whether they've voted, whether they're a member, or
+      // anything about the post. Sibling write paths (toggleVoteFn,
+      // createPublicPostFn) gate similarly; reads return the safe
+      // default rather than throwing.
+      const access = await resolvePortalAccessForRequest()
+      if (!access.granted) {
+        console.log(`[fn:public-posts] getVoteSidebarDataFn: portal access denied`)
+        return denied
+      }
+
+      // Per-post audience gate: portal-granted callers can still be
+      // probing a post on a team-only / segment-restricted board. Treat
+      // a NotFound from assertPostViewable as denial (same shape — the
+      // sidebar UI degrades to the read-only state).
+      try {
+        const { assertPostViewable } = await import('@/lib/server/domains/posts/post.access')
+        const probeAuth = await getOptionalAuth()
+        const probeActor = await policyActorFromAuth(probeAuth)
+        await assertPostViewable(postId, probeActor)
+      } catch (err) {
+        if (err instanceof Error && err.name === 'NotFoundError') {
+          console.log(`[fn:public-posts] getVoteSidebarDataFn: post not viewable`)
+          return denied
+        }
+        throw err
+      }
 
       // No session cookie — check if anonymous voting is enabled
       if (!hasAuthCredentials()) {
