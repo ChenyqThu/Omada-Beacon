@@ -63,7 +63,7 @@ type Post = {
   content: string
   createdAt: Date
 }
-type Board = { id: string; name: string }
+type Board = { id: string; name: string; deletedAt?: Date | null }
 type Principal = { id: string; displayName: string | null }
 const dbState: {
   posts: Post[]
@@ -589,6 +589,27 @@ describe('listPendingPostsFn — listPendingPosts exclusion + enrichment', () =>
     expect(result.posts).toHaveLength(1)
     expect(result.posts[0].boardName).toBe('Feature Requests')
     expect(result.posts[0].authorName).toBe('Bob')
+  })
+
+  it('excludes posts on a soft-deleted board', async () => {
+    // A board that has been archived/soft-deleted must not surface its
+    // pending posts into the moderation queue — otherwise moderators can
+    // approve items into an inaccessible space.
+    dbState.boards = [
+      { id: 'b1', name: 'Active', deletedAt: null },
+      { id: 'b2', name: 'Archived', deletedAt: new Date('2024-06-01') },
+    ]
+    dbState.principals = [{ id: 'pr1', displayName: 'Alice' }]
+    dbState.posts = [
+      { ...POST_DEFAULTS, id: 'p1', boardId: 'b1', moderationState: 'pending', deletedAt: null },
+      { ...POST_DEFAULTS, id: 'p2', boardId: 'b2', moderationState: 'pending', deletedAt: null },
+    ]
+    mockRequireAuth.mockResolvedValue(AUTH_ADMIN)
+    const result = (await listPendingPosts()({ data: {} })) as {
+      posts: Array<{ id: string }>
+    }
+    expect(result.posts).toHaveLength(1)
+    expect(result.posts[0].id).toBe('p1')
   })
 
   it('authorName is null when principal has no displayName', async () => {

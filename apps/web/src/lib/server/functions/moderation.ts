@@ -48,7 +48,9 @@ export const listPendingPostsFn = createServerFn({ method: 'GET' }).handler(asyn
     .from(posts)
     .innerJoin(boards, eq(posts.boardId, boards.id))
     .leftJoin(principal, eq(posts.principalId, principal.id))
-    .where(and(eq(posts.moderationState, 'pending'), isNull(posts.deletedAt)))
+    .where(
+      and(eq(posts.moderationState, 'pending'), isNull(posts.deletedAt), isNull(boards.deletedAt))
+    )
     .orderBy(desc(posts.createdAt))
   return { posts: rows }
 })
@@ -73,7 +75,14 @@ export const listPendingCommentsFn = createServerFn({ method: 'GET' }).handler(a
     .innerJoin(posts, eq(comments.postId, posts.id))
     .innerJoin(boards, eq(posts.boardId, boards.id))
     .leftJoin(principal, eq(comments.principalId, principal.id))
-    .where(and(eq(comments.moderationState, 'pending'), isNull(comments.deletedAt)))
+    .where(
+      and(
+        eq(comments.moderationState, 'pending'),
+        isNull(comments.deletedAt),
+        isNull(posts.deletedAt),
+        isNull(boards.deletedAt)
+      )
+    )
     .orderBy(desc(comments.createdAt))
   return { comments: rows }
 })
