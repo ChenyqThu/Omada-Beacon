@@ -14,7 +14,7 @@ import {
   type ApprovalToggles,
 } from '@/lib/shared/moderation-policy'
 
-export const Route = createFileRoute('/admin/settings/permissions')({
+export const Route = createFileRoute('/admin/settings/moderation')({
   loader: async ({ context }) => {
     const { requireWorkspaceRole } = await import('@/lib/server/functions/workspace-utils')
     await requireWorkspaceRole({ data: { allowedRoles: ['admin'] } })
@@ -23,7 +23,7 @@ export const Route = createFileRoute('/admin/settings/permissions')({
     await queryClient.ensureQueryData(settingsQueries.portalConfig())
     return {}
   },
-  component: PermissionsPage,
+  component: ModerationPage,
 })
 
 interface PermissionToggleProps {
@@ -61,7 +61,7 @@ function PermissionToggle({
   )
 }
 
-function PermissionsPage() {
+function ModerationPage() {
   const router = useRouter()
   const portalConfigQuery = useSuspenseQuery(settingsQueries.portalConfig())
   const [isPending, startTransition] = useTransition()
@@ -120,12 +120,12 @@ function PermissionsPage() {
       </div>
       <PageHeader
         icon={ShieldCheckIcon}
-        title="Permissions"
-        description="Control who can access your portal and what they can do."
+        title="Moderation"
+        description="Anonymous access and approval rules for incoming posts."
       />
 
       <SettingsCard
-        title="Permissions"
+        title="Anonymous access"
         description="Control what visitors without an account can do on your portal."
       >
         <div className="divide-y divide-border/50">
@@ -169,7 +169,7 @@ function PermissionsPage() {
       </SettingsCard>
 
       <SettingsCard
-        title="Moderation"
+        title="Approval rules"
         description="Posts from the selected groups wait for review before publishing."
       >
         <div className="divide-y divide-border/50">

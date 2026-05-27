@@ -9,7 +9,7 @@
  * Approve and reject are team-level operations (admin OR member): mirrors
  * industry feedback tools where moderators are a separate concept from workspace
  * admins. Changing the workspace moderation *policy* is admin-only and lives
- * on the Settings → Feedback → Permissions page.
+ * on the Settings → Feedback → Moderation page.
  */
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'

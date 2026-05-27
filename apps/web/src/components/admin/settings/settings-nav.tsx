@@ -50,7 +50,7 @@ export function buildNavSections(flags?: { helpCenter?: boolean }): NavSection[]
           icon: DocumentTextIcon,
         },
         { label: 'Developers', to: '/admin/settings/developers', icon: CommandLineIcon },
-        { label: 'Experimental', to: '/admin/settings/experimental', icon: BeakerIcon },
+        { label: 'Labs', to: '/admin/settings/labs', icon: BeakerIcon },
       ],
     },
     {
@@ -67,7 +67,7 @@ export function buildNavSections(flags?: { helpCenter?: boolean }): NavSection[]
         { label: 'Boards', to: '/admin/settings/boards', icon: Squares2X2Icon },
         { label: 'Statuses', to: '/admin/settings/statuses', icon: Cog6ToothIcon },
         { label: 'Tags', to: '/admin/settings/tags', icon: TagIcon },
-        { label: 'Permissions', to: '/admin/settings/permissions', icon: ShieldCheckIcon },
+        { label: 'Moderation', to: '/admin/settings/moderation', icon: ShieldCheckIcon },
       ],
     },
   ]

@@ -34,7 +34,7 @@ import type { BoardAudience } from '@/lib/shared/db-types'
  * Save is disabled while the selection is empty (server requires at
  * least one segment) — explicit, no silent fallback to a different kind.
  *
- * Post moderation is workspace-wide (Settings → Permissions), not per-board.
+ * Post moderation is workspace-wide (Settings → Moderation), not per-board.
  *
  * Submit calls `updateBoardAccessFn` (admin-only, audited) — distinct from
  * the general board update path so members can't change board visibility.

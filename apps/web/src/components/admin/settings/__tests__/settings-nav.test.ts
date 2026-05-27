@@ -98,7 +98,7 @@ describe('buildNavSections', () => {
     expect(labels).toEqual(['Administration', 'Customization', 'Feedback', 'Customers'])
   })
 
-  it('Administration contains Members, Integrations, Security, Audit log, Developers, Experimental in that order', () => {
+  it('Administration contains Members, Integrations, Security, Audit log, Developers, Labs in that order', () => {
     const sections = buildNavSections()
     const administration = sections.find((s) => s.label === 'Administration')!
     expect(administration.items.map((i) => i.label)).toEqual([
@@ -107,7 +107,7 @@ describe('buildNavSections', () => {
       'Security',
       'Audit log',
       'Developers',
-      'Experimental',
+      'Labs',
     ])
   })
 
@@ -146,11 +146,11 @@ describe('buildNavSections', () => {
     expect(developers.to).toBe('/admin/settings/developers')
   })
 
-  it('Experimental points at the experimental URL', () => {
+  it('Labs points at the labs URL', () => {
     const sections = buildNavSections()
     const administration = sections.find((s) => s.label === 'Administration')!
-    const experimental = administration.items.find((i) => i.label === 'Experimental')!
-    expect(experimental.to).toBe('/admin/settings/experimental')
+    const labs = administration.items.find((i) => i.label === 'Labs')!
+    expect(labs.to).toBe('/admin/settings/labs')
   })
 
   it('does not have a standalone Access item in the Feedback section', () => {

@@ -23,7 +23,7 @@ function PeoplePage() {
   const attrsQuery = useSuspenseQuery(adminQueries.userAttributes())
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-5xl">
       <div className="lg:hidden">
         <BackLink to="/admin/settings">Settings</BackLink>
       </div>
