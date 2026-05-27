@@ -183,7 +183,9 @@ describe.skipIf(!dbAvailable)('boardViewFilter ↔ canViewBoard parity (executio
     // Crash-safety belt: sweep any leftover rows from prior crashed runs
     // before seeding. The per-run afterAll is the primary cleanup path;
     // this catches rows that leaked when the runner died mid-test.
-    await activeDb.delete(boards).where(sql`${boards.slug} LIKE 'parity-%'`)
+    // Match only test-generated slugs (`parity-<digits>-...`) so we don't
+    // delete a real production board that happens to start with `parity-`.
+    await activeDb.delete(boards).where(sql`${boards.slug} ~ '^parity-[0-9]+-'`)
     for (const { name, access } of accessShapes) {
       const id = createId('board') as BoardId
       const slug = `parity-${runSuffix}-${name}`
