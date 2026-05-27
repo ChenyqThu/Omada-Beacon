@@ -45,6 +45,16 @@ function actor(overrides: Partial<Actor> = {}): Actor {
 
 const CANON_ID = generateId('post')
 
+// Test rows now also need moderationState + principalId because the
+// helper switched from canViewBoard to canViewPost. Default to
+// 'published' + a stable author id; tests that exercise moderation
+// state can override.
+function published<T extends { id: string; audience: unknown }>(
+  row: T
+): T & { moderationState: string; principalId: string } {
+  return { ...row, moderationState: 'published', principalId: 'prn_author' }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
 })
@@ -52,8 +62,8 @@ beforeEach(() => {
 describe('listViewableMergedSourceIds', () => {
   it('drops merged sources whose board is team-only when the actor is anonymous', async () => {
     mockWhere.mockResolvedValueOnce([
-      { id: 'post_src_pub', audience: { kind: 'public' } },
-      { id: 'post_src_team', audience: { kind: 'team' } },
+      published({ id: 'post_src_pub', audience: { kind: 'public' } }),
+      published({ id: 'post_src_team', audience: { kind: 'team' } }),
     ])
     const { listViewableMergedSourceIds } = await import('../post.public.detail')
     const ids = await listViewableMergedSourceIds(CANON_ID, actor())
@@ -62,8 +72,8 @@ describe('listViewableMergedSourceIds', () => {
 
   it('keeps a segments-audience source only when the actor is a member', async () => {
     mockWhere.mockResolvedValueOnce([
-      { id: 'post_src_in', audience: { kind: 'segments', segmentIds: ['seg_a'] } },
-      { id: 'post_src_out', audience: { kind: 'segments', segmentIds: ['seg_b'] } },
+      published({ id: 'post_src_in', audience: { kind: 'segments', segmentIds: ['seg_a'] } }),
+      published({ id: 'post_src_out', audience: { kind: 'segments', segmentIds: ['seg_b'] } }),
     ])
     const { listViewableMergedSourceIds } = await import('../post.public.detail')
     const ids = await listViewableMergedSourceIds(
@@ -75,9 +85,9 @@ describe('listViewableMergedSourceIds', () => {
 
   it('returns every source id for a team actor regardless of audience', async () => {
     mockWhere.mockResolvedValueOnce([
-      { id: 'post_src_pub', audience: { kind: 'public' } },
-      { id: 'post_src_team', audience: { kind: 'team' } },
-      { id: 'post_src_seg', audience: { kind: 'segments', segmentIds: ['seg_x'] } },
+      published({ id: 'post_src_pub', audience: { kind: 'public' } }),
+      published({ id: 'post_src_team', audience: { kind: 'team' } }),
+      published({ id: 'post_src_seg', audience: { kind: 'segments', segmentIds: ['seg_x'] } }),
     ])
     const { listViewableMergedSourceIds } = await import('../post.public.detail')
     const ids = await listViewableMergedSourceIds(CANON_ID, actor({ role: 'admin' }))
@@ -92,7 +102,9 @@ describe('listViewableMergedSourceIds', () => {
   })
 
   it('keeps authenticated-audience sources for any signed-in user', async () => {
-    mockWhere.mockResolvedValueOnce([{ id: 'post_src_auth', audience: { kind: 'authenticated' } }])
+    mockWhere.mockResolvedValueOnce([
+      published({ id: 'post_src_auth', audience: { kind: 'authenticated' } }),
+    ])
     const { listViewableMergedSourceIds } = await import('../post.public.detail')
     const ids = await listViewableMergedSourceIds(
       CANON_ID,
@@ -102,7 +114,9 @@ describe('listViewableMergedSourceIds', () => {
   })
 
   it('drops authenticated-audience sources for anonymous principals', async () => {
-    mockWhere.mockResolvedValueOnce([{ id: 'post_src_auth', audience: { kind: 'authenticated' } }])
+    mockWhere.mockResolvedValueOnce([
+      published({ id: 'post_src_auth', audience: { kind: 'authenticated' } }),
+    ])
     const { listViewableMergedSourceIds } = await import('../post.public.detail')
     const ids = await listViewableMergedSourceIds(
       CANON_ID,

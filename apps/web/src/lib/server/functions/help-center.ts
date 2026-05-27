@@ -11,7 +11,6 @@ import {
   listPublicCategories,
   listPublicCategoryEditors,
   getCategoryById,
-  getCategoryBySlug,
   createCategory,
   updateCategory,
   deleteCategory,
@@ -109,7 +108,12 @@ export const getCategoryFn = createServerFn({ method: 'GET' })
 export const getPublicCategoryBySlugFn = createServerFn({ method: 'GET' })
   .inputValidator(getCategoryBySlugSchema)
   .handler(async ({ data }) => {
-    const category = await getCategoryBySlug(data.slug)
+    // Use the public variant so categories an admin marked private aren't
+    // reachable by direct-slug lookup. The route serves unauthenticated
+    // help-center traffic.
+    const { getPublicCategoryBySlug } =
+      await import('@/lib/server/domains/help-center/help-center.category.service')
+    const category = await getPublicCategoryBySlug(data.slug)
     return serializeCategory(category)
   })
 

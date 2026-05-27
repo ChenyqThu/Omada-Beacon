@@ -143,29 +143,37 @@ export async function getNotificationsForMember(
     .where(and(baseWhere, isNull(inAppNotifications.readAt)))
   const unreadCount = unreadResult[0]?.count ?? 0
 
-  const notifications: NotificationWithPost[] = rows.map((row) => ({
-    id: row.id,
-    principalId: row.principalId,
-    type: row.type as NotificationType,
-    title: row.title,
-    body: row.body,
-    postId: row.postId,
-    commentId: row.commentId,
-    metadata: row.metadata as Record<string, unknown> | null,
-    readAt: row.readAt,
-    archivedAt: row.archivedAt,
-    createdAt: row.createdAt,
-    // Audience denial: postId is set but the gated join produced null
-    // boardSlug. Treat that as "no longer visible" and surface no link.
-    post:
-      row.postId && row.boardSlug
-        ? {
-            id: row.postId,
-            title: row.postTitle!,
-            boardSlug: row.boardSlug,
-          }
-        : null,
-  }))
+  const notifications: NotificationWithPost[] = rows.map((row) => {
+    // Audience denial: postId is set but the gated join (boardViewFilter)
+    // produced no boardSlug. The post link is hidden via `post: null`,
+    // but the STORED title and body embed the post title and a comment
+    // preview — leaking the audience-restricted content. Replace them
+    // with a neutral placeholder so the row still has a sensible label
+    // without disclosing the post text. Metadata is also stripped since
+    // it can carry actor names and the same preview fields.
+    const audienceDenied = row.postId !== null && row.boardSlug === null
+    return {
+      id: row.id,
+      principalId: row.principalId,
+      type: row.type as NotificationType,
+      title: audienceDenied ? 'Notification' : row.title,
+      body: audienceDenied ? 'This activity is no longer visible to you.' : row.body,
+      postId: row.postId,
+      commentId: row.commentId,
+      metadata: audienceDenied ? null : (row.metadata as Record<string, unknown> | null),
+      readAt: row.readAt,
+      archivedAt: row.archivedAt,
+      createdAt: row.createdAt,
+      post:
+        row.postId && row.boardSlug
+          ? {
+              id: row.postId,
+              title: row.postTitle!,
+              boardSlug: row.boardSlug,
+            }
+          : null,
+    }
+  })
 
   return {
     notifications,

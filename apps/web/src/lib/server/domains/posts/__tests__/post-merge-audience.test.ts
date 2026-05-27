@@ -34,9 +34,23 @@ vi.mock('@/lib/server/db', () => ({
     },
     select: vi.fn(() => mockSelectChain),
   },
-  posts: { id: 'posts.id', title: 'posts.title', boardId: 'posts.boardId' },
-  boards: { id: 'boards.id', slug: 'boards.slug', audience: 'boards.audience' },
+  posts: {
+    id: 'posts.id',
+    title: 'posts.title',
+    boardId: 'posts.boardId',
+    deletedAt: 'posts.deletedAt',
+    moderationState: 'posts.moderationState',
+    principalId: 'posts.principalId',
+  },
+  boards: {
+    id: 'boards.id',
+    slug: 'boards.slug',
+    audience: 'boards.audience',
+    deletedAt: 'boards.deletedAt',
+  },
   eq: vi.fn((col, val) => ({ eq: [col, val] })),
+  and: vi.fn((...parts) => ({ and: parts })),
+  isNull: vi.fn((col) => ({ isNull: col })),
 }))
 
 function actor(overrides: Partial<Actor> = {}): Actor {
@@ -68,6 +82,8 @@ describe('getPostMergeInfo — audience guard', () => {
         title: 'Internal cleanup plan',
         boardSlug: 'team-private',
         boardAudience: { kind: 'team' },
+        moderationState: 'published',
+        principalId: 'prn_author',
       },
     ])
     const { getPostMergeInfo } = await import('../post.merge')
@@ -82,6 +98,8 @@ describe('getPostMergeInfo — audience guard', () => {
         title: 'Pro plan idea',
         boardSlug: 'pro-only',
         boardAudience: { kind: 'segments', segmentIds: ['seg_pro'] },
+        moderationState: 'published',
+        principalId: 'prn_author',
       },
     ])
     const { getPostMergeInfo } = await import('../post.merge')
@@ -96,6 +114,8 @@ describe('getPostMergeInfo — audience guard', () => {
         title: 'Internal cleanup plan',
         boardSlug: 'team-private',
         boardAudience: { kind: 'team' },
+        moderationState: 'published',
+        principalId: 'prn_author',
       },
     ])
     const { getPostMergeInfo } = await import('../post.merge')
@@ -114,6 +134,8 @@ describe('getPostMergeInfo — audience guard', () => {
         title: 'Pro plan idea',
         boardSlug: 'pro-only',
         boardAudience: { kind: 'segments', segmentIds: ['seg_pro'] },
+        moderationState: 'published',
+        principalId: 'prn_author',
       },
     ])
     const { getPostMergeInfo } = await import('../post.merge')
@@ -131,6 +153,8 @@ describe('getPostMergeInfo — audience guard', () => {
         title: 'Public canon',
         boardSlug: 'public-board',
         boardAudience: { kind: 'public' },
+        moderationState: 'published',
+        principalId: 'prn_author',
       },
     ])
     const { getPostMergeInfo } = await import('../post.merge')
@@ -143,6 +167,29 @@ describe('getPostMergeInfo — audience guard', () => {
     mockPostFindFirst.mockResolvedValueOnce({ canonicalPostId: null, mergedAt: null })
     const { getPostMergeInfo } = await import('../post.merge')
     const result = await getPostMergeInfo(DUP_ID)
+    expect(result).toBeNull()
+  })
+
+  it('returns null when the canonical is in pending/spam state for a non-author (G13)', async () => {
+    // Regression: the original audience gate used canViewBoard only,
+    // so a pending or spam canonical on a public-audience board
+    // still leaked its title via the merge banner. Now uses
+    // canViewPost which combines audience + moderation state.
+    mockSelectChain.limit.mockResolvedValueOnce([
+      {
+        id: CANON_ID,
+        title: 'Awaiting approval',
+        boardSlug: 'public-board',
+        boardAudience: { kind: 'public' },
+        moderationState: 'pending',
+        principalId: 'prn_other_author',
+      },
+    ])
+    const { getPostMergeInfo } = await import('../post.merge')
+    const result = await getPostMergeInfo(
+      DUP_ID,
+      actor({ principalId: 'prn_random_viewer' as PrincipalId })
+    )
     expect(result).toBeNull()
   })
 })

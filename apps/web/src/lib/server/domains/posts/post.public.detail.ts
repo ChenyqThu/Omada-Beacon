@@ -20,13 +20,7 @@ import { buildCommentTree, toStatusChange } from '@/lib/shared'
 import type { PublicPostDetail, PublicComment, PinnedComment } from './post.types'
 import { resolveAvatarUrl, parseJson, parseAvatarData } from './post.public'
 import { getExecuteRows } from '@/lib/server/utils'
-import {
-  canViewBoard,
-  canViewPost,
-  isTeamActor,
-  ANONYMOUS_ACTOR,
-  type Actor,
-} from '@/lib/server/policy'
+import { canViewPost, isTeamActor, ANONYMOUS_ACTOR, type Actor } from '@/lib/server/policy'
 import { hydrateMentions } from './hydrate-mentions'
 import type { TiptapContent } from '@/lib/shared/db-types'
 import type { JSONContent } from '@tiptap/core'
@@ -58,8 +52,17 @@ export async function listViewableMergedSourceIds(
   canonicalPostId: PostId,
   actor: Actor
 ): Promise<string[]> {
+  // Pull audience + moderation state + author so the full canViewPost
+  // gate runs (audience + moderation + own-pending). canViewBoard alone
+  // let a pending/spam source post's public-board comments leak under
+  // the canonical's detail.
   const rows = await db
-    .select({ id: posts.id, audience: boards.audience })
+    .select({
+      id: posts.id,
+      audience: boards.audience,
+      moderationState: posts.moderationState,
+      principalId: posts.principalId,
+    })
     .from(posts)
     .innerJoin(boards, eq(posts.boardId, boards.id))
     .where(
@@ -70,7 +73,14 @@ export async function listViewableMergedSourceIds(
       )
     )
   return rows
-    .filter((r) => canViewBoard(actor, { audience: r.audience }).allowed)
+    .filter(
+      (r) =>
+        canViewPost(
+          actor,
+          { moderationState: r.moderationState, principalId: r.principalId },
+          { audience: r.audience }
+        ).allowed
+    )
     .map((r) => String(r.id))
 }
 
@@ -137,7 +147,11 @@ export async function getPublicPostDetail(
       })
       .from(posts)
       .innerJoin(boards, eq(posts.boardId, boards.id))
-      .where(and(eq(posts.id, postId), isNull(posts.deletedAt)))
+      // isNull(boards.deletedAt) blocks posts on a soft-deleted board
+      // from being read by id — soft-delete intent applies to both the
+      // post and the board it lives on. Without this, a deleted-board
+      // post stayed reachable via its direct URL.
+      .where(and(eq(posts.id, postId), isNull(posts.deletedAt), isNull(boards.deletedAt)))
       .limit(1),
 
     // Query 2: Comments with avatars, reactions, and status changes (single query using GROUP BY + json_agg)

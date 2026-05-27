@@ -71,6 +71,13 @@ vi.mock('@/lib/server/domains/posts/post.voting', () => ({
   voteOnPost: (...args: unknown[]) => mockVoteOnPost(...args),
 }))
 
+// The per-post audience gate inside toggleVoteFn dynamically imports
+// post.access (which reaches into the DB). Stub it so the existing
+// anonymous-feature-flag tests stay focused on what they assert.
+vi.mock('@/lib/server/domains/posts/post.access', () => ({
+  assertPostViewable: vi.fn().mockResolvedValue(undefined),
+}))
+
 vi.mock('@/lib/server/utils/anon-rate-limit', () => ({
   checkAnonVoteRateLimit: (...args: unknown[]) => mockCheckAnonVoteRateLimit(...args),
 }))

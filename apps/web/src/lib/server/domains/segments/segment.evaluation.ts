@@ -135,12 +135,18 @@ function buildConditionSql(condition: SegmentCondition): ReturnType<typeof sql> 
       return sql`u.email_verified = ${Boolean(value)}`
 
     case 'email': {
-      const field = sql`u.email`
-      const strResult = stringOperatorSql(field, operator, value)
+      // Email matching is case-insensitive: better-auth and most OAuth
+      // providers normalize on the way in, but human-entered rules
+      // ("email eq Alice@example.com") and pre-normalisation rows would
+      // otherwise silently miss. LOWER both sides for eq/neq/comparators
+      // AND inside stringOperatorSql for contains/starts_with/ends_with.
+      const field = sql`LOWER(u.email)`
+      const lowered = String(value).toLowerCase()
+      const strResult = stringOperatorSql(field, operator, lowered)
       if (strResult) return strResult
       const sqlOp = OPERATOR_SQL[operator]
       if (!sqlOp) return null
-      return sql`${field} ${sql.raw(sqlOp)} ${String(value)}`
+      return sql`${field} ${sql.raw(sqlOp)} ${lowered}`
     }
 
     case 'created_at_days_ago': {

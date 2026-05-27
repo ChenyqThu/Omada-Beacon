@@ -12,7 +12,7 @@ import { db, eq, and, inArray, isNull, sql, asc, segments, userSegments } from '
 import type { SegmentId, PrincipalId } from '@quackback/ids'
 import { createId } from '@quackback/ids'
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/shared/errors'
-import type { AuditActor } from '@/lib/server/audit/log'
+import { recordAuditEvent, type AuditActor } from '@/lib/server/audit/log'
 import { slugify } from '@/lib/shared/utils/string'
 import type {
   Segment,
@@ -266,7 +266,8 @@ export async function assignUsersToSegment(
  */
 export async function removeUsersFromSegment(
   segmentId: SegmentId,
-  principalIds: PrincipalId[]
+  principalIds: PrincipalId[],
+  actor: AuditActor | null = null
 ): Promise<void> {
   const segment = await getSegment(segmentId)
   if (!segment) {
@@ -280,11 +281,29 @@ export async function removeUsersFromSegment(
   }
   if (principalIds.length === 0) return
 
-  await db
+  // The previous implementation skipped removeMember for the bulk path
+  // and went straight to a single DELETE — which meant every admin
+  // bulk-remove was invisible in the audit log, while the sibling
+  // assignUsersToSegment path correctly emits one audit row per add.
+  // Returning() lets us tell the audit row exactly which principals
+  // were actually removed (the inArray may not match every id).
+  const removedRows = await db
     .delete(userSegments)
     .where(
       and(eq(userSegments.segmentId, segmentId), inArray(userSegments.principalId, principalIds))
     )
+    .returning({ principalId: userSegments.principalId })
+
+  if (actor && removedRows.length > 0) {
+    for (const row of removedRows) {
+      await recordAuditEvent({
+        event: 'segment.member.removed',
+        actor,
+        target: { type: 'segment', id: segmentId },
+        metadata: { principalId: row.principalId, source: 'manual-bulk' },
+      })
+    }
+  }
 }
 
 // ============================================

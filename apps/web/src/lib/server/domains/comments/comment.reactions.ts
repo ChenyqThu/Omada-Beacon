@@ -8,6 +8,7 @@ import { db, eq, and, comments, commentReactions } from '@/lib/server/db'
 import { type CommentId, type PrincipalId } from '@quackback/ids'
 import { NotFoundError } from '@/lib/shared/errors'
 import { aggregateReactions } from '@/lib/shared'
+import { canViewPost, isTeamActor, type Actor } from '@/lib/server/policy'
 import type { ReactionResult } from './comment.types'
 
 /**
@@ -24,7 +25,8 @@ import type { ReactionResult } from './comment.types'
 export async function addReaction(
   commentId: CommentId,
   emoji: string,
-  principalId: PrincipalId
+  principalId: PrincipalId,
+  actor: Actor
 ): Promise<ReactionResult> {
   console.log(`[domain:comments] addReaction: commentId=${commentId}, emoji=${emoji}`)
   // Verify comment exists with post and board in single query
@@ -41,6 +43,23 @@ export async function addReaction(
   }
   if (!comment.post || !comment.post.board) {
     throw new NotFoundError('POST_NOT_FOUND', `Post with ID ${comment.postId} not found`)
+  }
+  // Audience + moderation + private-comment gate. Treat denials as
+  // "not found" so we don't leak existence to denied callers. Private
+  // comments are team-only — non-team actors can never react.
+  const viewDecision = canViewPost(
+    actor,
+    {
+      moderationState: comment.post.moderationState,
+      principalId: comment.post.principalId,
+    },
+    { audience: comment.post.board.audience }
+  )
+  if (!viewDecision.allowed) {
+    throw new NotFoundError('COMMENT_NOT_FOUND', `Comment with ID ${commentId} not found`)
+  }
+  if (comment.isPrivate && !isTeamActor(actor)) {
+    throw new NotFoundError('COMMENT_NOT_FOUND', `Comment with ID ${commentId} not found`)
   }
 
   // Atomically insert reaction (uses unique constraint to prevent duplicates)
@@ -85,7 +104,8 @@ export async function addReaction(
 export async function removeReaction(
   commentId: CommentId,
   emoji: string,
-  principalId: PrincipalId
+  principalId: PrincipalId,
+  actor: Actor
 ): Promise<ReactionResult> {
   console.log(`[domain:comments] removeReaction: commentId=${commentId}, emoji=${emoji}`)
   // Verify comment exists with post and board in single query
@@ -102,6 +122,23 @@ export async function removeReaction(
   }
   if (!comment.post || !comment.post.board) {
     throw new NotFoundError('POST_NOT_FOUND', `Post with ID ${comment.postId} not found`)
+  }
+  // Same audience + isPrivate guard as addReaction. Denied callers
+  // shouldn't be able to probe existence by attempting to remove a
+  // reaction (the response shape would otherwise differ).
+  const viewDecision = canViewPost(
+    actor,
+    {
+      moderationState: comment.post.moderationState,
+      principalId: comment.post.principalId,
+    },
+    { audience: comment.post.board.audience }
+  )
+  if (!viewDecision.allowed) {
+    throw new NotFoundError('COMMENT_NOT_FOUND', `Comment with ID ${commentId} not found`)
+  }
+  if (comment.isPrivate && !isTeamActor(actor)) {
+    throw new NotFoundError('COMMENT_NOT_FOUND', `Comment with ID ${commentId} not found`)
   }
 
   // Directly delete (no need to check first - idempotent operation)

@@ -16,7 +16,7 @@ import {
 import type { TiptapContent } from '@/lib/shared/schemas/posts'
 import { requireAuth } from './auth-helpers'
 import { getSettings } from './workspace'
-import { db, invitation, principal, user, eq, and } from '@/lib/server/db'
+import { db, invitation, principal, user, eq, and, gt } from '@/lib/server/db'
 import { listInboxPosts } from '@/lib/server/domains/posts/post.inbox'
 import { listBoards } from '@/lib/server/domains/boards/board.service'
 import { listTags } from '@/lib/server/domains/tags/tag.service'
@@ -268,8 +268,14 @@ export const updateMemberRoleFn = createServerFn({ method: 'POST' })
     console.log(`[fn:admin] updateMemberRoleFn: principalId=${data.principalId}, role=${data.role}`)
     try {
       const auth = await requireAuth({ roles: ['admin'] })
+      const { actorFromAuth } = await import('@/lib/server/audit/log')
 
-      await updateMemberRole(data.principalId as PrincipalId, data.role, auth.principal.id)
+      await updateMemberRole(
+        data.principalId as PrincipalId,
+        data.role,
+        auth.principal.id,
+        actorFromAuth(auth)
+      )
 
       console.log(`[fn:admin] updateMemberRoleFn: success`)
       return { principalId: data.principalId, role: data.role }
@@ -331,8 +337,13 @@ export const removeTeamMemberFn = createServerFn({ method: 'POST' })
     console.log(`[fn:admin] removeTeamMemberFn: principalId=${data.principalId}`)
     try {
       const auth = await requireAuth({ roles: ['admin'] })
+      const { actorFromAuth } = await import('@/lib/server/audit/log')
 
-      await removeTeamMember(data.principalId as PrincipalId, auth.principal.id)
+      await removeTeamMember(
+        data.principalId as PrincipalId,
+        auth.principal.id,
+        actorFromAuth(auth)
+      )
 
       console.log(`[fn:admin] removeTeamMemberFn: success`)
       return { principalId: data.principalId }
@@ -1029,10 +1040,27 @@ export const cancelInvitationFn = createServerFn({ method: 'POST' })
         throw new Error('Invitation not found')
       }
 
-      await db
+      // TOCTOU pin: status='pending' in the WHERE so a concurrent
+      // accept (Better Auth's magic-link verify) isn't silently
+      // overwritten to 'canceled'. Mirrors the portal-side cancel in
+      // functions/portal-invites.ts:256 which had this pin from day
+      // one. `.returning()` lets us treat zero rows as "lost the race"
+      // so the response doesn't lie about success.
+      const cancelled = await db
         .update(invitation)
         .set({ status: 'canceled' })
-        .where(and(eq(invitation.id, invitationId), eq(invitation.kind, 'team')))
+        .where(
+          and(
+            eq(invitation.id, invitationId),
+            eq(invitation.kind, 'team'),
+            eq(invitation.status, 'pending')
+          )
+        )
+        .returning({ id: invitation.id })
+
+      if (cancelled.length === 0) {
+        throw new Error('Invitation is no longer pending — refresh and try again')
+      }
 
       console.log(`[fn:admin] cancelInvitationFn: canceled`)
       return { invitationId }
@@ -1066,6 +1094,32 @@ export const resendInvitationFn = createServerFn({ method: 'POST' })
         throw new Error('Invitation not found')
       }
 
+      // Claim-then-send ordering — see resendPortalInviteFn for the
+      // full rationale. Mint the magic link AFTER the UPDATE succeeds
+      // so a concurrent accept/cancel during the SMTP window can't
+      // leak a live link for a row the server now considers terminal.
+      // The UPDATE WHERE pins both status='pending' AND expiresAt > now()
+      // so neither a terminal-state flip nor an expiry that landed
+      // between SELECT and UPDATE can be silently extended.
+      const resendNow = new Date()
+      const freshExpiresAt = new Date(resendNow.getTime() + INVITATION_EXPIRY_MS)
+      const updated = await db
+        .update(invitation)
+        .set({ lastSentAt: resendNow, expiresAt: freshExpiresAt })
+        .where(
+          and(
+            eq(invitation.id, invitationId),
+            eq(invitation.kind, 'team'),
+            eq(invitation.status, 'pending'),
+            gt(invitation.expiresAt, resendNow)
+          )
+        )
+        .returning({ id: invitation.id })
+
+      if (updated.length === 0) {
+        throw new Error('Invitation is no longer pending — refresh and try again')
+      }
+
       // Generate new magic link for one-click authentication
       const portalUrl = getBaseUrl()
       const callbackURL = `/complete-signup/${invitationId}`
@@ -1085,11 +1139,6 @@ export const resendInvitationFn = createServerFn({ method: 'POST' })
         inviteLink,
         logoUrl,
       })
-
-      await db
-        .update(invitation)
-        .set({ lastSentAt: new Date(), expiresAt: new Date(Date.now() + INVITATION_EXPIRY_MS) })
-        .where(and(eq(invitation.id, invitationId), eq(invitation.kind, 'team')))
 
       console.log(
         `[fn:admin] resendInvitationFn: ${result.sent ? 'resent' : 'regenerated (email not configured)'}`
@@ -1368,8 +1417,13 @@ export const removeUsersFromSegmentFn = createServerFn({ method: 'POST' })
       `[fn:admin] removeUsersFromSegmentFn: segmentId=${data.segmentId}, count=${data.principalIds.length}`
     )
     try {
-      await requireAuth({ roles: ['admin', 'member'] })
-      await removeUsersFromSegment(data.segmentId as SegmentId, data.principalIds as PrincipalId[])
+      const auth = await requireAuth({ roles: ['admin', 'member'] })
+      const { actorFromAuth } = await import('@/lib/server/audit/log')
+      await removeUsersFromSegment(
+        data.segmentId as SegmentId,
+        data.principalIds as PrincipalId[],
+        actorFromAuth(auth)
+      )
       console.log(`[fn:admin] removeUsersFromSegmentFn: removed`)
       return { segmentId: data.segmentId, removed: data.principalIds.length }
     } catch (error) {

@@ -27,7 +27,7 @@ import { scheduleDispatch } from '@/lib/server/events/scheduler'
 import { getExecuteRows } from '@/lib/server/utils'
 import { NotFoundError, ValidationError, ConflictError } from '@/lib/shared/errors'
 import { createActivity } from '@/lib/server/domains/activity/activity.service'
-import { ANONYMOUS_ACTOR, canViewBoard, type Actor } from '@/lib/server/policy'
+import { ANONYMOUS_ACTOR, canViewPost, type Actor } from '@/lib/server/policy'
 import {
   dispatchPostMerged,
   dispatchPostUnmerged,
@@ -351,31 +351,43 @@ export async function getPostMergeInfo(
     return null
   }
 
-  // Pull the canonical's audience along with title/slug so the audience
-  // gate runs in the same round-trip. Without this, an anonymous viewer
-  // who knows a duplicate's id could learn the title + board slug of a
-  // canonical living on a team-only or segment-restricted board.
+  // Pull the canonical's audience + moderation state + author along
+  // with title/slug so the full canViewPost gate runs in the same
+  // round-trip. The original fix used canViewBoard only — a pending
+  // or spam canonical on a public-audience board still leaked.
+  // Soft-deleted post or board is treated as "doesn't exist".
   const canonicalPost = await db
     .select({
       id: posts.id,
       title: posts.title,
+      moderationState: posts.moderationState,
+      principalId: posts.principalId,
       boardSlug: boards.slug,
       boardAudience: boards.audience,
     })
     .from(posts)
     .innerJoin(boards, eq(posts.boardId, boards.id))
-    .where(eq(posts.id, post.canonicalPostId))
+    .where(
+      and(eq(posts.id, post.canonicalPostId), isNull(posts.deletedAt), isNull(boards.deletedAt))
+    )
     .limit(1)
 
   if (!canonicalPost[0]) {
     return null
   }
 
-  // Audience gate: a duplicate's caller may not be entitled to view the
-  // canonical's board. Treat denials as "not merged" so we don't leak
-  // existence of the canonical to unauthorized viewers — matches the
-  // 404-on-deny shape used by getPublicBoardById / getPublicPostDetail.
-  if (!canViewBoard(actor, { audience: canonicalPost[0].boardAudience }).allowed) {
+  // Full post-level gate: audience + moderation state + (for own-pending)
+  // authorship. Denials return null so we don't leak the canonical's
+  // existence to unauthorized viewers.
+  const decision = canViewPost(
+    actor,
+    {
+      moderationState: canonicalPost[0].moderationState,
+      principalId: canonicalPost[0].principalId,
+    },
+    { audience: canonicalPost[0].boardAudience }
+  )
+  if (!decision.allowed) {
     return null
   }
 

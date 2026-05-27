@@ -5,7 +5,7 @@
  * for more than 30 minutes and resets them for retry.
  */
 
-import { db, eq, rawFeedbackItems, feedbackSignals } from '@/lib/server/db'
+import { db, and, eq, rawFeedbackItems, feedbackSignals } from '@/lib/server/db'
 import { logPipelineEvent } from './pipeline-log'
 import { enqueueFeedbackAiJob } from '../queues/feedback-ai-queue'
 
@@ -30,7 +30,10 @@ export async function recoverStuckItems(): Promise<void> {
 
   for (const item of stuckRawItems) {
     if (item.attemptCount >= MAX_ATTEMPTS) {
-      // Mark permanently failed
+      // Mark permanently failed. WHERE pins processingState to the
+      // value we read so a concurrent legitimate transition (worker
+      // finished extraction between our SELECT and UPDATE) isn't
+      // silently overwritten back to 'failed'.
       await db
         .update(rawFeedbackItems)
         .set({
@@ -39,7 +42,12 @@ export async function recoverStuckItems(): Promise<void> {
           lastError: `Stuck in ${item.processingState} state after ${item.attemptCount} attempts`,
           updatedAt: new Date(),
         })
-        .where(eq(rawFeedbackItems.id, item.id))
+        .where(
+          and(
+            eq(rawFeedbackItems.id, item.id),
+            eq(rawFeedbackItems.processingState, item.processingState)
+          )
+        )
 
       await logPipelineEvent({
         eventType: 'recovery.max_attempts_exceeded',
@@ -54,7 +62,9 @@ export async function recoverStuckItems(): Promise<void> {
       continue
     }
 
-    // Reset to ready_for_extraction and re-enqueue
+    // Reset to ready_for_extraction and re-enqueue. Same source-state
+    // pin as the failure branch above — only rewind if the row is
+    // still in the intermediate state we read.
     await db
       .update(rawFeedbackItems)
       .set({
@@ -62,7 +72,12 @@ export async function recoverStuckItems(): Promise<void> {
         stateChangedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(rawFeedbackItems.id, item.id))
+      .where(
+        and(
+          eq(rawFeedbackItems.id, item.id),
+          eq(rawFeedbackItems.processingState, item.processingState)
+        )
+      )
 
     await logPipelineEvent({
       eventType: 'recovery.raw_item_reset',
@@ -86,10 +101,15 @@ export async function recoverStuckItems(): Promise<void> {
   })
 
   for (const signal of stuckSignals) {
+    // Same pin as the raw-items loop above. We selected with
+    // processingState='interpreting'; if a concurrent worker has
+    // already flipped it to 'completed', the UPDATE is a no-op.
     await db
       .update(feedbackSignals)
       .set({ processingState: 'pending_interpretation', updatedAt: new Date() })
-      .where(eq(feedbackSignals.id, signal.id))
+      .where(
+        and(eq(feedbackSignals.id, signal.id), eq(feedbackSignals.processingState, 'interpreting'))
+      )
 
     await logPipelineEvent({
       eventType: 'recovery.signal_reset',

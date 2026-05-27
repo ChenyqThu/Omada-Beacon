@@ -11,7 +11,13 @@ import {
   type UserId,
 } from '@quackback/ids'
 import type { BoardSettings } from '@/lib/server/db'
-import { getOptionalAuth, hasAuthCredentials, policyActorFromAuth } from './auth-helpers'
+import {
+  getOptionalAuth,
+  hasAuthCredentials,
+  policyActorFromAuth,
+  requireAuth,
+} from './auth-helpers'
+import { NotFoundError } from '@/lib/shared/errors'
 import { isTeamMember } from '@/lib/shared/roles'
 import { db, principal as principalTable, user as userTable, eq, inArray } from '@/lib/server/db'
 import { getPublicUrlOrNull } from '@/lib/server/storage/s3'
@@ -407,7 +413,29 @@ export const fetchSubscriptionStatus = createServerFn({ method: 'GET' })
       `[fn:portal] fetchSubscriptionStatus: principalId=${data.principalId}, postId=${data.postId}`
     )
     try {
-      return await getSubscriptionStatus(data.principalId as PrincipalId, data.postId as PostId)
+      // The route used to accept a client-supplied principalId with no
+      // auth check at all — a textbook IDOR. Lock the lookup to the
+      // caller's own principal unless they're team. Team-role actors
+      // can read any principal's subscription (admin support flow).
+      const auth = await requireAuth({ roles: ['admin', 'member', 'user'] })
+      const requestedPrincipalId = data.principalId as PrincipalId
+      const isTeam = auth.principal.role === 'admin' || auth.principal.role === 'member'
+      if (!isTeam && requestedPrincipalId !== auth.principal.id) {
+        // 404-shape so denied callers can't probe other users'
+        // subscription state by varying principalId.
+        throw new NotFoundError(
+          'SUBSCRIPTION_NOT_FOUND',
+          `Subscription not found for principal ${requestedPrincipalId}`
+        )
+      }
+      // Audience gate: even the caller themselves shouldn't be able to
+      // read a subscription tied to a post they can't view (the
+      // subscribe path is also gated below, but a stale row from before
+      // an audience change could otherwise leak the post's existence).
+      const { assertPostViewable } = await import('@/lib/server/domains/posts/post.access')
+      const actor = await policyActorFromAuth(auth)
+      await assertPostViewable(data.postId as PostId, actor)
+      return await getSubscriptionStatus(requestedPrincipalId, data.postId as PostId)
     } catch (error) {
       console.error(`[fn:portal] fetchSubscriptionStatus failed:`, error)
       throw error

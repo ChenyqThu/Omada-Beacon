@@ -1,10 +1,15 @@
 /**
- * Daily sweep for stale portal invitations.
+ * Daily sweep for stale invitations (portal AND team).
  *
- * Finds pending portal invites that have passed their `expiresAt`, emits one
- * `portal.invite.expired` audit event per invite (actor: system), then bulk-
- * updates their status to `'expired'` so they are not re-swept on the next
- * run.
+ * Finds pending invites of either kind that have passed their `expiresAt`,
+ * emits one `portal.invite.expired` audit event per invite (actor: system),
+ * then bulk-updates their status to `'expired'` so they are not re-swept
+ * on the next run.
+ *
+ * The sweep used to filter only `kind='portal'`, which left team invites
+ * stuck in `pending` forever after expiry — the admin's "An invitation
+ * has already been sent to this email" duplicate check then permanently
+ * blocked re-invites.
  *
  * Design properties:
  *  - Idempotent: the status update ensures a swept invite is never re-emitted.
@@ -13,7 +18,7 @@
  *    update — the status update is the more important correctness property.
  *  - Returns the number of invites swept so callers can log / monitor.
  */
-import { db, invitation, and, eq, lt, inArray } from '@/lib/server/db'
+import { db, invitation, and, eq, lt, inArray, or } from '@/lib/server/db'
 import { recordAuditEvent } from './log'
 
 export async function sweepExpiredPortalInvites(): Promise<number> {
@@ -21,7 +26,7 @@ export async function sweepExpiredPortalInvites(): Promise<number> {
 
   const stale = await db.query.invitation.findMany({
     where: and(
-      eq(invitation.kind, 'portal'),
+      or(eq(invitation.kind, 'portal'), eq(invitation.kind, 'team')),
       eq(invitation.status, 'pending'),
       lt(invitation.expiresAt, now)
     ),

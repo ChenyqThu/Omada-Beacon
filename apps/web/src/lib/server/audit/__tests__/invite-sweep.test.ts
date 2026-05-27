@@ -30,6 +30,7 @@ vi.mock('@/lib/server/db', () => ({
   },
   invitation: { kind: 'kind', status: 'status', expiresAt: 'expiresAt', id: 'id' },
   and: vi.fn((...args: unknown[]) => ({ and: [...args] })),
+  or: vi.fn((...args: unknown[]) => ({ or: [...args] })),
   eq: vi.fn((col: unknown, val: unknown) => ({ eq: [col, val] })),
   lt: vi.fn((col: unknown, val: unknown) => ({ lt: [col, val] })),
   inArray: vi.fn((col: unknown, vals: unknown) => ({ inArray: [col, vals] })),

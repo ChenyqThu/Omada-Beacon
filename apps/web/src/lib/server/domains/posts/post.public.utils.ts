@@ -48,7 +48,10 @@ export async function getPublicRoadmapPostsPaginated(params: {
         postViewFilter(actor),
         eq(posts.statusId, statusId),
         isNull(posts.canonicalPostId),
-        isNull(posts.deletedAt)
+        isNull(posts.deletedAt),
+        // Soft-delete intent applies to the board too — don't surface
+        // posts whose board has been deleted via the roadmap status view.
+        isNull(boards.deletedAt)
       )
     )
     .orderBy(desc(posts.voteCount))

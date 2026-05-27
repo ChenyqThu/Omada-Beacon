@@ -136,8 +136,23 @@ export const addReactionFn = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     console.log(`[fn:comments] addReactionFn: commentId=${data.commentId}, emoji=${data.emoji}`)
     try {
+      // Portal-visibility gate — mirror createCommentFn / toggleVoteFn.
+      const { resolvePortalAccessForRequest } = await import('./portal-access')
+      const access = await resolvePortalAccessForRequest()
+      if (!access.granted) {
+        throw new Error('Portal access required')
+      }
       const auth = await requireAuth({ roles: ['admin', 'member', 'user'] })
-      const result = await addReaction(data.commentId as CommentId, data.emoji, auth.principal.id)
+      // The reaction service now runs canViewPost + isPrivate using
+      // the actor; without that, an authenticated user could probe
+      // commentIds on team-only / private comments.
+      const actor = await policyActorFromAuth(auth)
+      const result = await addReaction(
+        data.commentId as CommentId,
+        data.emoji,
+        auth.principal.id,
+        actor
+      )
       console.log(`[fn:comments] addReactionFn: added=${result.added}`)
       return result
     } catch (error) {
@@ -151,11 +166,18 @@ export const removeReactionFn = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     console.log(`[fn:comments] removeReactionFn: commentId=${data.commentId}, emoji=${data.emoji}`)
     try {
+      const { resolvePortalAccessForRequest } = await import('./portal-access')
+      const access = await resolvePortalAccessForRequest()
+      if (!access.granted) {
+        throw new Error('Portal access required')
+      }
       const auth = await requireAuth({ roles: ['admin', 'member', 'user'] })
+      const actor = await policyActorFromAuth(auth)
       const result = await removeReaction(
         data.commentId as CommentId,
         data.emoji,
-        auth.principal.id
+        auth.principal.id,
+        actor
       )
       console.log(`[fn:comments] removeReactionFn: removed`)
       return result

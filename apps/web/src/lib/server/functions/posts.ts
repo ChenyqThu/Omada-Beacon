@@ -246,6 +246,11 @@ export const fetchPostWithDetails = createServerFn({ method: 'GET' })
         : null
 
       // Fetch merge info: merged posts (if canonical) or merge info (if duplicate)
+      // The admin handler is team-gated, so the resolved actor is admin
+      // or member — both pass canViewPost on any audience. Without the
+      // actor though, getPostMergeInfo defaulted to ANONYMOUS_ACTOR and
+      // hid the merge banner for canonicals on restricted-audience boards.
+      const adminMergeActor = await policyActorFromAuth(auth)
       const [mergedPosts, mergeInfo] = await Promise.all([
         getMergedPosts(postId).then((posts) =>
           posts.map((p) => ({
@@ -255,7 +260,7 @@ export const fetchPostWithDetails = createServerFn({ method: 'GET' })
           }))
         ),
         result.canonicalPostId
-          ? getPostMergeInfo(postId).then((info) =>
+          ? getPostMergeInfo(postId, adminMergeActor).then((info) =>
               info ? { ...info, mergedAt: toIsoString(info.mergedAt) } : null
             )
           : null,

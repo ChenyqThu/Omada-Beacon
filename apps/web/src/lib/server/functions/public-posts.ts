@@ -252,9 +252,24 @@ export const userEditPostFn = createServerFn({ method: 'POST' })
   .handler(async ({ data }: { data: UserEditPostInput }) => {
     console.log(`[fn:public-posts] userEditPostFn: postId=${data.postId}`)
     try {
+      // Portal-visibility gate — see toggleVoteFn / createPublicPostFn
+      // for rationale. Denied callers must not mutate inside a portal
+      // they can't view.
+      const access = await resolvePortalAccessForRequest()
+      if (!access.granted) {
+        throw new Error('Portal access required')
+      }
       const ctx = await requireAuth()
       const { postId: postIdRaw, title, content, contentJson } = data
       const postId = postIdRaw as PostId
+
+      // Per-post audience gate — see assertPostViewable. The author-check
+      // inside userEditPost is sufficient for "only the author edits",
+      // but we still need to refuse to confirm existence to callers who
+      // can't see the post under its board's audience.
+      const { assertPostViewable } = await import('@/lib/server/domains/posts/post.access')
+      const policyActor = await policyActorFromAuth(ctx)
+      await assertPostViewable(postId, policyActor)
 
       // Build actor info for permission check
       const actor = {
@@ -291,8 +306,18 @@ export const userDeletePostFn = createServerFn({ method: 'POST' })
   .handler(async ({ data }: { data: UserDeletePostInput }) => {
     console.log(`[fn:public-posts] userDeletePostFn: postId=${data.postId}`)
     try {
+      // Portal-visibility gate — see toggleVoteFn / createPublicPostFn.
+      const access = await resolvePortalAccessForRequest()
+      if (!access.granted) {
+        throw new Error('Portal access required')
+      }
       const ctx = await requireAuth()
       const postId = data.postId as PostId
+
+      // Per-post audience gate (404 on deny).
+      const { assertPostViewable } = await import('@/lib/server/domains/posts/post.access')
+      const policyActor = await policyActorFromAuth(ctx)
+      await assertPostViewable(postId, policyActor)
 
       // Build actor info for permission check
       const actor = {
@@ -332,6 +357,12 @@ export const toggleVoteFn = createServerFn({ method: 'POST' })
           throw new Error('Portal access required')
         }
         const ctx = await requireAuth()
+        // Per-post audience gate: portal-access alone is not enough — an
+        // authenticated caller could still vote on a team-only / segment-
+        // restricted post if they knew the id. Treat denials as 404.
+        const { assertPostViewable } = await import('@/lib/server/domains/posts/post.access')
+        const actor = await policyActorFromAuth(ctx)
+        await assertPostViewable(data.postId as PostId, actor)
 
         // Block anonymous users unless anonymousVoting is enabled
         if (ctx.principal.type === 'anonymous') {

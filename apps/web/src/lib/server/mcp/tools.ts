@@ -1315,10 +1315,29 @@ Examples:
       const denied = requireScope(auth, 'write:feedback')
       if (denied) return denied
       try {
+        // Build a team-shaped actor so the canViewPost + isPrivate
+        // gates inside add/removeReaction reflect who is reacting.
+        const callerSegmentIds = await segmentIdsForPrincipal(auth.principalId)
+        const mcpReactionActor = {
+          principalId: auth.principalId,
+          role: auth.role,
+          principalType: auth.userId ? ('user' as const) : ('service' as const),
+          segmentIds: callerSegmentIds,
+        }
         const result =
           args.action === 'add'
-            ? await addReaction(args.commentId as CommentId, args.emoji, auth.principalId)
-            : await removeReaction(args.commentId as CommentId, args.emoji, auth.principalId)
+            ? await addReaction(
+                args.commentId as CommentId,
+                args.emoji,
+                auth.principalId,
+                mcpReactionActor
+              )
+            : await removeReaction(
+                args.commentId as CommentId,
+                args.emoji,
+                auth.principalId,
+                mcpReactionActor
+              )
 
         return jsonResult({
           commentId: args.commentId,
