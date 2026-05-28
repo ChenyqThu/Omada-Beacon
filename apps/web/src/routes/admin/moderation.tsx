@@ -15,6 +15,7 @@ import { adminQueries } from '@/lib/client/queries/admin'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/shared/spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { PageHeader } from '@/components/shared/page-header'
 
 export const Route = createFileRoute('/admin/moderation')({
   loader: async () => {
@@ -87,23 +88,19 @@ function ModerationPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-            <ShieldCheckIcon className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold">Moderation Queue</h1>
-            <p className="text-xs text-muted-foreground">
-              {total === 0
-                ? 'Nothing pending'
-                : `${total} item${total === 1 ? '' : 's'} awaiting review`}
-            </p>
-          </div>
-        </div>
+      <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-border/50">
+        <PageHeader
+          icon={ShieldCheckIcon}
+          title="Moderation Queue"
+          description={
+            total === 0
+              ? 'Nothing pending'
+              : `${total} item${total === 1 ? '' : 's'} awaiting review`
+          }
+        />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         {total === 0 ? (
           <EmptyState
             icon={ShieldCheckIcon}
