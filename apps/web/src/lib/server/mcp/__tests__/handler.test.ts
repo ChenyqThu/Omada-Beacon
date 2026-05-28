@@ -1906,6 +1906,90 @@ describe('MCP HTTP Handler', () => {
       const actor = vi.mocked(createPost).mock.calls[0][1].actor
       expect(actor?.role).toBe('user')
     })
+
+    it('update_comment runs assertCommentViewable before editing (view-gate on locked board)', async () => {
+      // A portal author whose board view was tightened (dropped to team or out
+      // of a segment) must not edit the comment via MCP. The view-gate runs
+      // first; userEditComment is never reached.
+      const { assertCommentViewable } = await import('@/lib/server/domains/posts/post.access')
+      const { userEditComment } = await import('@/lib/server/domains/comments/comment.permissions')
+      const { NotFoundError } = await import('@/lib/shared/errors')
+
+      const { getDeveloperConfig } = await import('@/lib/server/domains/settings/settings.service')
+      vi.mocked(getDeveloperConfig).mockResolvedValueOnce({
+        mcpEnabled: true,
+        mcpPortalAccessEnabled: true,
+      })
+      const handleMcpRequest = await initializeOAuthSession(['write:feedback'])
+      await setupValidOAuth({ role: 'user', scopes: ['write:feedback'] })
+      vi.mocked(getDeveloperConfig).mockResolvedValueOnce({
+        mcpEnabled: true,
+        mcpPortalAccessEnabled: true,
+      })
+
+      vi.mocked(assertCommentViewable).mockRejectedValueOnce(
+        new NotFoundError('COMMENT_NOT_FOUND', 'Comment comment_1 not found')
+      )
+
+      const response = await handleMcpRequest(
+        oauthRequest(
+          jsonRpcRequest('tools/call', {
+            name: 'update_comment',
+            arguments: { commentId: 'comment_1', content: 'edit' },
+          })
+        )
+      )
+
+      expect(vi.mocked(assertCommentViewable)).toHaveBeenCalledWith(
+        'comment_1',
+        expect.objectContaining({ role: 'user' })
+      )
+      expect(vi.mocked(userEditComment)).not.toHaveBeenCalled()
+      const body = (await response.json()) as { result: { isError: boolean } }
+      expect(body.result.isError).toBe(true)
+    })
+
+    it('delete_comment runs assertCommentViewable before the hard cascade delete', async () => {
+      // delete_comment runs the irreversible cascading delete. View-gate first,
+      // matching the portal path + react_to_comment; deleteComment is never
+      // reached when the actor can no longer view the comment's board.
+      const { assertCommentViewable } = await import('@/lib/server/domains/posts/post.access')
+      const { deleteComment } = await import('@/lib/server/domains/comments/comment.service')
+      const { NotFoundError } = await import('@/lib/shared/errors')
+
+      const { getDeveloperConfig } = await import('@/lib/server/domains/settings/settings.service')
+      vi.mocked(getDeveloperConfig).mockResolvedValueOnce({
+        mcpEnabled: true,
+        mcpPortalAccessEnabled: true,
+      })
+      const handleMcpRequest = await initializeOAuthSession(['write:feedback'])
+      await setupValidOAuth({ role: 'user', scopes: ['write:feedback'] })
+      vi.mocked(getDeveloperConfig).mockResolvedValueOnce({
+        mcpEnabled: true,
+        mcpPortalAccessEnabled: true,
+      })
+
+      vi.mocked(assertCommentViewable).mockRejectedValueOnce(
+        new NotFoundError('COMMENT_NOT_FOUND', 'Comment comment_1 not found')
+      )
+
+      const response = await handleMcpRequest(
+        oauthRequest(
+          jsonRpcRequest('tools/call', {
+            name: 'delete_comment',
+            arguments: { commentId: 'comment_1' },
+          })
+        )
+      )
+
+      expect(vi.mocked(assertCommentViewable)).toHaveBeenCalledWith(
+        'comment_1',
+        expect.objectContaining({ role: 'user' })
+      )
+      expect(vi.mocked(deleteComment)).not.toHaveBeenCalled()
+      const body = (await response.json()) as { result: { isError: boolean } }
+      expect(body.result.isError).toBe(true)
+    })
   })
 
   // ===========================================================================

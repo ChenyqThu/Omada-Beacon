@@ -1304,6 +1304,17 @@ Examples:
       if (scopeDenied) return scopeDenied
       // No team role gate — the service layer allows comment authors OR team members
       try {
+        // View-gate first: an author who can no longer view the comment's
+        // board (tightened to team / dropped from a segment) must not edit
+        // it via MCP, matching the portal path (functions/comments.ts).
+        const { assertCommentViewable } = await import('@/lib/server/domains/posts/post.access')
+        const callerSegmentIds = await segmentIdsForPrincipal(auth.principalId)
+        await assertCommentViewable(args.commentId as CommentId, {
+          principalId: auth.principalId,
+          role: auth.role,
+          principalType: auth.userId ? ('user' as const) : ('service' as const),
+          segmentIds: callerSegmentIds,
+        })
         const result = await userEditComment(args.commentId as CommentId, args.content, {
           principalId: auth.principalId,
           role: auth.role,
@@ -1335,6 +1346,16 @@ Examples:
       if (scopeDenied) return scopeDenied
       // No team role gate — the service layer allows comment authors OR team members
       try {
+        // View-gate before the irreversible cascade delete — same as the
+        // portal path and react_to_comment.
+        const { assertCommentViewable } = await import('@/lib/server/domains/posts/post.access')
+        const callerSegmentIds = await segmentIdsForPrincipal(auth.principalId)
+        await assertCommentViewable(args.commentId as CommentId, {
+          principalId: auth.principalId,
+          role: auth.role,
+          principalType: auth.userId ? ('user' as const) : ('service' as const),
+          segmentIds: callerSegmentIds,
+        })
         await deleteComment(args.commentId as CommentId, {
           principalId: auth.principalId,
           role: auth.role,
