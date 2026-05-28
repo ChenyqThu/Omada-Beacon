@@ -112,7 +112,7 @@ describe('<BoardAccessForm> presets', () => {
       comment: 'authenticated',
       submit: 'authenticated',
       segments: { view: [], vote: [], comment: [], submit: [] },
-      approval: { posts: false, comments: false },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
     })
     // Matrix is visible (in Custom mode)
     expect(screen.getByRole('button', { name: 'View & vote: Anyone' })).toBeInTheDocument()
@@ -132,7 +132,7 @@ describe('<BoardAccessForm> presets', () => {
       comment: 'authenticated',
       submit: 'authenticated',
       segments: { view: [], vote: [], comment: [], submit: [] },
-      approval: { posts: false, comments: false },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
     })
     expect(screen.getByRole('button', { name: 'View & vote: Anyone' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Team only' }))
@@ -153,7 +153,7 @@ describe('<BoardAccessForm> matrix', () => {
         comment: 'authenticated',
         submit: 'authenticated',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       }
     )
   }
@@ -172,7 +172,7 @@ describe('<BoardAccessForm> matrix', () => {
       comment: 'team',
       submit: 'team',
       segments: { view: [], vote: [], comment: [], submit: [] },
-      approval: { posts: false, comments: false },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
     })
     // We're in Custom mode now via the divergence — actually team-all matches
     // no Custom by default. Force Custom by clicking the Custom card after a
@@ -195,7 +195,7 @@ describe('<BoardAccessForm> matrix', () => {
       comment: 'anonymous',
       submit: 'anonymous',
       segments: { view: [], vote: [], comment: [], submit: [] },
-      approval: { posts: false, comments: false },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Custom' }))
     clickTierCell('View & vote', 'Team only')
@@ -223,7 +223,7 @@ describe('<BoardAccessForm> save', () => {
       comment: 'authenticated',
       submit: 'authenticated',
       segments: { view: [], vote: [], comment: [], submit: [] },
-      approval: { posts: false, comments: false },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
     })
     // Toggle a cell to dirty the form
     clickTierCell('Comment', 'Team only')
@@ -238,7 +238,7 @@ describe('<BoardAccessForm> save', () => {
       comment: 'segments',
       submit: 'segments',
       segments: { view: [], vote: [], comment: [], submit: [] },
-      approval: { posts: false, comments: false },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Custom' }))
     // Make form dirty by re-clicking the same view tier to mark a change
@@ -260,7 +260,8 @@ describe('<BoardAccessForm> save', () => {
       comment: 'authenticated',
       submit: 'authenticated',
       segments: { view: [], vote: [], comment: [], submit: [] },
-      approval: { posts: true, comments: false },
+      // Non-default moderation values to verify the form preserves them on save.
+      moderation: { anonPosts: 'on', signedPosts: 'on', comments: 'inherit' },
     })
     // Form starts in Custom mode (divergence). Mark dirty by toggling Comment.
     clickTierCell('Comment', 'Team only')
@@ -275,7 +276,7 @@ describe('<BoardAccessForm> save', () => {
             comment: expect.any(Array),
             submit: expect.any(Array),
           }),
-          approval: { posts: true, comments: false },
+          moderation: { anonPosts: 'on', signedPosts: 'on', comments: 'inherit' },
         }),
       })
     )
@@ -288,7 +289,7 @@ describe('<BoardAccessForm> save', () => {
       comment: 'authenticated',
       submit: 'authenticated',
       segments: { view: [], vote: [], comment: [], submit: [] },
-      approval: { posts: false, comments: false },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
     })
     clickTierCell('Comment', 'Team only')
     expect(isCellSelected('Comment', 'Team only')).toBe(true)
@@ -315,7 +316,7 @@ describe('<BoardAccessForm> preset segments cleanup', () => {
         comment: ['seg_alpha'],
         submit: ['seg_alpha'],
       },
-      approval: { posts: false, comments: false },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
     })
     // Form is in Custom (no preset matches segments-all with non-empty lists).
     fireEvent.click(screen.getByRole('button', { name: 'Public' }))

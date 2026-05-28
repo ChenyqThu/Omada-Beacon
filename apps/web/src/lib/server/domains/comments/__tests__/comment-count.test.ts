@@ -99,7 +99,7 @@ vi.mock('@/lib/server/db', async () => {
               comment: 'anonymous',
               submit: 'anonymous',
               segments: { view: [], vote: [], comment: [], submit: [] },
-              approval: { posts: false, comments: false },
+              moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
             },
           },
         }),
@@ -162,6 +162,15 @@ vi.mock('@/lib/shared', () => ({
   buildCommentTree: vi.fn(() => []),
   aggregateReactions: vi.fn(() => []),
   toStatusChange: vi.fn(),
+}))
+
+// canCreateComment loads the workspace requireApproval default for
+// resolving board-level `inherit`. None for these tests — explicit
+// `'on'` overrides exercise the held-comment paths directly.
+vi.mock('@/lib/server/domains/settings/settings.service', () => ({
+  getPortalConfig: vi.fn().mockResolvedValue({
+    moderationDefault: { requireApproval: 'none' },
+  }),
 }))
 
 const portalActor: Actor = {
@@ -267,7 +276,7 @@ describe('Comment count maintenance', () => {
             comment: 'anonymous',
             submit: 'anonymous',
             segments: { view: [], vote: [], comment: [], submit: [] },
-            approval: { posts: false, comments: true },
+            moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'on' },
           },
         },
       } as never)

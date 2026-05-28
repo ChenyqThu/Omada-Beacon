@@ -28,6 +28,7 @@ import type { CreateCommentInput, CreateCommentResult, UpdateCommentInput } from
 import { canCreateComment } from '@/lib/server/policy/posts'
 import type { Actor } from '@/lib/server/policy/types'
 import { recordAuditEvent } from '@/lib/server/audit/log'
+import { getPortalConfig } from '@/lib/server/domains/settings/settings.service'
 
 /**
  * Resolve the TipTap doc to store. UI clients send `contentJson` directly
@@ -78,6 +79,8 @@ export async function createComment(
   const board = post.board
 
   // Enforce access-control policy: board audience + post visibility + comments-locked.
+  // Workspace moderation default is the fallback for board-level `inherit`.
+  const portalConfig = await getPortalConfig()
   const decision = canCreateComment(
     actor,
     {
@@ -85,14 +88,15 @@ export async function createComment(
       principalId: post.principalId,
       isCommentsLocked: post.isCommentsLocked,
     },
-    { access: board.access }
+    { access: board.access },
+    portalConfig.moderationDefault.requireApproval
   )
   if (!decision.allowed) {
     throw new ForbiddenError('FORBIDDEN', decision.reason)
   }
   // canCreateComment.requiresApproval is true when the actor is non-team and
-  // the board has `approval.comments=true`. Held comments land with
-  // moderationState='pending' so they don't appear publicly until a
+  // the resolved `moderation.comments` rule is `'on'`. Held comments land
+  // with moderationState='pending' so they don't appear publicly until a
   // moderator approves them via approveCommentFn.
   const initialModerationState: ModerationState = decision.requiresApproval
     ? 'pending'

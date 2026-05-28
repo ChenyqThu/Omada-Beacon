@@ -11,7 +11,7 @@
  *
  * Pairs with boards.test.ts (audience matrix) and segment-membership tests.
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
 import { canViewPost, canCreatePost, canCreateComment } from '../posts'
 import { ANONYMOUS_ACTOR, type Actor } from '../types'
 import type { SegmentId, PrincipalId } from '@quackback/ids'
@@ -62,8 +62,8 @@ const ALL_MODERATION_STATES = [...MODERATION_STATES]
 
 // Equivalent BoardAccess shapes for the four legacy audience kinds. The
 // mapping mirrors audienceToAccess() in board.service — same tier on every
-// action, approval off, segment list shared across all three actions —
-// so the moderation-state matrix stays meaningful.
+// action, all moderation rules inherit, segment list shared across all
+// three actions — so the moderation-state matrix stays meaningful.
 const mkAccess = (view: BoardAccess['view'], segmentIds: string[] = []): BoardAccess => ({
   view,
   vote: view,
@@ -75,7 +75,7 @@ const mkAccess = (view: BoardAccess['view'], segmentIds: string[] = []): BoardAc
     comment: segmentIds,
     submit: segmentIds,
   },
-  approval: { posts: false, comments: false },
+  moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
 })
 
 const publicBoard = { access: mkAccess('anonymous') }
@@ -369,35 +369,68 @@ describe('canCreatePost — global default treated as none when undefined', () =
   })
 })
 
-describe('canCreatePost — board.approval.posts composes OR with workspace requireApproval', () => {
-  const adminAccess = (overrides: Partial<BoardAccess['approval']> = {}) => ({
+describe('canCreatePost — tri-state moderation rules resolve against workspace', () => {
+  const adminAccess = (
+    overrides: Partial<BoardAccess['moderation']> = {}
+  ): { access: BoardAccess } => ({
     access: {
       view: 'anonymous' as AccessTier,
       vote: 'anonymous' as AccessTier,
       comment: 'anonymous' as AccessTier,
       submit: 'anonymous' as AccessTier,
       segments: { view: [], vote: [], comment: [], submit: [] },
-      approval: { posts: false, comments: false, ...overrides },
-    } satisfies BoardAccess,
+      moderation: {
+        anonPosts: 'inherit',
+        signedPosts: 'inherit',
+        comments: 'inherit',
+        ...overrides,
+      },
+    },
   })
 
-  it('board.approval.posts=true holds posts even when workspace=none', () => {
-    const decision = canCreatePost(portal, adminAccess({ posts: true }), 'none')
+  it("anonPosts='on' holds anonymous posts even when workspace=none", () => {
+    const decision = canCreatePost(anon, adminAccess({ anonPosts: 'on' }), 'none')
     expect(decision).toEqual({ allowed: true, requiresApproval: true })
   })
 
-  it('board.approval.posts=false defers to workspace=anonymous (anon held)', () => {
-    const decision = canCreatePost(anon, adminAccess({ posts: false }), 'anonymous')
+  it("signedPosts='on' holds signed-in posts even when workspace=none", () => {
+    const decision = canCreatePost(portal, adminAccess({ signedPosts: 'on' }), 'none')
     expect(decision).toEqual({ allowed: true, requiresApproval: true })
   })
 
-  it('board.approval.posts=true does NOT hold team submissions', () => {
-    const decision = canCreatePost(admin, adminAccess({ posts: true }), 'none')
+  it("signedPosts='off' overrides workspace=all (board says publish signed-in posts)", () => {
+    // Board explicitly opts out of moderation for signed-in users, even
+    // though workspace=all would otherwise gate them.
+    const decision = canCreatePost(portal, adminAccess({ signedPosts: 'off' }), 'all')
     expect(decision).toEqual({ allowed: true, requiresApproval: false })
   })
 
-  it('board.approval.posts=false + workspace=none does not hold', () => {
-    const decision = canCreatePost(portal, adminAccess({ posts: false }), 'none')
+  it("anonPosts='off' overrides workspace=all for anonymous", () => {
+    const decision = canCreatePost(anon, adminAccess({ anonPosts: 'off' }), 'all')
+    expect(decision).toEqual({ allowed: true, requiresApproval: false })
+  })
+
+  it("anonPosts='inherit' + workspace='anonymous' + anon → held", () => {
+    const decision = canCreatePost(anon, adminAccess({ anonPosts: 'inherit' }), 'anonymous')
+    expect(decision).toEqual({ allowed: true, requiresApproval: true })
+  })
+
+  it("signedPosts='inherit' + workspace='authenticated' + signed-in → held", () => {
+    const decision = canCreatePost(portal, adminAccess({ signedPosts: 'inherit' }), 'authenticated')
+    expect(decision).toEqual({ allowed: true, requiresApproval: true })
+  })
+
+  it("moderation='on' does NOT hold team submissions (team always bypasses)", () => {
+    const decision = canCreatePost(
+      admin,
+      adminAccess({ anonPosts: 'on', signedPosts: 'on' }),
+      'none'
+    )
+    expect(decision).toEqual({ allowed: true, requiresApproval: false })
+  })
+
+  it('all-inherit + workspace=none does not hold', () => {
+    const decision = canCreatePost(portal, adminAccess(), 'none')
     expect(decision).toEqual({ allowed: true, requiresApproval: false })
   })
 })
@@ -411,7 +444,7 @@ describe('canCreatePost — board.access.submit tier gates submission independen
         comment: 'anonymous',
         submit: 'team',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       } satisfies BoardAccess,
     }
     expect(canCreatePost(portal, board, 'none').allowed).toBe(false)
@@ -425,7 +458,7 @@ describe('canCreatePost — board.access.submit tier gates submission independen
         comment: 'anonymous',
         submit: 'authenticated',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       } satisfies BoardAccess,
     }
     expect(canCreatePost(anon, board, 'none').allowed).toBe(false)
@@ -439,7 +472,7 @@ describe('canCreatePost — board.access.submit tier gates submission independen
         comment: 'anonymous',
         submit: 'authenticated',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       } satisfies BoardAccess,
     }
     expect(canCreatePost(portal, board, 'none').allowed).toBe(true)
@@ -453,7 +486,7 @@ describe('canCreatePost — board.access.submit tier gates submission independen
         comment: 'anonymous',
         submit: 'segments',
         segments: { view: [], vote: [], comment: [], submit: ['segment_x'] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       } satisfies BoardAccess,
     }
     expect(canCreatePost(portal, board, 'none').allowed).toBe(false)
@@ -472,23 +505,23 @@ describe('canCreateComment — board access gate', () => {
   }
 
   it('portal user CANNOT comment on a post in a team-audience board', () => {
-    expect(canCreateComment(portal, publishedPost, teamBoard).allowed).toBe(false)
+    expect(canCreateComment(portal, publishedPost, teamBoard, 'none').allowed).toBe(false)
   })
 
   it('portal user CANNOT comment in a segments board they are not in', () => {
-    expect(canCreateComment(portal, publishedPost, segBoard).allowed).toBe(false)
+    expect(canCreateComment(portal, publishedPost, segBoard, 'none').allowed).toBe(false)
   })
 
   it('segment-member CAN comment in their segments board', () => {
-    expect(canCreateComment(trustedPortal, publishedPost, segBoard).allowed).toBe(true)
+    expect(canCreateComment(trustedPortal, publishedPost, segBoard, 'none').allowed).toBe(true)
   })
 
   it('anonymous user CANNOT comment in an authenticated-audience board', () => {
-    expect(canCreateComment(anon, publishedPost, authBoard).allowed).toBe(false)
+    expect(canCreateComment(anon, publishedPost, authBoard, 'none').allowed).toBe(false)
   })
 
   it('portal user CAN comment on a published post in a public board', () => {
-    expect(canCreateComment(portal, publishedPost, publicBoard).allowed).toBe(true)
+    expect(canCreateComment(portal, publishedPost, publicBoard, 'none').allowed).toBe(true)
   })
 })
 
@@ -499,7 +532,7 @@ describe('canCreateComment — post visibility gate', () => {
       principalId: 'p_other' as PrincipalId,
       isCommentsLocked: false,
     }
-    expect(canCreateComment(portal, pendingPost, publicBoard).allowed).toBe(false)
+    expect(canCreateComment(portal, pendingPost, publicBoard, 'none').allowed).toBe(false)
   })
 
   it('portal user CAN comment on their own pending post', () => {
@@ -508,7 +541,7 @@ describe('canCreateComment — post visibility gate', () => {
       principalId: portal.principalId,
       isCommentsLocked: false,
     }
-    expect(canCreateComment(portal, ownPendingPost, publicBoard).allowed).toBe(true)
+    expect(canCreateComment(portal, ownPendingPost, publicBoard, 'none').allowed).toBe(true)
   })
 
   it('team member CAN comment on any non-deleted post (including pending)', () => {
@@ -517,8 +550,8 @@ describe('canCreateComment — post visibility gate', () => {
       principalId: 'p_other' as PrincipalId,
       isCommentsLocked: false,
     }
-    expect(canCreateComment(admin, pendingPost, publicBoard).allowed).toBe(true)
-    expect(canCreateComment(member, pendingPost, publicBoard).allowed).toBe(true)
+    expect(canCreateComment(admin, pendingPost, publicBoard, 'none').allowed).toBe(true)
+    expect(canCreateComment(member, pendingPost, publicBoard, 'none').allowed).toBe(true)
   })
 })
 
@@ -530,21 +563,21 @@ describe('canCreateComment — isCommentsLocked gate', () => {
   }
 
   it('portal user CANNOT comment when isCommentsLocked=true', () => {
-    const decision = canCreateComment(portal, lockedPost, publicBoard)
+    const decision = canCreateComment(portal, lockedPost, publicBoard, 'none')
     expect(decision.allowed).toBe(false)
     if (!decision.allowed) expect(decision.reason).toMatch(/locked/i)
   })
 
   it('anonymous user CANNOT comment when isCommentsLocked=true', () => {
-    expect(canCreateComment(anon, lockedPost, publicBoard).allowed).toBe(false)
+    expect(canCreateComment(anon, lockedPost, publicBoard, 'none').allowed).toBe(false)
   })
 
   it('admin CAN comment even when isCommentsLocked=true', () => {
-    expect(canCreateComment(admin, lockedPost, publicBoard).allowed).toBe(true)
+    expect(canCreateComment(admin, lockedPost, publicBoard, 'none').allowed).toBe(true)
   })
 
   it('member CAN comment even when isCommentsLocked=true', () => {
-    expect(canCreateComment(member, lockedPost, publicBoard).allowed).toBe(true)
+    expect(canCreateComment(member, lockedPost, publicBoard, 'none').allowed).toBe(true)
   })
 })
 
@@ -563,10 +596,10 @@ describe('canCreateComment — board.access.comment tier gates commenting indepe
         comment: 'authenticated',
         submit: 'authenticated',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       } satisfies BoardAccess,
     }
-    expect(canCreateComment(anon, publishedPost, board).allowed).toBe(false)
+    expect(canCreateComment(anon, publishedPost, board, 'none').allowed).toBe(false)
   })
 
   it('rejects portal user when comment=team even if view=anonymous', () => {
@@ -577,10 +610,10 @@ describe('canCreateComment — board.access.comment tier gates commenting indepe
         comment: 'team',
         submit: 'team',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       } satisfies BoardAccess,
     }
-    expect(canCreateComment(portal, publishedPost, board).allowed).toBe(false)
+    expect(canCreateComment(portal, publishedPost, board, 'none').allowed).toBe(false)
   })
 
   it('admits team regardless of tier', () => {
@@ -591,10 +624,10 @@ describe('canCreateComment — board.access.comment tier gates commenting indepe
         comment: 'team',
         submit: 'team',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       } satisfies BoardAccess,
     }
-    expect(canCreateComment(admin, publishedPost, board).allowed).toBe(true)
+    expect(canCreateComment(admin, publishedPost, board, 'none').allowed).toBe(true)
   })
 
   it('rejects portal user not in segment when comment=segments', () => {
@@ -605,68 +638,137 @@ describe('canCreateComment — board.access.comment tier gates commenting indepe
         comment: 'segments',
         submit: 'segments',
         segments: { view: [], vote: [], comment: ['segment_x'], submit: ['segment_x'] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       } satisfies BoardAccess,
     }
-    expect(canCreateComment(portal, publishedPost, board).allowed).toBe(false)
+    expect(canCreateComment(portal, publishedPost, board, 'none').allowed).toBe(false)
   })
 })
 
-describe('canCreateComment — board.approval.comments composition', () => {
+describe('canCreateComment — tri-state moderation.comments resolves against workspace', () => {
   const publishedPost = {
     moderationState: 'published' as ModerationState,
     principalId: 'p_other' as PrincipalId,
     isCommentsLocked: false,
   }
 
-  it('non-team comments are held when board.approval.comments=true', () => {
-    const board = {
-      access: {
-        view: 'anonymous',
-        vote: 'anonymous',
-        comment: 'anonymous',
-        submit: 'anonymous',
-        segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: true },
-      } satisfies BoardAccess,
-    }
-    expect(canCreateComment(portal, publishedPost, board)).toEqual({
+  const mkBoard = (comments: BoardAccess['moderation']['comments']) => ({
+    access: {
+      view: 'anonymous',
+      vote: 'anonymous',
+      comment: 'anonymous',
+      submit: 'anonymous',
+      segments: { view: [], vote: [], comment: [], submit: [] },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments },
+    } satisfies BoardAccess,
+  })
+
+  it("non-team comments are held when moderation.comments='on'", () => {
+    expect(canCreateComment(portal, publishedPost, mkBoard('on'), 'none')).toEqual({
       allowed: true,
       requiresApproval: true,
     })
   })
 
-  it('team comments are NEVER held even when board.approval.comments=true', () => {
-    const board = {
-      access: {
-        view: 'anonymous',
-        vote: 'anonymous',
-        comment: 'anonymous',
-        submit: 'anonymous',
-        segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: true },
-      } satisfies BoardAccess,
-    }
-    expect(canCreateComment(admin, publishedPost, board)).toEqual({
+  it("team comments are NEVER held even when moderation.comments='on'", () => {
+    expect(canCreateComment(admin, publishedPost, mkBoard('on'), 'none')).toEqual({
       allowed: true,
       requiresApproval: false,
     })
   })
 
-  it('approval.comments=false → requiresApproval=false', () => {
-    const board = {
-      access: {
-        view: 'anonymous',
-        vote: 'anonymous',
-        comment: 'anonymous',
-        submit: 'anonymous',
-        segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
-      } satisfies BoardAccess,
-    }
-    expect(canCreateComment(portal, publishedPost, board)).toEqual({
+  it("moderation.comments='off' overrides workspace='all' (board says publish comments)", () => {
+    expect(canCreateComment(portal, publishedPost, mkBoard('off'), 'all')).toEqual({
       allowed: true,
       requiresApproval: false,
+    })
+  })
+
+  it("moderation.comments='inherit' + workspace='all' → held", () => {
+    expect(canCreateComment(portal, publishedPost, mkBoard('inherit'), 'all')).toEqual({
+      allowed: true,
+      requiresApproval: true,
+    })
+  })
+
+  it("moderation.comments='inherit' + workspace='anonymous' → NOT held (comment axis only flips on 'all')", () => {
+    // Today's workspace setting doesn't distinguish post- from comment-
+    // moderation; per the resolveModerationRule docs, comments only
+    // inherit-resolve to 'on' when workspace='all'.
+    expect(canCreateComment(portal, publishedPost, mkBoard('inherit'), 'anonymous')).toEqual({
+      allowed: true,
+      requiresApproval: false,
+    })
+  })
+
+  it("moderation.comments='inherit' + workspace='none' → NOT held", () => {
+    expect(canCreateComment(portal, publishedPost, mkBoard('inherit'), 'none')).toEqual({
+      allowed: true,
+      requiresApproval: false,
+    })
+  })
+})
+
+// ----------------------------------------------------------------------
+// resolveModerationRule truth table
+// ----------------------------------------------------------------------
+
+describe('resolveModerationRule', () => {
+  // Defer import so the previous mocks don't shadow it.
+  let resolveModerationRule: typeof import('../posts').resolveModerationRule
+
+  beforeAll(async () => {
+    ;({ resolveModerationRule } = await import('../posts'))
+  })
+
+  describe('explicit overrides bypass workspace default', () => {
+    it.each(['none', 'anonymous', 'authenticated', 'all'] as const)(
+      "rule='on' + workspace=%s → 'on'",
+      (ws) => {
+        expect(resolveModerationRule('on', ws, 'anonPosts')).toBe('on')
+        expect(resolveModerationRule('on', ws, 'signedPosts')).toBe('on')
+        expect(resolveModerationRule('on', ws, 'comments')).toBe('on')
+      }
+    )
+
+    it.each(['none', 'anonymous', 'authenticated', 'all'] as const)(
+      "rule='off' + workspace=%s → 'off'",
+      (ws) => {
+        expect(resolveModerationRule('off', ws, 'anonPosts')).toBe('off')
+        expect(resolveModerationRule('off', ws, 'signedPosts')).toBe('off')
+        expect(resolveModerationRule('off', ws, 'comments')).toBe('off')
+      }
+    )
+  })
+
+  describe('inherit resolution per axis', () => {
+    it.each([
+      // anonPosts: on when workspace ∈ {'all', 'anonymous'}
+      { ws: 'none', axis: 'anonPosts', want: 'off' },
+      { ws: 'anonymous', axis: 'anonPosts', want: 'on' },
+      { ws: 'authenticated', axis: 'anonPosts', want: 'off' },
+      { ws: 'all', axis: 'anonPosts', want: 'on' },
+      // signedPosts: on when workspace ∈ {'all', 'authenticated'}
+      { ws: 'none', axis: 'signedPosts', want: 'off' },
+      { ws: 'anonymous', axis: 'signedPosts', want: 'off' },
+      { ws: 'authenticated', axis: 'signedPosts', want: 'on' },
+      { ws: 'all', axis: 'signedPosts', want: 'on' },
+      // comments: on only when workspace='all' (see resolveModerationRule
+      // docs — workspace setting doesn't yet distinguish post- vs comment-
+      // moderation, so comments inherit-resolve to on only on the strictest
+      // workspace value)
+      { ws: 'none', axis: 'comments', want: 'off' },
+      { ws: 'anonymous', axis: 'comments', want: 'off' },
+      { ws: 'authenticated', axis: 'comments', want: 'off' },
+      { ws: 'all', axis: 'comments', want: 'on' },
+    ] as const)('inherit + workspace=$ws + axis=$axis → $want', ({ ws, axis, want }) => {
+      expect(resolveModerationRule('inherit', ws, axis)).toBe(want)
+    })
+
+    it("inherit + workspace=undefined treated as 'none'", () => {
+      expect(resolveModerationRule('inherit', undefined, 'anonPosts')).toBe('off')
+      expect(resolveModerationRule('inherit', undefined, 'signedPosts')).toBe('off')
+      expect(resolveModerationRule('inherit', undefined, 'comments')).toBe('off')
     })
   })
 })

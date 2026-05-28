@@ -79,7 +79,7 @@ vi.mock('@/lib/server/db', async () => {
                 comment: 'anonymous',
                 submit: 'anonymous',
                 segments: { view: [], vote: [], comment: [], submit: [] },
-                approval: { posts: false, comments: false },
+                moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
               },
             },
           }),
@@ -128,6 +128,13 @@ vi.mock('@/lib/server/events/dispatch', () => ({
   dispatchCommentCreated: vi.fn(),
   dispatchCommentUpdated: vi.fn(),
   buildEventActor: vi.fn(() => ({})),
+}))
+// canCreateComment now consults workspace requireApproval for board-level
+// `inherit`. Default to 'none' so inherit → no approval needed.
+vi.mock('@/lib/server/domains/settings/settings.service', () => ({
+  getPortalConfig: vi.fn().mockResolvedValue({
+    moderationDefault: { requireApproval: 'none' },
+  }),
 }))
 
 const portalActor: Actor = {

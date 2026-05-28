@@ -71,7 +71,7 @@ vi.mock('@/lib/server/db', async () => {
                 comment: 'anonymous',
                 submit: 'anonymous',
                 segments: { view: [], vote: [], comment: [], submit: [] },
-                approval: { posts: false, comments: false },
+                moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
               },
             },
           }),
@@ -108,6 +108,15 @@ vi.mock('@/lib/server/events/dispatch', () => ({
 }))
 vi.mock('@/lib/server/audit/log', () => ({
   recordAuditEvent: vi.fn(),
+}))
+
+// canCreateComment now consults the workspace requireApproval default as
+// the fallback for board-level `inherit` rules. Stub a 'none' default so
+// `moderation.comments='inherit'` resolves to off (no approval needed).
+vi.mock('@/lib/server/domains/settings/settings.service', () => ({
+  getPortalConfig: vi.fn().mockResolvedValue({
+    moderationDefault: { requireApproval: 'none' },
+  }),
 }))
 
 // A minimal team actor sufficient for all three tests (public board, published post)
@@ -164,8 +173,10 @@ describe('createComment isTeamMember derivation', () => {
   })
 })
 
-// Helper: stub the post fixture so `board.access.approval.comments` matches
-// the test's intent. The default mock returns approval.comments=false.
+// Helper: stub the post fixture so `board.access.moderation.comments` matches
+// the test's intent. `approvalComments=true` maps to the explicit `'on'`
+// override, false to `'inherit'` (workspace defaults to 'none' in the mock,
+// so inherit resolves to 'off' — no approval required).
 async function mockPostWithApproval(approvalComments: boolean) {
   const { db } = await import('@/lib/server/db')
   vi.mocked(db.query.posts.findFirst).mockResolvedValueOnce({
@@ -186,20 +197,24 @@ async function mockPostWithApproval(approvalComments: boolean) {
         comment: 'anonymous',
         submit: 'anonymous',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: approvalComments },
+        moderation: {
+          anonPosts: 'inherit',
+          signedPosts: 'inherit',
+          comments: approvalComments ? 'on' : 'inherit',
+        },
       },
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- minimal fixture
   } as any)
 }
 
-describe('createComment — board.access.approval.comments holds for review', () => {
+describe('createComment — board.access.moderation.comments holds for review', () => {
   beforeEach(() => {
     insertedComments.length = 0
     vi.clearAllMocks()
   })
 
-  it('inserts moderationState=pending when approval.comments=true and actor is non-team', async () => {
+  it("inserts moderationState=pending when moderation.comments='on' and actor is non-team", async () => {
     await mockPostWithApproval(true)
     const { createComment } = await import('../comment.service')
     await createComment(
@@ -211,7 +226,7 @@ describe('createComment — board.access.approval.comments holds for review', ()
     expect(insertedComments[0]).toMatchObject({ moderationState: 'pending' })
   })
 
-  it('inserts moderationState=published when approval.comments=false', async () => {
+  it("inserts moderationState=published when moderation.comments='inherit' and workspace='none'", async () => {
     await mockPostWithApproval(false)
     const { createComment } = await import('../comment.service')
     await createComment(
@@ -223,7 +238,7 @@ describe('createComment — board.access.approval.comments holds for review', ()
     expect(insertedComments[0]).toMatchObject({ moderationState: 'published' })
   })
 
-  it('team comments are NEVER held even when approval.comments=true', async () => {
+  it("team comments are NEVER held even when moderation.comments='on'", async () => {
     await mockPostWithApproval(true)
     const { createComment } = await import('../comment.service')
     await createComment(
@@ -323,7 +338,7 @@ describe('createComment — soft-deleted board is rejected as POST_NOT_FOUND', (
           comment: 'anonymous',
           submit: 'anonymous',
           segments: { view: [], vote: [], comment: [], submit: [] },
-          approval: { posts: false, comments: false },
+          moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
         },
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- minimal fixture

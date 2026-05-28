@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ACCESS_TIERS, ACCESS_TIER_RANK } from '@/lib/shared/db-types'
+import { ACCESS_TIERS, ACCESS_TIER_RANK, MODERATION_RULE_VALUES } from '@/lib/shared/db-types'
 
 export const createBoardSchema = z.object({
   name: z.string().min(1, 'Board name is required').max(100),
@@ -30,13 +30,14 @@ export type DeleteBoardInput = z.infer<typeof deleteBoardSchema>
 // imports zod + @quackback/db/types — both are runtime-safe in any env.
 
 const tierSchema = z.enum(ACCESS_TIERS)
+const moderationRuleSchema = z.enum(MODERATION_RULE_VALUES)
 
 /**
  * Validation for the per-action `BoardAccess` payload
- * (view/vote/comment/submit + per-action segments + approval). Enforces
- * the spec's tier-rank invariants so a board can't accidentally land in
- * a contradictory state (e.g. anonymous voting on a team-only-visible
- * board).
+ * (view/vote/comment/submit + per-action segments + tri-state moderation).
+ * Enforces the spec's tier-rank invariants so a board can't accidentally
+ * land in a contradictory state (e.g. anonymous voting on a team-only-
+ * visible board).
  *
  * Invariants:
  *  - `vote.rank >= view.rank` (can't be more permissive than view)
@@ -46,6 +47,10 @@ const tierSchema = z.enum(ACCESS_TIERS)
  *    `segments[action]` array must be non-empty (an empty allowlist
  *    would hide the board from everyone in that tier)
  *  - `segments[action].length <= 50` per action (board capacity cap)
+ *
+ * Moderation rules are tri-state (`inherit | on | off`) — see
+ * resolveModerationRule in policy/posts.ts for how `inherit` resolves
+ * against the workspace requireApproval default.
  */
 export const boardAccessSchema = z
   .object({
@@ -59,9 +64,10 @@ export const boardAccessSchema = z
       comment: z.array(z.string()).max(50, 'At most 50 segments per board.'),
       submit: z.array(z.string()).max(50, 'At most 50 segments per board.'),
     }),
-    approval: z.object({
-      posts: z.boolean(),
-      comments: z.boolean(),
+    moderation: z.object({
+      anonPosts: moderationRuleSchema,
+      signedPosts: moderationRuleSchema,
+      comments: moderationRuleSchema,
     }),
   })
   .superRefine((val, ctx) => {

@@ -57,7 +57,7 @@ describe('getPublicBoardById — defensive policy check', () => {
         comment: 'team',
         submit: 'team',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       },
     })
     const { getPublicBoardById } = await import('../board.public')
@@ -74,7 +74,7 @@ describe('getPublicBoardById — defensive policy check', () => {
         comment: 'team',
         submit: 'team',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       },
     })
     const { getPublicBoardById } = await import('../board.public')
@@ -96,7 +96,7 @@ describe('getPublicBoardById — defensive policy check', () => {
           comment: ['seg_alpha'],
           submit: ['seg_alpha'],
         },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       },
     })
     const { getPublicBoardById } = await import('../board.public')
@@ -118,7 +118,7 @@ describe('getPublicBoardById — defensive policy check', () => {
           comment: ['seg_alpha'],
           submit: ['seg_alpha'],
         },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       },
     })
     const { getPublicBoardById } = await import('../board.public')
@@ -151,7 +151,7 @@ describe('getPublicBoardById — defensive policy check', () => {
         comment: 'anonymous',
         submit: 'anonymous',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       },
     })
     const { getPublicBoardById } = await import('../board.public')

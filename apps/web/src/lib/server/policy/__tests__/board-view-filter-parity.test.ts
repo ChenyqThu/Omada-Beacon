@@ -59,7 +59,7 @@ function mkAccess(view: BoardAccess['view'], segmentIds: string[] = []): BoardAc
       comment: segmentIds,
       submit: segmentIds,
     },
-    approval: { posts: false, comments: false },
+    moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
   }
 }
 

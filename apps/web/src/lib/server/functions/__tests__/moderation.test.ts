@@ -1085,11 +1085,11 @@ describe('getModerationStatus', () => {
   })
 
   it('enabled=true when a per-board approval flag is set, even with no policy and no backlog', async () => {
-    // Per-board approval (e.g. one board has access.approval.posts=true) means
-    // future submissions WILL be held — the sidebar moderation badge must
-    // surface so admins can find the queue *before* the first submission
-    // lands. Without this, the moderation surface is discoverable only by
-    // chance when a backlog accumulates.
+    // Per-board moderation override (e.g. one board has access.moderation.
+    // anonPosts='on') means future submissions WILL be held — the sidebar
+    // moderation badge must surface so admins can find the queue *before*
+    // the first submission lands. Without this, the moderation surface is
+    // discoverable only by chance when a backlog accumulates.
     stubSelectCalls(0, 0, 1)
     mockGetPortalConfig.mockResolvedValue({ moderationDefault: { requireApproval: 'none' } })
     const result = (await getModerationStatusHandler()({ data: {} })) as {

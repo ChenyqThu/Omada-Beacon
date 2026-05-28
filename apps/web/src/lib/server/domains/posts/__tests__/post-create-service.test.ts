@@ -66,7 +66,7 @@ vi.mock('@/lib/server/db', async () => {
               comment: 'anonymous',
               submit: 'anonymous',
               segments: { view: [], vote: [], comment: [], submit: [] },
-              approval: { posts: false, comments: false },
+              moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
             },
           }),
         },
@@ -205,7 +205,7 @@ describe('createPost held audit event', () => {
         comment: 'anonymous',
         submit: 'anonymous',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       },
     } as unknown as Awaited<ReturnType<typeof db.query.boards.findFirst>>)
     // Workspace moderation policy requires approval for all submissions.
@@ -253,7 +253,7 @@ describe('createPost held audit event', () => {
         comment: 'anonymous',
         submit: 'anonymous',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       },
     } as unknown as Awaited<ReturnType<typeof db.query.boards.findFirst>>)
     vi.mocked(getPortalConfig).mockResolvedValueOnce({
@@ -305,7 +305,7 @@ describe('createPost dispatch guard (moderation)', () => {
         comment: 'anonymous',
         submit: 'anonymous',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       },
     } as unknown as Awaited<ReturnType<typeof db.query.boards.findFirst>>)
     vi.mocked(getPortalConfig).mockResolvedValueOnce({
@@ -344,7 +344,7 @@ describe('createPost dispatch guard (moderation)', () => {
         comment: 'anonymous',
         submit: 'anonymous',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       },
     } as unknown as Awaited<ReturnType<typeof db.query.boards.findFirst>>)
     vi.mocked(getPortalConfig).mockResolvedValueOnce({
@@ -383,7 +383,7 @@ describe('createPost dispatch guard (moderation)', () => {
         comment: 'anonymous',
         submit: 'anonymous',
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       },
     } as unknown as Awaited<ReturnType<typeof db.query.boards.findFirst>>)
     vi.mocked(getPortalConfig).mockResolvedValueOnce({

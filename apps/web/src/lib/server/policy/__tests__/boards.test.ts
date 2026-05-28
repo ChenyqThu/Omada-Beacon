@@ -88,7 +88,7 @@ const A: Record<string, BoardAccess> = {
     comment: 'anonymous',
     submit: 'anonymous',
     segments: sharedSegments([]),
-    approval: { posts: false, comments: false },
+    moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
   },
   authenticated: {
     view: 'authenticated',
@@ -96,7 +96,7 @@ const A: Record<string, BoardAccess> = {
     comment: 'authenticated',
     submit: 'authenticated',
     segments: sharedSegments([]),
-    approval: { posts: false, comments: false },
+    moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
   },
   team: {
     view: 'team',
@@ -104,7 +104,7 @@ const A: Record<string, BoardAccess> = {
     comment: 'team',
     submit: 'team',
     segments: sharedSegments([]),
-    approval: { posts: false, comments: false },
+    moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
   },
   segmentAlpha: {
     view: 'segments',
@@ -112,7 +112,7 @@ const A: Record<string, BoardAccess> = {
     comment: 'segments',
     submit: 'segments',
     segments: sharedSegments(['segment_alpha']),
-    approval: { posts: false, comments: false },
+    moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
   },
   segmentBeta: {
     view: 'segments',
@@ -120,7 +120,7 @@ const A: Record<string, BoardAccess> = {
     comment: 'segments',
     submit: 'segments',
     segments: sharedSegments(['segment_beta']),
-    approval: { posts: false, comments: false },
+    moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
   },
   segmentAlphaBeta: {
     view: 'segments',
@@ -128,7 +128,7 @@ const A: Record<string, BoardAccess> = {
     comment: 'segments',
     submit: 'segments',
     segments: sharedSegments(['segment_alpha', 'segment_beta']),
-    approval: { posts: false, comments: false },
+    moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
   },
   segmentEmpty: {
     view: 'segments',
@@ -136,7 +136,7 @@ const A: Record<string, BoardAccess> = {
     comment: 'segments',
     submit: 'segments',
     segments: sharedSegments([]),
-    approval: { posts: false, comments: false },
+    moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
   },
 }
 

@@ -105,7 +105,11 @@ type BoardAccess = {
   comment: 'anonymous' | 'authenticated' | 'segments' | 'team'
   submit: 'anonymous' | 'authenticated' | 'segments' | 'team'
   segments: { view: string[]; vote: string[]; comment: string[]; submit: string[] }
-  approval: { posts: boolean; comments: boolean }
+  moderation: {
+    anonPosts: 'inherit' | 'on' | 'off'
+    signedPosts: 'inherit' | 'on' | 'off'
+    comments: 'inherit' | 'on' | 'off'
+  }
 }
 type BoardRow = {
   id: string
@@ -130,7 +134,7 @@ const BOARD_ROW: BoardRow = {
     comment: 'segments',
     submit: 'segments',
     segments: { view: ['seg_1'], vote: ['seg_1'], comment: ['seg_1'], submit: ['seg_1'] },
-    approval: { posts: false, comments: false },
+    moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
   },
   settings: {},
   createdAt: BASE_DATE,

@@ -21,23 +21,26 @@ describe('AccessTier definitions', () => {
 
   it('DEFAULT_BOARD_ACCESS preserves current public-board behavior', () => {
     // New boards continue to act like the current { kind: 'public' }: anon
-    // can view, vote, comment, and submit; workspace toggles gate.
+    // can view, vote, comment, and submit; the workspace moderation default
+    // is the fallback that the per-board 'inherit' rules resolve against.
     expect(DEFAULT_BOARD_ACCESS).toEqual({
       view: 'anonymous',
+      vote: 'anonymous',
       comment: 'anonymous',
       submit: 'anonymous',
-      segments: { view: [], comment: [], submit: [] },
-      approval: { posts: false, comments: false },
+      segments: { view: [], vote: [], comment: [], submit: [] },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
     })
   })
 
   it('BoardAccess type is structurally exact (compile-time)', () => {
     const sample: BoardAccess = {
       view: 'anonymous' as AccessTier,
+      vote: 'anonymous',
       comment: 'authenticated',
       submit: 'segments',
-      segments: { view: [], comment: [], submit: ['segment_alpha'] },
-      approval: { posts: true, comments: false },
+      segments: { view: [], vote: [], comment: [], submit: ['segment_alpha'] },
+      moderation: { anonPosts: 'on', signedPosts: 'on', comments: 'inherit' },
     }
     expect(sample.view).toBe('anonymous')
   })

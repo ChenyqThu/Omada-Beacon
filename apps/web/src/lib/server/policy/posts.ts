@@ -5,14 +5,58 @@
  * isn't visible, and create is always denied when view is denied.
  */
 import { and, eq, or, sql, type SQL } from 'drizzle-orm'
-import { posts, type AccessTier, type BoardAccess, type ModerationState } from '@/lib/server/db'
+import {
+  posts,
+  type AccessTier,
+  type BoardAccess,
+  type ModerationRuleValue,
+  type ModerationState,
+} from '@/lib/server/db'
 import type { PrincipalId } from '@quackback/ids'
 import { allowDecision, denyDecision, isTeamActor, type Actor, type Decision } from './types'
 import { canViewBoard, boardViewFilter } from './boards'
 import { tierAllows } from './access'
 
-/** The workspace moderation policy. Boards no longer have a per-board override. */
+/** The workspace moderation policy — the fallback that per-board
+ *  `moderation` rules resolve against when set to `'inherit'`. */
 export type RequireApproval = 'none' | 'anonymous' | 'authenticated' | 'all'
+
+/** Moderation axis — matches the BoardAccess.moderation keys + the
+ *  three rows in the design's Moderation tab. */
+type ModerationAxis = 'anonPosts' | 'signedPosts' | 'comments'
+
+/**
+ * Resolve a per-board tri-state moderation rule against the workspace
+ * default. Returns whether the matching submission should be HELD for
+ * review (`'on'`) or allowed straight through (`'off'`).
+ *
+ * - `'on'`  → always hold (override on)
+ * - `'off'` → never hold (override off)
+ * - `'inherit'` → defer to workspace `requireApproval`:
+ *     - `'none'`         → all axes resolve to `'off'`
+ *     - `'anonymous'`    → anonPosts on; signedPosts/comments off
+ *     - `'authenticated'`→ signedPosts on; anonPosts/comments off
+ *     - `'all'`          → all axes resolve to `'on'`
+ *
+ * Note: today's workspace setting doesn't distinguish post-moderation
+ * from comment-moderation. Until that lands, comments inherit-resolve to
+ * `'on'` only when workspace=`'all'` and `'off'` otherwise — i.e. only
+ * the most-strict workspace value implicitly covers comments.
+ */
+export function resolveModerationRule(
+  rule: ModerationRuleValue,
+  workspaceApproval: RequireApproval | undefined,
+  axis: ModerationAxis
+): 'on' | 'off' {
+  if (rule === 'on') return 'on'
+  if (rule === 'off') return 'off'
+  // 'inherit' — resolve via workspace default.
+  const ws = workspaceApproval ?? 'none'
+  if (axis === 'comments') return ws === 'all' ? 'on' : 'off'
+  if (axis === 'anonPosts') return ws === 'all' || ws === 'anonymous' ? 'on' : 'off'
+  // signedPosts
+  return ws === 'all' || ws === 'authenticated' ? 'on' : 'off'
+}
 
 interface PostShape {
   moderationState: ModerationState
@@ -88,12 +132,14 @@ function commentDenyMessage(tier: AccessTier): string {
  * 3. If comments are locked, only team members may bypass.
  *
  * On the allowed branch, `requiresApproval` is true when the actor is not
- * a team member AND the board requires comment approval.
+ * a team member AND the board's `moderation.comments` rule (resolved
+ * against the workspace default for `'inherit'`) is `'on'`.
  */
 export function canCreateComment(
   actor: Actor,
   post: PostShape & { isCommentsLocked: boolean },
-  board: BoardShape
+  board: BoardShape,
+  workspaceApproval: RequireApproval | undefined
 ): CommentCreateDecision {
   const view = canViewPost(actor, post, board)
   if (!view.allowed) return { allowed: false, reason: view.reason }
@@ -106,7 +152,10 @@ export function canCreateComment(
   }
   return {
     allowed: true,
-    requiresApproval: !isTeam(actor) && board.access.approval.comments,
+    requiresApproval:
+      !isTeam(actor) &&
+      resolveModerationRule(board.access.moderation.comments, workspaceApproval, 'comments') ===
+        'on',
   }
 }
 
@@ -183,12 +232,16 @@ export function canCreatePost(
     return { allowed: true, requiresApproval: false }
   }
 
-  // Approval is the OR of the workspace policy and the per-board override.
-  const requireApproval = workspaceApproval ?? 'none'
-  const wsRequires =
-    requireApproval === 'all' ||
-    (requireApproval === 'anonymous' && actor.principalType !== 'user') ||
-    (requireApproval === 'authenticated' && actor.principalType === 'user')
-
-  return { allowed: true, requiresApproval: wsRequires || board.access.approval.posts }
+  // Pick the axis from the actor's principal type: anonymous (or service —
+  // non-user principal) maps to the anonPosts rule, signed-in portal users
+  // map to signedPosts. The rule is then resolved against the workspace
+  // default for `inherit`.
+  const isAnon = actor.principalType !== 'user'
+  const rule = isAnon ? board.access.moderation.anonPosts : board.access.moderation.signedPosts
+  const resolved = resolveModerationRule(
+    rule,
+    workspaceApproval,
+    isAnon ? 'anonPosts' : 'signedPosts'
+  )
+  return { allowed: true, requiresApproval: resolved === 'on' }
 }

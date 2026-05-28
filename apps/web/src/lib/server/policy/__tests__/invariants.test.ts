@@ -82,7 +82,7 @@ function mkAccess(view: AccessTier, segmentIds: string[] = []): BoardAccess {
       comment: segmentIds,
       submit: segmentIds,
     },
-    approval: { posts: false, comments: false },
+    moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
   }
 }
 

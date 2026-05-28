@@ -44,10 +44,10 @@ import {
  * Per-board access matrix. Replaces the stacked-tier form with a compact
  * 3 × 4 grid (action × tier) plus inline per-action segment pickers.
  *
- * The persisted shape is `BoardAccess` (see @/lib/shared/db-types). Approval
- * flags are intentionally NOT exposed in this UI — moderation is governed
- * at the workspace level. The form preserves the existing approval values
- * on save so prior data is never zeroed out.
+ * The persisted shape is `BoardAccess` (see @/lib/shared/db-types). The
+ * tri-state `moderation` object is intentionally NOT exposed in this UI —
+ * R4 introduces a dedicated Moderation sub-tab. The form preserves any
+ * existing moderation values on save so prior data is never zeroed out.
  *
  * Behaviours mirrored from the design (matrix-final.jsx):
  *   - 4 preset cards (Public / Auth only / Team only / Custom).
@@ -187,10 +187,10 @@ interface BoardAccessFormProps {
 type FormShape = BoardAccess
 
 function deriveInitialPreset(access: BoardAccess): PresetName {
-  // Approval flags are intentionally NOT part of preset detection: this UI
-  // doesn't surface them, so a board with a workspace/legacy approval value
-  // set should still display as its tier-preset rather than collapsing to
-  // Custom (which would reveal the matrix unexpectedly).
+  // Moderation rules are intentionally NOT part of preset detection: this
+  // UI doesn't surface them (R4 owns that sub-tab), so a board with custom
+  // moderation overrides should still display as its tier-preset rather
+  // than collapsing to Custom (which would reveal the matrix unexpectedly).
   for (const meta of PRESET_META) {
     const tiersMatch =
       access.view === meta.tiers.view &&
@@ -214,7 +214,8 @@ function applyPreset(meta: PresetMeta, current: FormShape): FormShape {
     submit: meta.tiers.submit,
     // Presets always clear segment lists — they target non-segments tiers.
     segments: { view: [], vote: [], comment: [], submit: [] },
-    // Approval is preserved (UI doesn't expose it).
+    // Moderation overrides are preserved (UI doesn't expose them; R4 owns
+    // the sub-tab that will).
   }
 }
 

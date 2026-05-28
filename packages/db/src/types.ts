@@ -58,6 +58,15 @@ export const ACCESS_TIER_RANK: Record<AccessTier, number> = {
   team: 3,
 }
 
+/** Per-board moderation rule values. A board can either:
+ *   - `inherit`: resolve from the workspace's portalConfig.moderationDefault.requireApproval
+ *   - `on`:      force-hold matching submissions for review (override on)
+ *   - `off`:     force-allow matching submissions without review (override off)
+ *  The three axes (anonPosts / signedPosts / comments) match the design's
+ *  Moderation tab and the workspace requireApproval shape. */
+export const MODERATION_RULE_VALUES = ['inherit', 'on', 'off'] as const
+export type ModerationRuleValue = (typeof MODERATION_RULE_VALUES)[number]
+
 export interface BoardAccess {
   view: AccessTier
   vote: AccessTier
@@ -73,14 +82,17 @@ export interface BoardAccess {
     comment: string[]
     submit: string[]
   }
-  approval: {
-    /** Hold new posts on this board for review (any non-team submitter).
-     *  Composes OR with workspace requireApproval — a board can be MORE
-     *  strict than the workspace, never more permissive. */
-    posts: boolean
-    /** Hold new comments on this board for review. */
-    comments: boolean
+  /** Tri-state per-board moderation overrides for posts (split by author
+   *  type) and comments. `inherit` defers to the workspace default; `on`
+   *  and `off` are explicit per-board overrides. */
+  moderation: {
+    anonPosts: ModerationRuleValue
+    signedPosts: ModerationRuleValue
+    comments: ModerationRuleValue
   }
+  /** @deprecated kept for transition only; mirrors moderation on save.
+   *  Will be dropped once all callers consume `moderation`. */
+  approval?: { posts: boolean; comments: boolean }
 }
 
 export const DEFAULT_BOARD_ACCESS: BoardAccess = {
@@ -89,7 +101,7 @@ export const DEFAULT_BOARD_ACCESS: BoardAccess = {
   comment: 'anonymous',
   submit: 'anonymous',
   segments: { view: [], vote: [], comment: [], submit: [] },
-  approval: { posts: false, comments: false },
+  moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
 }
 
 // Integration config (stored in integrations.config JSONB column)

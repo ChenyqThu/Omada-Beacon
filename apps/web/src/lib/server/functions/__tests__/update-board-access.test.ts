@@ -156,7 +156,7 @@ const BOARD_DEFAULT: BoardRow = {
     comment: 'anonymous',
     submit: 'anonymous',
     segments: { view: [], vote: [], comment: [], submit: [] },
-    approval: { posts: false, comments: false },
+    moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
   },
 }
 
@@ -179,7 +179,7 @@ describe('updateBoardAccessFn — accepts BoardAccess payload', () => {
           comment: 'anonymous',
           submit: 'anonymous',
           segments: { view: [], vote: [], comment: [], submit: [] },
-          approval: { posts: false, comments: false },
+          moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
         },
       },
     })
@@ -197,7 +197,7 @@ describe('updateBoardAccessFn — accepts BoardAccess payload', () => {
             comment: 'anonymous',
             submit: 'authenticated',
             segments: { view: [], vote: [], comment: [], submit: [] },
-            approval: { posts: false, comments: false },
+            moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
           },
         },
       })
@@ -215,7 +215,7 @@ describe('updateBoardAccessFn — accepts BoardAccess payload', () => {
             comment: 'segments',
             submit: 'segments',
             segments: { view: [], vote: [], comment: [], submit: [] },
-            approval: { posts: false, comments: false },
+            moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
           },
         },
       })
@@ -231,7 +231,7 @@ describe('updateBoardAccessFn — writes access and emits audit event', () => {
       comment: 'team' as const,
       submit: 'team' as const,
       segments: { view: [], vote: [], comment: [], submit: [] },
-      approval: { posts: true, comments: false },
+      moderation: { anonPosts: 'on', signedPosts: 'on', comments: 'inherit' },
     }
     await getUpdateBoardAccessFn()({ data: { boardId: 'board_1', access } })
 
@@ -247,7 +247,7 @@ describe('updateBoardAccessFn — writes access and emits audit event', () => {
       comment: 'team' as const,
       submit: 'team' as const,
       segments: { view: [], vote: [], comment: [], submit: [] },
-      approval: { posts: true, comments: false },
+      moderation: { anonPosts: 'on', signedPosts: 'on', comments: 'inherit' },
     }
     await getUpdateBoardAccessFn()({ data: { boardId: 'board_1', access } })
 
@@ -275,7 +275,7 @@ describe('updateBoardAccessFn — auth + not-found', () => {
             comment: 'anonymous',
             submit: 'anonymous',
             segments: { view: [], vote: [], comment: [], submit: [] },
-            approval: { posts: false, comments: false },
+            moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
           },
         },
       })
@@ -301,7 +301,7 @@ describe('updateBoardAccessFn — auth + not-found', () => {
             comment: 'anonymous',
             submit: 'anonymous',
             segments: { view: [], vote: [], comment: [], submit: [] },
-            approval: { posts: false, comments: false },
+            moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
           },
         },
       })
@@ -320,7 +320,7 @@ describe('updateBoardAccessFn — auth + not-found', () => {
             comment: 'anonymous',
             submit: 'anonymous',
             segments: { view: [], vote: [], comment: [], submit: [] },
-            approval: { posts: false, comments: false },
+            moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
           },
         },
       })

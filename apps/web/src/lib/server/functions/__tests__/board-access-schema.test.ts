@@ -7,7 +7,7 @@ const baseValid = {
   comment: 'anonymous' as const,
   submit: 'anonymous' as const,
   segments: { view: [], vote: [], comment: [], submit: [] },
-  approval: { posts: false, comments: false },
+  moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
 }
 
 describe('boardAccessSchema — valid shapes', () => {

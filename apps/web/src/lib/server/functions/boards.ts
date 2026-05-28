@@ -158,7 +158,7 @@ export const createBoardFn = createServerFn({ method: 'POST' })
         comment: tier,
         submit: tier,
         segments: { view: [], vote: [], comment: [], submit: [] },
-        approval: { posts: false, comments: false },
+        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
       },
     })
     console.log(`[fn:boards] createBoardFn: id=${board.id}`)

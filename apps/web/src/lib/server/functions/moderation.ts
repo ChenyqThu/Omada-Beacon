@@ -376,11 +376,14 @@ export const getModerationStatus = createServerFn({ method: 'GET' }).handler(asy
 
   const portalConfig = await getPortalConfig()
 
-  // Also surface the badge when any board has per-board approval configured,
-  // even if the workspace default is 'none' AND the queue is currently empty.
-  // Without this, an admin who enables hold-posts on a single board sees no
-  // sidebar affordance until the first submission lands — making the queue
-  // discoverable only by chance.
+  // Also surface the badge when any board has a per-board moderation
+  // override set to `'on'`, even if the workspace default is 'none' AND
+  // the queue is currently empty. Without this, an admin who explicitly
+  // enables hold-posts on a single board sees no sidebar affordance until
+  // the first submission lands — making the queue discoverable only by
+  // chance. We only count `'on'` overrides because `'inherit'` defers to
+  // the workspace policy (already covered by the requireApproval check
+  // below) and `'off'` actively opts out.
   let approvalCount = 0
   try {
     const approvalRows = await db
@@ -390,8 +393,9 @@ export const getModerationStatus = createServerFn({ method: 'GET' }).handler(asy
         and(
           isNull(boards.deletedAt),
           or(
-            sql`(${boards.access}->'approval'->>'posts')::boolean = true`,
-            sql`(${boards.access}->'approval'->>'comments')::boolean = true`
+            sql`${boards.access}->'moderation'->>'anonPosts' = 'on'`,
+            sql`${boards.access}->'moderation'->>'signedPosts' = 'on'`,
+            sql`${boards.access}->'moderation'->>'comments' = 'on'`
           )
         )
       )

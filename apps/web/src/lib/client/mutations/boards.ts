@@ -50,7 +50,7 @@ export function useCreateBoard() {
           comment: tier,
           submit: tier,
           segments: { view: [], vote: [], comment: [], submit: [] },
-          approval: { posts: false, comments: false },
+          moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
         },
         settings: {},
         createdAt: new Date(),

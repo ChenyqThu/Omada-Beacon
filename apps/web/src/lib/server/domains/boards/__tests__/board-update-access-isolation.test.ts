@@ -58,7 +58,7 @@ const EXISTING_BOARD = {
     comment: 'anonymous',
     submit: 'anonymous',
     segments: { view: [], vote: [], comment: [], submit: [] },
-    approval: { posts: false, comments: false },
+    moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
   },
   settings: {},
   createdAt: new Date(),
