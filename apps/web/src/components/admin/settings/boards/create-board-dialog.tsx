@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import { GlobeAltIcon, LockClosedIcon, PlusIcon } from '@heroicons/react/24/solid'
 import {
   Form,
@@ -152,7 +153,7 @@ export function CreateBoardDialog({
                 control={form.control}
                 name="preset"
                 render={({ field }) => (
-                  <FormItem className="space-y-2">
+                  <FormItem>
                     <FormLabel>Access</FormLabel>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       <PresetTile
@@ -175,24 +176,20 @@ export function CreateBoardDialog({
                 )}
               />
 
-              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                <Checkbox
-                  checked={customize}
-                  onCheckedChange={(v) => setCustomize(v === true)}
-                  aria-label="Customize access after create"
-                />
+              <Label className="flex items-center gap-2 text-xs font-normal text-muted-foreground cursor-pointer">
+                <Checkbox checked={customize} onCheckedChange={(v) => setCustomize(v === true)} />
                 <span>
                   Customize access after create
-                  <span className="ml-1 opacity-70">— open the Access tab to fine-tune.</span>
+                  <span className="ml-1">open the Access tab to fine-tune.</span>
                 </span>
-              </label>
+              </Label>
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+              <Button type="button" size="sm" variant="ghost" onClick={() => setIsOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={mutation.isPending}>
+              <Button type="submit" size="sm" disabled={mutation.isPending}>
                 {mutation.isPending ? 'Creating...' : 'Create board'}
               </Button>
             </DialogFooter>
@@ -224,7 +221,7 @@ function PresetTile({ active, label, description, icon, onClick }: PresetTilePro
       aria-label={label}
       aria-pressed={active}
       className={cn(
-        'flex flex-col items-stretch gap-1.5 rounded-lg border px-4 py-3 text-left transition-colors',
+        'flex flex-col items-stretch gap-1 rounded-lg border px-3 py-2.5 text-left transition-colors',
         active
           ? 'border-primary bg-primary/10'
           : 'border-border bg-muted/30 hover:bg-muted/60 cursor-pointer'
