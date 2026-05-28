@@ -118,6 +118,12 @@ vi.mock('@/lib/server/domains/posts/post.voting', () => ({
   removeVote: vi.fn().mockResolvedValue({ removed: true, voteCount: 4 }),
 }))
 
+vi.mock('@/lib/server/domains/posts/post.access', () => ({
+  assertPostViewable: vi.fn().mockResolvedValue(undefined),
+  assertPostVotable: vi.fn().mockResolvedValue(undefined),
+  assertCommentViewable: vi.fn().mockResolvedValue(undefined),
+}))
+
 vi.mock('@/lib/server/domains/posts/post.merge', () => ({
   mergePost: vi.fn().mockResolvedValue({
     canonicalPost: { id: 'post_canon', voteCount: 10 },

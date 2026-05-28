@@ -965,6 +965,21 @@ Examples:
       const denied = requireScope(auth, 'write:feedback')
       if (denied) return denied
       try {
+        // Chokepoint: resolves the post + board, then runs canVotePost
+        // (which composes canViewPost). Team API keys always pass the
+        // tier check; this primarily enforces post.deletedAt /
+        // board.deletedAt + per-board vote tier — protections that
+        // voteOnPost alone skipped.
+        const { assertPostVotable } = await import('@/lib/server/domains/posts/post.access')
+        const { segmentIdsForPrincipal: resolveSegments } =
+          await import('@/lib/server/domains/segments/segment-membership.service')
+        const votingActor = {
+          principalId: auth.principalId,
+          role: auth.role,
+          principalType: 'user' as const,
+          segmentIds: await resolveSegments(auth.principalId),
+        }
+        await assertPostVotable(args.postId as PostId, votingActor)
         const result = await voteOnPost(args.postId as PostId, auth.principalId)
 
         return jsonResult({
