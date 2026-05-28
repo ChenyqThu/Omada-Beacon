@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   requireApprovalToToggles,
   togglesToRequireApproval,
+  resolveWorkspaceModeration,
   type RequireApprovalLevel,
 } from '../moderation-policy'
 
@@ -32,4 +33,26 @@ describe('moderation-policy mapping', () => {
       expect(togglesToRequireApproval(requireApprovalToToggles(level))).toBe(level)
     }
   })
+})
+
+describe('resolveWorkspaceModeration — full axis × level matrix', () => {
+  const cases: Array<
+    [
+      Parameters<typeof resolveWorkspaceModeration>[1],
+      { anonPosts: 'on' | 'off'; signedPosts: 'on' | 'off'; comments: 'on' | 'off' },
+    ]
+  > = [
+    ['none', { anonPosts: 'off', signedPosts: 'off', comments: 'off' }],
+    ['anonymous', { anonPosts: 'on', signedPosts: 'off', comments: 'off' }],
+    ['authenticated', { anonPosts: 'off', signedPosts: 'on', comments: 'off' }],
+    ['all', { anonPosts: 'on', signedPosts: 'on', comments: 'on' }],
+    [undefined, { anonPosts: 'off', signedPosts: 'off', comments: 'off' }],
+  ]
+  for (const [level, expected] of cases) {
+    it(`level=${level ?? 'undefined'}`, () => {
+      expect(resolveWorkspaceModeration('anonPosts', level)).toBe(expected.anonPosts)
+      expect(resolveWorkspaceModeration('signedPosts', level)).toBe(expected.signedPosts)
+      expect(resolveWorkspaceModeration('comments', level)).toBe(expected.comments)
+    })
+  }
 })

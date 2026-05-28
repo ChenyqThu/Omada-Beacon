@@ -16,14 +16,11 @@ import type { PrincipalId } from '@quackback/ids'
 import { allowDecision, denyDecision, isTeamActor, type Actor, type Decision } from './types'
 import { canViewBoard, boardViewFilter } from './boards'
 import { tierAllows } from './access'
+import { resolveWorkspaceModeration, type ModerationAxis } from '@/lib/shared/moderation-policy'
 
 /** The workspace moderation policy — the fallback that per-board
  *  `moderation` rules resolve against when set to `'inherit'`. */
 export type RequireApproval = 'none' | 'anonymous' | 'authenticated' | 'all'
-
-/** Moderation axis — matches the BoardAccess.moderation keys + the
- *  three rows in the design's Moderation tab. */
-type ModerationAxis = 'anonPosts' | 'signedPosts' | 'comments'
 
 /**
  * Resolve a per-board tri-state moderation rule against the workspace
@@ -50,12 +47,9 @@ export function resolveModerationRule(
 ): 'on' | 'off' {
   if (rule === 'on') return 'on'
   if (rule === 'off') return 'off'
-  // 'inherit' — resolve via workspace default.
-  const ws = workspaceApproval ?? 'none'
-  if (axis === 'comments') return ws === 'all' ? 'on' : 'off'
-  if (axis === 'anonPosts') return ws === 'all' || ws === 'anonymous' ? 'on' : 'off'
-  // signedPosts
-  return ws === 'all' || ws === 'authenticated' ? 'on' : 'off'
+  // 'inherit' — resolve via the shared workspace-default helper (single
+  // source of truth for the axis × level mapping; also used by the UI).
+  return resolveWorkspaceModeration(axis, workspaceApproval)
 }
 
 interface PostShape {

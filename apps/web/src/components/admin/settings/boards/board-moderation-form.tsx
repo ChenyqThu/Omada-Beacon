@@ -19,6 +19,7 @@ import {
   DEFAULT_BOARD_ACCESS,
   type ModerationRuleValue,
 } from '@/lib/shared/db-types'
+import { resolveWorkspaceModeration, type ModerationAxis } from '@/lib/shared/moderation-policy'
 
 /**
  * Per-board moderation form (R4 design, standalone page).
@@ -38,25 +39,17 @@ import {
 /** Mirrors the policy-side `RequireApproval` type. Kept private to this
  *  module so the UI doesn't drag the server policy import. */
 type RequireApproval = 'none' | 'anonymous' | 'authenticated' | 'all'
-type ModerationAxis = 'anonPosts' | 'signedPosts' | 'comments'
 
 /**
- * UI mirror of `resolveModerationRule` from policy/posts.ts — same axis
- * mapping, restricted to the `'inherit'` case since the SegmentedTri's
- * sub-pill only ever needs to render the resolved workspace default.
- *
- * Keep this in sync with the policy helper: any change to the workspace
- * default → per-axis mapping has to land in both places.
+ * The SegmentedTri's "Inherit" sub-pill renders the resolved workspace
+ * default for an axis. Delegates to the shared `resolveWorkspaceModeration`
+ * helper so the UI pill and the server gate can never desync.
  */
 function resolveWorkspaceDefault(
   axis: ModerationAxis,
   workspaceApproval: RequireApproval | undefined
 ): 'on' | 'off' {
-  const ws = workspaceApproval ?? 'none'
-  if (axis === 'comments') return ws === 'all' ? 'on' : 'off'
-  if (axis === 'anonPosts') return ws === 'all' || ws === 'anonymous' ? 'on' : 'off'
-  // signedPosts
-  return ws === 'all' || ws === 'authenticated' ? 'on' : 'off'
+  return resolveWorkspaceModeration(axis, workspaceApproval)
 }
 
 // ─── Rule config ──────────────────────────────────────────────────────
