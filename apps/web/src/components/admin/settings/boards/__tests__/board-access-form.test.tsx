@@ -1,17 +1,21 @@
 // @vitest-environment happy-dom
 /**
- * <BoardAccessForm> — permissions matrix.
+ * <BoardAccessForm> — R3 permissions matrix.
  *
  * Covers:
- *   - Preset detection from incoming board.access shape
- *   - Selecting a preset hides the matrix; Custom reveals it
- *   - Tier cells in the matrix are role=button; selecting a cell flips
- *     the form to Custom mode
- *   - Tier hierarchy: raising View auto-clamps Comment/Submit
- *   - Save is disabled when any action picks 'segments' but the list is empty
- *   - Save payload uses the per-action `segments` shape
+ *   - Matrix is always visible (no preset-collapse)
+ *   - Preset is derived from grid (no sticky state)
+ *   - "Public" preset is asymmetric (view=anon, vote/comment/submit=auth)
+ *   - "Private" preset locks everything to team
+ *   - Custom tile is a non-interactive status indicator
+ *   - Tier hierarchy: raising View auto-clamps Vote/Comment/Submit
+ *   - Workspace anonymous-* feature flags block the Anyone cell + banner
+ *   - Auto-bump when workspace flips off while a cell sits on Anonymous
+ *   - Save payload preserves `moderation` round-trip
  *
- * The mutation hook, segments query, and portalConfig query are mocked.
+ * The mutation, segments, and portalConfig queries are mocked. The
+ * portalConfig mock is mutable so tests can flip workspace flags between
+ * renders.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -61,6 +65,43 @@ vi.mock('@/lib/client/hooks/use-segments-queries', () => ({
   }),
 }))
 
+// Mutable portal-config state — tests flip these flags via setWsFlags()
+// before the render to drive workspace-ceiling behaviour.
+const wsFlagsState = {
+  anonymousVoting: true,
+  anonymousCommenting: true,
+  anonymousPosting: true,
+}
+function setWsFlags(next: Partial<typeof wsFlagsState>) {
+  Object.assign(wsFlagsState, next)
+}
+
+vi.mock('@/lib/client/queries/settings', () => ({
+  settingsQueries: {
+    portalConfig: () => ({
+      queryKey: ['settings', 'portalConfig'],
+      queryFn: async () => ({
+        features: {
+          anonymousVoting: wsFlagsState.anonymousVoting,
+          anonymousCommenting: wsFlagsState.anonymousCommenting,
+          anonymousPosting: wsFlagsState.anonymousPosting,
+          allowEditAfterEngagement: false,
+          allowDeleteAfterEngagement: false,
+          showPublicEditHistory: false,
+        },
+        moderationDefault: { requireApproval: 'none' as const },
+        oauth: {},
+        access: {
+          visibility: 'public' as const,
+          allowedDomains: [],
+          widgetSignIn: false,
+          allowedSegmentIds: [],
+        },
+      }),
+    }),
+  },
+}))
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -89,84 +130,57 @@ function isCellSelected(actionLabel: string, tierLabel: string) {
   return btn.getAttribute('aria-pressed') === 'true'
 }
 
+/** Default-public BoardAccess matching the new "Public" preset. */
+const PUBLIC_ACCESS: BoardAccess = {
+  view: 'anonymous',
+  vote: 'authenticated',
+  comment: 'authenticated',
+  submit: 'authenticated',
+  segments: { view: [], vote: [], comment: [], submit: [] },
+  moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
+}
+
 beforeEach(() => {
   mutate.mockReset()
+  setWsFlags({ anonymousVoting: true, anonymousCommenting: true, anonymousPosting: true })
 })
 
 // ---------------------------------------------------------------------------
-// Presets
+// Matrix visibility
+// ---------------------------------------------------------------------------
+
+describe('<BoardAccessForm> matrix visibility', () => {
+  it('matrix is always visible, even for a preset-matching board', () => {
+    renderForm(PUBLIC_ACCESS)
+    expect(screen.getByRole('button', { name: 'View: Anyone' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Vote: Signed-in' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Comment: Signed-in' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Submit posts: Signed-in' })).toBeInTheDocument()
+  })
+
+  it('exposes all four action rows in the matrix', () => {
+    renderForm(PUBLIC_ACCESS)
+    // Each action × Anyone column should exist
+    expect(screen.getByRole('button', { name: 'View: Anyone' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Vote: Anyone' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Comment: Anyone' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Submit posts: Anyone' })).toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Presets (derived, not sticky)
 // ---------------------------------------------------------------------------
 
 describe('<BoardAccessForm> presets', () => {
-  it('detects Public when board.access is all-anonymous with clean segments', () => {
-    renderForm()
-    // Matrix is hidden when preset !== 'custom'; check by absence of cell.
-    expect(screen.queryByRole('button', { name: /^View & vote:/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Public' })).toBeInTheDocument()
+  it('renders Public preset as active for asymmetric Public access', () => {
+    renderForm(PUBLIC_ACCESS)
+    const publicBtn = screen.getByRole('button', { name: 'Public' })
+    expect(publicBtn.getAttribute('aria-pressed')).toBe('true')
   })
 
-  it('detects Custom when access has any divergence', () => {
+  it('renders Private preset as active when all four actions = team', () => {
     renderForm({
-      view: 'anonymous',
-      vote: 'anonymous',
-      comment: 'authenticated',
-      submit: 'authenticated',
-      segments: { view: [], vote: [], comment: [], submit: [] },
-      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
-    })
-    // Matrix is visible (in Custom mode)
-    expect(screen.getByRole('button', { name: 'View & vote: Anyone' })).toBeInTheDocument()
-  })
-
-  it('clicking Custom card reveals the matrix', () => {
-    renderForm()
-    expect(screen.queryByRole('button', { name: /^View & vote:/ })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Custom' }))
-    expect(screen.getByRole('button', { name: 'View & vote: Anyone' })).toBeInTheDocument()
-  })
-
-  it('clicking a non-Custom preset hides the matrix again', () => {
-    renderForm({
-      view: 'anonymous',
-      vote: 'anonymous',
-      comment: 'authenticated',
-      submit: 'authenticated',
-      segments: { view: [], vote: [], comment: [], submit: [] },
-      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
-    })
-    expect(screen.getByRole('button', { name: 'View & vote: Anyone' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Team only' }))
-    expect(screen.queryByRole('button', { name: /^View & vote:/ })).not.toBeInTheDocument()
-  })
-})
-
-// ---------------------------------------------------------------------------
-// Matrix tier selection
-// ---------------------------------------------------------------------------
-
-describe('<BoardAccessForm> matrix', () => {
-  function renderInCustom(access?: BoardAccess) {
-    renderForm(
-      access ?? {
-        view: 'anonymous',
-        vote: 'anonymous',
-        comment: 'authenticated',
-        submit: 'authenticated',
-        segments: { view: [], vote: [], comment: [], submit: [] },
-        moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
-      }
-    )
-  }
-
-  it('selecting a tier cell sets aria-pressed=true on that cell only', () => {
-    renderInCustom()
-    clickTierCell('Comment', 'Anyone')
-    expect(isCellSelected('Comment', 'Anyone')).toBe(true)
-    expect(isCellSelected('Comment', 'Signed-in')).toBe(false)
-  })
-
-  it('disables Comment/Submit cells with rank below View', () => {
-    renderInCustom({
       view: 'team',
       vote: 'team',
       comment: 'team',
@@ -174,22 +188,70 @@ describe('<BoardAccessForm> matrix', () => {
       segments: { view: [], vote: [], comment: [], submit: [] },
       moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
     })
-    // We're in Custom mode now via the divergence — actually team-all matches
-    // no Custom by default. Force Custom by clicking the Custom card after a
-    // preset is auto-detected.
-    // For team-all, preset = "Team only" (matches the Team preset), so the
-    // matrix is hidden. Click Custom to reveal it.
-    fireEvent.click(screen.getByRole('button', { name: 'Custom' }))
-    const anyoneOnComment = screen.getByRole('button', { name: 'Comment: Anyone' })
-    expect(anyoneOnComment).toBeDisabled()
-    const anyoneOnSubmit = screen.getByRole('button', { name: 'Submit posts: Anyone' })
-    expect(anyoneOnSubmit).toBeDisabled()
+    const privateBtn = screen.getByRole('button', { name: 'Private' })
+    expect(privateBtn.getAttribute('aria-pressed')).toBe('true')
   })
 
-  it('raising View tier auto-clamps Comment and Submit to match', () => {
-    // All-anonymous matches the Public preset, so the matrix starts hidden.
-    // Click Custom to reveal it before clicking cells.
-    renderInCustom({
+  it('clicking "Public" preset applies the asymmetric shape (view=anon, others=auth)', () => {
+    renderForm({
+      view: 'team',
+      vote: 'team',
+      comment: 'team',
+      submit: 'team',
+      segments: { view: [], vote: [], comment: [], submit: [] },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Public' }))
+    expect(isCellSelected('View', 'Anyone')).toBe(true)
+    expect(isCellSelected('Vote', 'Signed-in')).toBe(true)
+    expect(isCellSelected('Comment', 'Signed-in')).toBe(true)
+    expect(isCellSelected('Submit posts', 'Signed-in')).toBe(true)
+  })
+
+  it('preset flips to Custom after editing a cell, and back to Public when restored', () => {
+    renderForm(PUBLIC_ACCESS)
+    // Start in Public
+    expect(screen.getByRole('button', { name: 'Public' }).getAttribute('aria-pressed')).toBe('true')
+    // Tweak Vote → Team only ⇒ Custom
+    clickTierCell('Vote', 'Team only')
+    expect(screen.getByRole('button', { name: 'Public' }).getAttribute('aria-pressed')).toBe(
+      'false'
+    )
+    // Restore Vote → Signed-in ⇒ Public again
+    clickTierCell('Vote', 'Signed-in')
+    expect(screen.getByRole('button', { name: 'Public' }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('Custom tile is non-interactive (role=status, not button)', () => {
+    renderForm({
+      view: 'anonymous',
+      vote: 'authenticated',
+      comment: 'team', // divergent ⇒ Custom
+      submit: 'team',
+      segments: { view: [], vote: [], comment: [], submit: [] },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
+    })
+    // No button labelled "Custom" — only a status element.
+    expect(screen.queryByRole('button', { name: 'Custom' })).not.toBeInTheDocument()
+    const status = screen.getByRole('status', { name: 'Custom' })
+    expect(status).toBeInTheDocument()
+    expect(status.getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('Auth-only and Team-only preset tiles are removed', () => {
+    renderForm(PUBLIC_ACCESS)
+    expect(screen.queryByRole('button', { name: 'Auth only' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Team only' })).not.toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tier hierarchy
+// ---------------------------------------------------------------------------
+
+describe('<BoardAccessForm> tier hierarchy', () => {
+  it('raising View tier auto-clamps Vote, Comment, and Submit', () => {
+    renderForm({
       view: 'anonymous',
       vote: 'anonymous',
       comment: 'anonymous',
@@ -197,114 +259,149 @@ describe('<BoardAccessForm> matrix', () => {
       segments: { view: [], vote: [], comment: [], submit: [] },
       moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Custom' }))
-    clickTierCell('View & vote', 'Team only')
-    expect(isCellSelected('View & vote', 'Team only')).toBe(true)
+    clickTierCell('View', 'Team only')
+    expect(isCellSelected('View', 'Team only')).toBe(true)
+    expect(isCellSelected('Vote', 'Team only')).toBe(true)
     expect(isCellSelected('Comment', 'Team only')).toBe(true)
     expect(isCellSelected('Submit posts', 'Team only')).toBe(true)
+  })
+
+  it('disables cells below View rank on derived action rows', () => {
+    renderForm({
+      view: 'team',
+      vote: 'team',
+      comment: 'team',
+      submit: 'team',
+      segments: { view: [], vote: [], comment: [], submit: [] },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
+    })
+    expect(screen.getByRole('button', { name: 'Vote: Anyone' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Comment: Anyone' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Submit posts: Anyone' })).toBeDisabled()
   })
 })
 
 // ---------------------------------------------------------------------------
-// Segments empty-state + save gate
+// Workspace ceiling
+// ---------------------------------------------------------------------------
+
+describe('<BoardAccessForm> workspace ceiling', () => {
+  it('disables Anyone cell on a row whose workspace flag is off', async () => {
+    setWsFlags({ anonymousVoting: false })
+    renderForm({
+      view: 'anonymous',
+      vote: 'authenticated',
+      comment: 'anonymous',
+      submit: 'anonymous',
+      segments: { view: [], vote: [], comment: [], submit: [] },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
+    })
+    await waitFor(() => {
+      const voteAnon = screen.getByRole('button', { name: 'Vote: Anyone' })
+      expect(voteAnon).toBeDisabled()
+      expect(voteAnon.getAttribute('data-disabled-reason')).toBe('workspace')
+    })
+    // View row's Anyone cell is unaffected — view has no workspace ceiling.
+    expect(screen.getByRole('button', { name: 'View: Anyone' })).not.toBeDisabled()
+  })
+
+  it('shows the workspace-policy banner listing each blocked action', async () => {
+    setWsFlags({ anonymousVoting: false, anonymousCommenting: false })
+    renderForm(PUBLIC_ACCESS)
+    await waitFor(() => {
+      const banner = screen.getByText(/Workspace policy disables the/i)
+      expect(banner).toBeInTheDocument()
+      expect(banner.textContent).toMatch(/Vote/)
+      expect(banner.textContent).toMatch(/Comment/)
+      expect(banner.textContent).not.toMatch(/\bView\b/)
+    })
+  })
+
+  it('auto-bumps Anonymous cells when their workspace flag flips off', async () => {
+    setWsFlags({ anonymousVoting: false })
+    renderForm({
+      view: 'anonymous',
+      vote: 'anonymous', // about to be auto-bumped because anonymousVoting=false
+      comment: 'anonymous',
+      submit: 'anonymous',
+      segments: { view: [], vote: [], comment: [], submit: [] },
+      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
+    })
+    await waitFor(() => {
+      expect(isCellSelected('Vote', 'Signed-in')).toBe(true)
+    })
+    // The other anonymous rows stay as-is (their flags are still true).
+    expect(isCellSelected('Comment', 'Anyone')).toBe(true)
+    expect(isCellSelected('Submit posts', 'Anyone')).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Save / discard
 // ---------------------------------------------------------------------------
 
 describe('<BoardAccessForm> save', () => {
   it('Save dock is collapsed until form is dirty', () => {
-    renderForm()
+    renderForm(PUBLIC_ACCESS)
     const region = screen.getByRole('region', { name: /save changes/i })
     expect(region.getAttribute('data-dirty')).toBeNull()
   })
 
   it('Save dock surfaces once the form is dirty', () => {
-    renderForm({
-      view: 'anonymous',
-      vote: 'anonymous',
-      comment: 'authenticated',
-      submit: 'authenticated',
-      segments: { view: [], vote: [], comment: [], submit: [] },
-      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
-    })
-    // Toggle a cell to dirty the form
+    renderForm(PUBLIC_ACCESS)
     clickTierCell('Comment', 'Team only')
     const region = screen.getByRole('region', { name: /save changes/i })
     expect(region.getAttribute('data-dirty')).toBe('true')
   })
 
-  it('disables Save when any action is on segments tier with empty list', () => {
-    renderForm({
-      view: 'segments',
-      vote: 'segments',
-      comment: 'segments',
-      submit: 'segments',
-      segments: { view: [], vote: [], comment: [], submit: [] },
-      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Custom' }))
-    // Make form dirty by re-clicking the same view tier to mark a change
-    // (selecting current value still doesn't dirty; instead toggle off-on).
-    // Easier: directly verify the button is disabled via its `error` prop —
-    // the save dock should render with disabled Save once a change is made.
-    // Toggle Comment to a different tier and back to dirty the form.
-    clickTierCell('Comment', 'Team only')
-    clickTierCell('Comment', 'Segments')
-    // Now form is dirty and segments are empty for at least one action.
+  it('disables Save when any action is on Segments tier with empty list', () => {
+    renderForm(PUBLIC_ACCESS)
+    // Pick Segments on View — empty list ⇒ save disabled
+    clickTierCell('View', 'Segments')
     const save = screen.getByRole('button', { name: /save changes/i })
     expect(save).toBeDisabled()
   })
 
-  it('submits the BoardAccess payload with the per-action segments shape', async () => {
+  it('submits the BoardAccess payload preserving moderation overrides', async () => {
     renderForm({
       view: 'anonymous',
-      vote: 'anonymous',
+      vote: 'authenticated',
       comment: 'authenticated',
       submit: 'authenticated',
       segments: { view: [], vote: [], comment: [], submit: [] },
       // Non-default moderation values to verify the form preserves them on save.
-      moderation: { anonPosts: 'on', signedPosts: 'on', comments: 'inherit' },
+      moderation: { anonPosts: 'on', signedPosts: 'on', comments: 'off' },
     })
-    // Form starts in Custom mode (divergence). Mark dirty by toggling Comment.
+    // Mark dirty by tweaking a cell.
     clickTierCell('Comment', 'Team only')
-    clickTierCell('Comment', 'Signed-in')
     fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
     await waitFor(() =>
       expect(mutate).toHaveBeenCalledWith({
         boardId: BOARD_ID,
         access: expect.objectContaining({
+          comment: 'team',
           segments: expect.objectContaining({
             view: expect.any(Array),
+            vote: expect.any(Array),
             comment: expect.any(Array),
             submit: expect.any(Array),
           }),
-          moderation: { anonPosts: 'on', signedPosts: 'on', comments: 'inherit' },
+          moderation: { anonPosts: 'on', signedPosts: 'on', comments: 'off' },
         }),
       })
     )
   })
 
-  it('Discard restores the original access', async () => {
-    renderForm({
-      view: 'anonymous',
-      vote: 'anonymous',
-      comment: 'authenticated',
-      submit: 'authenticated',
-      segments: { view: [], vote: [], comment: [], submit: [] },
-      moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
-    })
+  it('Discard restores the original access', () => {
+    renderForm(PUBLIC_ACCESS)
     clickTierCell('Comment', 'Team only')
     expect(isCellSelected('Comment', 'Team only')).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: /discard/i }))
     expect(isCellSelected('Comment', 'Signed-in')).toBe(true)
     expect(isCellSelected('Comment', 'Team only')).toBe(false)
   })
-})
 
-// ---------------------------------------------------------------------------
-// Preset segments cleanup
-// ---------------------------------------------------------------------------
-
-describe('<BoardAccessForm> preset segments cleanup', () => {
-  it('clicking a non-segments preset clears stale segment selections', async () => {
+  it('clicking a preset clears stale segment selections', async () => {
     renderForm({
       view: 'segments',
       vote: 'segments',
@@ -318,7 +415,6 @@ describe('<BoardAccessForm> preset segments cleanup', () => {
       },
       moderation: { anonPosts: 'inherit', signedPosts: 'inherit', comments: 'inherit' },
     })
-    // Form is in Custom (no preset matches segments-all with non-empty lists).
     fireEvent.click(screen.getByRole('button', { name: 'Public' }))
     fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
     await waitFor(() =>

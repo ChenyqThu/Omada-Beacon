@@ -10,12 +10,14 @@ import {
 import { createPortal } from 'react-dom'
 import { useForm } from 'react-hook-form'
 import { Link } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
 import {
   ChatBubbleLeftIcon,
   CheckIcon,
   ChevronDownIcon,
   EyeIcon,
   GlobeAltIcon,
+  HandThumbUpIcon,
   InformationCircleIcon,
   LockClosedIcon,
   MagnifyingGlassIcon,
@@ -31,6 +33,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { FormError } from '@/components/shared/form-error'
 import { useUpdateBoardAccess } from '@/lib/client/mutations'
 import { useSegments } from '@/lib/client/hooks/use-segments-queries'
+import { settingsQueries } from '@/lib/client/queries/settings'
 import { cn } from '@/lib/shared/utils/cn'
 import type { BoardId } from '@quackback/ids'
 import {
@@ -41,28 +44,24 @@ import {
 } from '@/lib/shared/db-types'
 
 /**
- * Per-board access matrix. Replaces the stacked-tier form with a compact
- * 3 × 4 grid (action × tier) plus inline per-action segment pickers.
+ * Per-board access matrix (R3 design).
+ *
+ * Permanent 4 × 4 grid (action × tier). Presets are *derived* from the grid
+ * — editing any cell drops you into Custom automatically; restoring all
+ * cells to a preset's tiers flips Custom back to that preset. There is no
+ * sticky preset state.
+ *
+ * The matrix is always visible — the preset row is a header summarising
+ * the current grid, not a mode switch.
+ *
+ * Workspace anonymous-* feature flags act as a per-cell ceiling: when a
+ * workspace flag is off, the `anonymous` cell in that action's row is
+ * disabled (striped + globe icon) and an effect auto-bumps any board that
+ * has `anonymous` set for that action up to `authenticated`.
  *
  * The persisted shape is `BoardAccess` (see @/lib/shared/db-types). The
- * tri-state `moderation` object is intentionally NOT exposed in this UI —
- * R4 introduces a dedicated Moderation sub-tab. The form preserves any
- * existing moderation values on save so prior data is never zeroed out.
- *
- * Behaviours mirrored from the design (matrix-final.jsx):
- *   - 4 preset cards (Public / Auth only / Team only / Custom).
- *   - Matrix hides when a non-custom preset is active; clicking Custom
- *     restores the last custom grid via a ref.
- *   - userPreset is sticky — editing a cell sets it to 'custom'; the
- *     auto-cascade does NOT flip the preset back to a matching preset.
- *   - Tier hierarchy enforced visually: Comment/Submit cells with rank
- *     below View's rank are disabled (striped, lock icon, cursor not-allowed).
- *   - Selecting a stricter View tier auto-bumps Comment/Submit if they
- *     would otherwise violate the invariant.
- *   - Segments tier opens an inline popover anchored to the clicked cell;
- *     each action has its own segment list (per the D1 data model).
- *   - Save disabled when any action is on the 'segments' tier but its
- *     list is empty; sticky save dock surfaces the error inline.
+ * tri-state `moderation` object is preserved round-trip but not exposed
+ * here — R4 owns the Moderation sub-tab.
  */
 
 // ─── Static config ────────────────────────────────────────────────────
@@ -72,7 +71,7 @@ interface TierMeta {
   label: string
   blurb: string
   icon: React.ComponentType<{ className?: string }>
-  hueClass: string // text color class for the column-header icon (gradient cue)
+  hueClass: string
 }
 
 const TIERS: readonly TierMeta[] = [
@@ -106,72 +105,75 @@ const TIERS: readonly TierMeta[] = [
   },
 ] as const
 
-// R1: BoardAccess gained `vote` as a first-class action. R3 will rebuild
-// this form as a 4-row matrix that exposes the new row in the UI. Until
-// then the form continues to treat view/comment/submit as the visible
-// rows and keeps `vote` synced to `view` on every write (preserves the
-// old "vote follows view" behaviour). The PresetMeta below specifies
-// vote explicitly so the matrix produces a fully-typed BoardAccess.
 interface ActionMeta {
-  id: 'view' | 'comment' | 'submit'
+  id: 'view' | 'vote' | 'comment' | 'submit'
   label: string
   sub: string
   icon: React.ComponentType<{ className?: string }>
 }
 
 const ACTIONS: readonly ActionMeta[] = [
-  { id: 'view', label: 'View & vote', sub: 'See the board and cast votes', icon: EyeIcon },
+  { id: 'view', label: 'View', sub: 'See posts and discussion', icon: EyeIcon },
+  { id: 'vote', label: 'Vote', sub: 'Upvote posts to signal interest', icon: HandThumbUpIcon },
   { id: 'comment', label: 'Comment', sub: 'Reply on existing posts', icon: ChatBubbleLeftIcon },
   { id: 'submit', label: 'Submit posts', sub: 'Create new feedback', icon: PaperAirplaneIcon },
 ] as const
 
 type ActionId = (typeof ACTIONS)[number]['id']
-type AccessActionKey = ActionId | 'vote'
-type PresetName = 'public' | 'authenticated' | 'team' | 'custom'
+type PresetName = 'public' | 'private' | 'custom'
 
 interface PresetMeta {
   id: Exclude<PresetName, 'custom'>
   label: string
   description: string
   icon: React.ComponentType<{ className?: string }>
-  tiers: Record<AccessActionKey, AccessTier>
+  tiers: Record<ActionId, AccessTier>
 }
 
+// Public — anyone can read; sign-in for any action.
+// Private — internal/team boards, hidden from the portal.
 const PRESET_META: readonly PresetMeta[] = [
   {
     id: 'public',
     label: 'Public',
-    description: 'Anyone can view, vote, comment, and submit.',
+    description: 'Anyone can view. Sign-in is required to vote, comment, or submit.',
     icon: GlobeAltIcon,
-    // R1 leaves vote slotted to match view — R3 introduces the modern
-    // "Public" preset that bumps vote to 'authenticated'.
     tiers: {
       view: 'anonymous',
-      vote: 'anonymous',
-      comment: 'anonymous',
-      submit: 'anonymous',
-    },
-  },
-  {
-    id: 'authenticated',
-    label: 'Auth only',
-    description: 'Signed-in users can view, vote, comment, and submit.',
-    icon: UsersIcon,
-    tiers: {
-      view: 'authenticated',
       vote: 'authenticated',
       comment: 'authenticated',
       submit: 'authenticated',
     },
   },
   {
-    id: 'team',
-    label: 'Team only',
-    description: 'Only workspace members can view, vote, comment, and submit.',
+    id: 'private',
+    label: 'Private',
+    description: 'Only workspace members can access this board. Hidden from the portal.',
     icon: LockClosedIcon,
     tiers: { view: 'team', vote: 'team', comment: 'team', submit: 'team' },
   },
 ] as const
+
+// ─── Workspace anonymous feature flags ────────────────────────────────
+
+/**
+ * Per-action workspace ceiling. `view` is intentionally always allowed —
+ * "anyone can view a public board" is the definition of public access;
+ * the workspace anonymous-* toggles only gate the write actions.
+ */
+interface WsAnonFlags {
+  view: true
+  vote: boolean
+  comment: boolean
+  submit: boolean
+}
+
+const DEFAULT_WS_ANON: WsAnonFlags = {
+  view: true,
+  vote: true,
+  comment: true,
+  submit: true,
+}
 
 // ─── Form shape ───────────────────────────────────────────────────────
 
@@ -186,47 +188,26 @@ interface BoardAccessFormProps {
 
 type FormShape = BoardAccess
 
-function deriveInitialPreset(access: BoardAccess): PresetName {
-  // Moderation rules are intentionally NOT part of preset detection: this
-  // UI doesn't surface them (R4 owns that sub-tab), so a board with custom
-  // moderation overrides should still display as its tier-preset rather
-  // than collapsing to Custom (which would reveal the matrix unexpectedly).
-  for (const meta of PRESET_META) {
-    const tiersMatch =
-      access.view === meta.tiers.view &&
-      access.comment === meta.tiers.comment &&
-      access.submit === meta.tiers.submit
-    const segmentsClean =
-      access.segments.view.length === 0 &&
-      access.segments.comment.length === 0 &&
-      access.segments.submit.length === 0
-    if (tiersMatch && segmentsClean) return meta.id
-  }
-  return 'custom'
-}
-
-function applyPreset(meta: PresetMeta, current: FormShape): FormShape {
-  return {
-    ...current,
-    view: meta.tiers.view,
-    vote: meta.tiers.vote,
-    comment: meta.tiers.comment,
-    submit: meta.tiers.submit,
-    // Presets always clear segment lists — they target non-segments tiers.
-    segments: { view: [], vote: [], comment: [], submit: [] },
-    // Moderation overrides are preserved (UI doesn't expose them; R4 owns
-    // the sub-tab that will).
-  }
-}
-
-// ─── Main form ────────────────────────────────────────────────────────
-
 interface SegmentItem {
   id: string
   name: string
   count: number
   description?: string | null
 }
+
+/** Match the current grid against the preset table. Returns 'custom' when
+ *  no preset matches — including any non-empty segment list, since presets
+ *  always imply zero segments. */
+function deriveActivePreset(values: FormShape): PresetName {
+  const segmentsClean = ACTIONS.every((a) => (values.segments[a.id] ?? []).length === 0)
+  if (!segmentsClean) return 'custom'
+  for (const meta of PRESET_META) {
+    if (ACTIONS.every((a) => values[a.id] === meta.tiers[a.id])) return meta.id
+  }
+  return 'custom'
+}
+
+// ─── Main form ────────────────────────────────────────────────────────
 
 export function BoardAccessForm({ board }: BoardAccessFormProps) {
   const mutation = useUpdateBoardAccess()
@@ -242,30 +223,55 @@ export function BoardAccessForm({ board }: BoardAccessFormProps) {
     [segmentsQuery.data]
   )
 
+  // Portal feature flags — workspace ceiling for anonymous access. The query
+  // is non-suspense so the form keeps rendering when the cache is empty
+  // (e.g. in tests). The default falls back to "everything allowed" so we
+  // don't accidentally disable cells before we know better.
+  const portalConfigQuery = useQuery({ ...settingsQueries.portalConfig(), retry: false })
+  const wsAnon: WsAnonFlags = useMemo(() => {
+    const f = portalConfigQuery.data?.features
+    if (!f) return DEFAULT_WS_ANON
+    return {
+      view: true,
+      vote: !!f.anonymousVoting,
+      comment: !!f.anonymousCommenting,
+      submit: !!f.anonymousPosting,
+    }
+  }, [portalConfigQuery.data])
+
   const form = useForm<FormShape>({
     defaultValues: board.access ?? DEFAULT_BOARD_ACCESS,
   })
 
-  // Sticky preset selection — the grid may coincidentally match a preset
-  // after editing or cascading, but we never auto-flip the user out of
-  // Custom. Only explicit preset card clicks set this.
-  const [userPreset, setUserPreset] = useState<PresetName>(() =>
-    deriveInitialPreset(board.access ?? DEFAULT_BOARD_ACCESS)
-  )
-  const lastCustomGrid = useRef<FormShape>(board.access ?? DEFAULT_BOARD_ACCESS)
   const [openPicker, setOpenPicker] = useState<ActionId | null>(null)
 
-  // Sync form + preset state when the server-side board.access changes.
+  // Sync form state when the server-side board.access changes (e.g. after a
+  // successful save invalidates the boards query).
   const accessKey = JSON.stringify(board.access)
   useEffect(() => {
     const next = board.access ?? DEFAULT_BOARD_ACCESS
     form.reset(next)
-    setUserPreset(deriveInitialPreset(next))
-    lastCustomGrid.current = next
     setOpenPicker(null)
   }, [accessKey, board.access, form])
 
   const values = form.watch()
+
+  // Auto-bump: when a workspace anonymous-* flag flips off, any action on
+  // this board that's currently set to 'anonymous' for that flag gets
+  // bumped up to 'authenticated'. The bumped form is dirty so the user
+  // sees the save dock and can confirm or discard. We read the current
+  // tier via `form.getValues()` so the effect doesn't have to depend on
+  // `values` (which would re-fire on every keystroke / cell click).
+  useEffect(() => {
+    ;(['vote', 'comment', 'submit'] as const).forEach((id) => {
+      if (!wsAnon[id] && form.getValues(id) === 'anonymous') {
+        form.setValue(id, 'authenticated', { shouldDirty: true })
+        form.setValue(`segments.${id}`, [], { shouldDirty: true })
+      }
+    })
+  }, [wsAnon.vote, wsAnon.comment, wsAnon.submit, form])
+
+  const activePreset = useMemo(() => deriveActivePreset(values), [values])
 
   // Validate: any action on the 'segments' tier needs ≥1 segment selected.
   const segsError = useMemo(
@@ -276,92 +282,74 @@ export function BoardAccessForm({ board }: BoardAccessFormProps) {
     [values]
   )
 
+  // Actions whose anonymous tier is workspace-blocked — drives the banner
+  // under the matrix.
+  const wsBlockedActions = useMemo(
+    () => ACTIONS.filter((a) => a.id !== 'view' && !wsAnon[a.id]),
+    [wsAnon]
+  )
+
   const dirty = form.formState.isDirty
 
   const handlePresetClick = useCallback(
-    (id: PresetName) => {
-      if (id === 'custom') {
-        setUserPreset('custom')
-        form.reset(lastCustomGrid.current)
-        setOpenPicker(null)
-        return
-      }
+    (id: Exclude<PresetName, 'custom'>) => {
       const meta = PRESET_META.find((p) => p.id === id)
       if (!meta) return
-      if (userPreset === 'custom') {
-        // Snapshot the current custom state so users can return to it.
-        lastCustomGrid.current = { ...values }
-      }
-      setUserPreset(id)
-      form.reset(applyPreset(meta, values))
+      form.reset({
+        view: meta.tiers.view,
+        vote: meta.tiers.vote,
+        comment: meta.tiers.comment,
+        submit: meta.tiers.submit,
+        // Presets always clear segment lists — they target non-segments tiers.
+        segments: { view: [], vote: [], comment: [], submit: [] },
+        // Preserve moderation: this UI doesn't expose those fields; R4 owns
+        // the Moderation sub-tab.
+        moderation: values.moderation,
+      })
       setOpenPicker(null)
     },
-    [form, userPreset, values]
+    [form, values.moderation]
   )
 
   const handleTierClick = useCallback(
     (actionId: ActionId, tierId: AccessTier) => {
-      // Tier hierarchy: comment/submit can't be more open than view.
+      // Tier hierarchy: comment/vote/submit can't be more open than view.
       if (actionId !== 'view' && ACCESS_TIER_RANK[tierId] < ACCESS_TIER_RANK[values.view]) {
         return
       }
-
-      // Editing any cell pins the form to Custom mode (sticky).
-      setUserPreset('custom')
+      // Workspace ceiling: anonymous is gated by workspace-wide flags
+      // (view always allowed, vote/comment/submit gated).
+      if (tierId === 'anonymous' && !wsAnon[actionId]) return
 
       form.setValue(actionId, tierId, { shouldDirty: true })
 
-      // Cascade: raising view tier may force comment/submit up to keep
-      // the invariant comment.rank >= view.rank && submit.rank >= view.rank.
-      // We collect the cascaded action ids so the picker auto-open below
-      // can fire for the FIRST action that lands on the segments tier with
-      // no existing selection.
-      const cascadedToSegments: ActionId[] = []
+      // Cascade: raising view tier may force comment/vote/submit up to
+      // keep the invariant rank(other) >= rank(view).
       if (actionId === 'view') {
-        // R1: vote isn't exposed in the matrix yet (R3 owns that). Keep
-        // it pinned to view + view's segments so existing boards behave
-        // exactly as before.
-        form.setValue('vote', tierId, { shouldDirty: true })
-        form.setValue('segments.vote', values.segments.view, { shouldDirty: true })
         const vRank = ACCESS_TIER_RANK[tierId]
-        if (ACCESS_TIER_RANK[values.comment] < vRank) {
-          form.setValue('comment', tierId, { shouldDirty: true })
-          if (tierId === 'segments' && (values.segments.comment ?? []).length === 0) {
-            cascadedToSegments.push('comment')
+        ;(['vote', 'comment', 'submit'] as const).forEach((a) => {
+          if (ACCESS_TIER_RANK[values[a]] < vRank) {
+            form.setValue(a, tierId, { shouldDirty: true })
           }
-        }
-        if (ACCESS_TIER_RANK[values.submit] < vRank) {
-          form.setValue('submit', tierId, { shouldDirty: true })
-          if (tierId === 'segments' && (values.segments.submit ?? []).length === 0) {
-            cascadedToSegments.push('submit')
-          }
-        }
+        })
       }
 
-      // Picker hint: open the segments popover for the action that first
-      // lands on the segments tier with an empty list. Preference:
-      // the action the user clicked, then the cascaded actions in order.
+      // Picker hint: open the segments popover for the action that lands
+      // on the segments tier with an empty list.
       if (tierId === 'segments') {
         if ((values.segments[actionId] ?? []).length === 0) {
           setOpenPicker(actionId)
-        } else if (cascadedToSegments[0]) {
-          setOpenPicker(cascadedToSegments[0])
         }
       } else if (openPicker === actionId) {
         setOpenPicker(null)
       }
     },
-    [form, openPicker, values]
+    [form, openPicker, values, wsAnon]
   )
 
   const handleSegsChange = useCallback(
     (actionId: ActionId, ids: string[]) => {
       form.setValue(`segments.${actionId}`, ids, { shouldDirty: true })
-      // R1: keep segments.vote pinned to segments.view while the matrix
-      // doesn't expose a vote row. R3 will let users diverge them.
-      if (actionId === 'view') {
-        form.setValue('segments.vote', ids, { shouldDirty: true })
-      }
     },
     [form]
   )
@@ -377,11 +365,8 @@ export function BoardAccessForm({ board }: BoardAccessFormProps) {
   const handleDiscard = useCallback(() => {
     const original = board.access ?? DEFAULT_BOARD_ACCESS
     form.reset(original)
-    setUserPreset(deriveInitialPreset(original))
     setOpenPicker(null)
   }, [board.access, form])
-
-  const matrixVisible = userPreset === 'custom'
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pb-24">
@@ -393,44 +378,63 @@ export function BoardAccessForm({ board }: BoardAccessFormProps) {
           <div>
             <h2 className="text-base font-semibold">Access Control</h2>
             <p className="mt-1 text-xs text-muted-foreground max-w-xl">
-              Apply a preset for a quick start, or pick Custom to fine-tune each action.
+              Pick a preset, or tweak any cell to fine-tune. Custom is set automatically when your
+              configuration doesn&apos;t match a preset.
             </p>
           </div>
 
-          <PresetGrid active={userPreset} onSelect={handlePresetClick} />
+          <PresetGrid active={activePreset} onSelect={handlePresetClick} />
         </div>
 
-        {matrixVisible && (
-          <>
-            <div className="h-px bg-border" />
-            <div className="p-5 space-y-3">
-              <div className="flex items-baseline justify-between">
-                <span className="text-sm font-semibold">Per-action permissions</span>
-                <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1.5">
-                  <span
-                    className="inline-block h-1 w-5 rounded-sm"
-                    style={{
-                      background:
-                        'linear-gradient(to right, rgb(74 222 128), rgb(250 204 21), rgb(248 113 113))',
-                    }}
-                  />
-                  More open <span className="opacity-60">→</span> More restrictive
-                </span>
-              </div>
+        <div className="h-px bg-border" />
 
-              <Matrix
-                values={values}
-                segments={segments}
-                segmentsLoading={segmentsQuery.isLoading}
-                openPicker={openPicker}
-                onCellClick={handleTierClick}
-                onOpenPicker={(id) => setOpenPicker((p) => (p === id ? null : id))}
-                onClosePicker={() => setOpenPicker(null)}
-                onSegsChange={handleSegsChange}
+        <div className="p-5 space-y-3">
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm font-semibold">Per-action permissions</span>
+            <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1.5">
+              <span
+                className="inline-block h-1 w-5 rounded-sm"
+                style={{
+                  background:
+                    'linear-gradient(to right, rgb(74 222 128), rgb(250 204 21), rgb(248 113 113))',
+                }}
               />
+              More open <span className="opacity-60">→</span> More restrictive
+            </span>
+          </div>
+
+          <Matrix
+            values={values}
+            wsAnon={wsAnon}
+            segments={segments}
+            segmentsLoading={segmentsQuery.isLoading}
+            openPicker={openPicker}
+            onCellClick={handleTierClick}
+            onOpenPicker={(id) => setOpenPicker((p) => (p === id ? null : id))}
+            onClosePicker={() => setOpenPicker(null)}
+            onSegsChange={handleSegsChange}
+          />
+
+          {wsBlockedActions.length > 0 && (
+            <div className="mt-2.5 flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-[11.5px] text-muted-foreground">
+              <GlobeAltIcon className="h-3 w-3 shrink-0" />
+              <span>
+                Workspace policy disables the <span className="text-foreground">Anyone</span> tier
+                for:{' '}
+                <span className="text-foreground">
+                  {wsBlockedActions.map((a) => a.label).join(', ')}
+                </span>
+                .
+              </span>
+              <Link
+                to="/admin/settings/moderation"
+                className="ml-auto whitespace-nowrap text-primary hover:underline"
+              >
+                Workspace access →
+              </Link>
             </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
 
       <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -452,12 +456,12 @@ export function BoardAccessForm({ board }: BoardAccessFormProps) {
 
 interface PresetGridProps {
   active: PresetName
-  onSelect: (id: PresetName) => void
+  onSelect: (id: Exclude<PresetName, 'custom'>) => void
 }
 
 function PresetGrid({ active, onSelect }: PresetGridProps) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
       {PRESET_META.map((p) => (
         <PresetCard
           key={p.id}
@@ -468,14 +472,8 @@ function PresetGrid({ active, onSelect }: PresetGridProps) {
           onClick={() => onSelect(p.id)}
         />
       ))}
-      <PresetCard
-        active={active === 'custom'}
-        label="Custom"
-        description="Fine-tune each action below."
-        icon={<PencilSquareIcon className="h-3 w-3" />}
-        dashed
-        onClick={() => onSelect('custom')}
-      />
+      {/* Custom is derived — not interactive. Lights up when no preset matches. */}
+      <CustomStatusCard active={active === 'custom'} />
     </div>
   )
 }
@@ -485,11 +483,10 @@ interface PresetCardProps {
   label: string
   description: string
   icon: React.ReactNode
-  dashed?: boolean
   onClick: () => void
 }
 
-function PresetCard({ active, label, description, icon, dashed, onClick }: PresetCardProps) {
+function PresetCard({ active, label, description, icon, onClick }: PresetCardProps) {
   return (
     <button
       type="button"
@@ -498,7 +495,6 @@ function PresetCard({ active, label, description, icon, dashed, onClick }: Prese
       aria-pressed={active}
       className={cn(
         'flex flex-col items-stretch gap-1 rounded-lg border px-3 py-2.5 text-left transition-colors',
-        dashed ? 'border-dashed' : '',
         active
           ? 'border-primary bg-primary/10'
           : 'border-border bg-muted/30 hover:bg-muted/60 cursor-pointer'
@@ -514,10 +510,41 @@ function PresetCard({ active, label, description, icon, dashed, onClick }: Prese
   )
 }
 
+interface CustomStatusCardProps {
+  active: boolean
+}
+
+function CustomStatusCard({ active }: CustomStatusCardProps) {
+  return (
+    <div
+      role="status"
+      aria-label="Custom"
+      aria-pressed={active}
+      title="Tweak any cell below to enter Custom."
+      className={cn(
+        'flex cursor-default flex-col items-stretch gap-1 rounded-lg border border-dashed px-3 py-2.5 text-left transition-colors',
+        active ? 'border-primary bg-primary/10' : 'border-border bg-transparent opacity-60'
+      )}
+    >
+      <div className="flex items-center gap-1.5">
+        <span className={active ? 'text-primary' : 'text-muted-foreground'}>
+          <PencilSquareIcon className="h-3 w-3" />
+        </span>
+        <span className={cn('text-xs font-semibold', active && 'text-primary')}>Custom</span>
+        {active && <CheckIcon className="ml-auto h-3 w-3 text-primary" />}
+      </div>
+      <span className="text-[11px] leading-snug text-muted-foreground">
+        Set when any cell deviates from a preset.
+      </span>
+    </div>
+  )
+}
+
 // ─── Matrix ──────────────────────────────────────────────────────────
 
 interface MatrixProps {
   values: FormShape
+  wsAnon: WsAnonFlags
   segments: ReadonlyArray<SegmentItem>
   segmentsLoading: boolean
   openPicker: ActionId | null
@@ -529,6 +556,7 @@ interface MatrixProps {
 
 function Matrix({
   values,
+  wsAnon,
   segments,
   segmentsLoading,
   openPicker,
@@ -569,6 +597,7 @@ function Matrix({
           key={action.id}
           action={action}
           values={values}
+          wsAnon={wsAnon}
           isLast={idx === ACTIONS.length - 1}
           segments={segments}
           segmentsLoading={segmentsLoading}
@@ -586,6 +615,7 @@ function Matrix({
 interface MatrixRowProps {
   action: ActionMeta
   values: FormShape
+  wsAnon: WsAnonFlags
   isLast: boolean
   segments: MatrixProps['segments']
   segmentsLoading: boolean
@@ -599,6 +629,7 @@ interface MatrixRowProps {
 function MatrixRow({
   action,
   values,
+  wsAnon,
   isLast,
   segments,
   segmentsLoading,
@@ -636,12 +667,16 @@ function MatrixRow({
 
       {TIERS.map((tier) => {
         const isSelected = selectedTier === tier.id
-        const disabled = ACCESS_TIER_RANK[tier.id] < minRank
+        const hierarchyBlocked = ACCESS_TIER_RANK[tier.id] < minRank
+        const wsBlocked = tier.id === 'anonymous' && !wsAnon[action.id]
+        const disabled = hierarchyBlocked || wsBlocked
         const isSegmentsCell = tier.id === 'segments'
 
-        const tooltip = disabled
-          ? `Can't be more open than View & vote (${TIERS.find((x) => ACCESS_TIER_RANK[x.id] === minRank)?.label}).`
-          : undefined
+        const tooltip = wsBlocked
+          ? `Anonymous ${action.label.toLowerCase()} is disabled workspace-wide. Manage in Workspace → Access.`
+          : hierarchyBlocked
+            ? `Can't be more open than View (${TIERS.find((x) => ACCESS_TIER_RANK[x.id] === minRank)?.label}).`
+            : undefined
 
         const disabledStyle: CSSProperties = disabled
           ? {
@@ -649,6 +684,8 @@ function MatrixRow({
                 'repeating-linear-gradient(135deg, transparent 0 6px, rgba(255,255,255,0.02) 6px 7px)',
             }
           : {}
+
+        const BlockIcon = wsBlocked ? GlobeAltIcon : LockClosedIcon
 
         return (
           <button
@@ -667,6 +704,9 @@ function MatrixRow({
             disabled={disabled}
             aria-label={`${action.label}: ${tier.label}`}
             aria-pressed={isSelected}
+            data-disabled-reason={
+              wsBlocked ? 'workspace' : hierarchyBlocked ? 'hierarchy' : undefined
+            }
             className={cn(
               'flex min-h-[58px] items-center justify-center border-l px-2 py-3 transition-colors',
               !disabled && 'cursor-pointer',
@@ -695,7 +735,7 @@ function MatrixRow({
                 {isSelected && !disabled && (
                   <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                 )}
-                {disabled && <LockClosedIcon className="h-2.5 w-2.5 text-muted-foreground" />}
+                {disabled && <BlockIcon className="h-2.5 w-2.5 text-muted-foreground" />}
               </span>
             )}
           </button>
