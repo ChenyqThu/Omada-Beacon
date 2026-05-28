@@ -80,16 +80,16 @@ function BoardsSettingsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-5xl mx-auto w-full">
       <div className="lg:hidden">
         <BackLink to="/admin/settings">Settings</BackLink>
       </div>
       <BoardSettingsHeader currentBoard={currentBoard} allBoards={boards} />
 
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-6">
         <BoardSettingsNav />
 
-        <div className="flex-1 space-y-6">
+        <div className="flex-1 min-w-0 space-y-6">
           <BoardTabContent board={currentBoard} tab={selectedTab} />
         </div>
       </div>
@@ -106,7 +106,7 @@ function BoardTabContent({ board, tab }: BoardTabContentProps): ReactNode {
   switch (tab) {
     case 'general':
       return (
-        <div className="space-y-8">
+        <div className="space-y-6">
           <SettingsCard title="Board Details">
             <BoardGeneralForm board={board} />
           </SettingsCard>
@@ -133,28 +133,19 @@ function BoardTabContent({ board, tab }: BoardTabContentProps): ReactNode {
 
     case 'import':
       return (
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-base font-semibold">Import Data</h2>
-            <p className="text-xs text-muted-foreground mt-1">
-              Import posts from a CSV file into this board
-            </p>
-          </div>
+        <SettingsCard
+          title="Import Data"
+          description="Import posts from a CSV file into this board"
+        >
           <BoardImportSection boardId={board.id} />
-        </div>
+        </SettingsCard>
       )
 
     case 'export':
       return (
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-base font-semibold">Export Data</h2>
-            <p className="text-xs text-muted-foreground mt-1">
-              Download all posts from this board as CSV
-            </p>
-          </div>
+        <SettingsCard title="Export Data" description="Download all posts from this board as CSV">
           <BoardExportSection boardId={board.id} />
-        </div>
+        </SettingsCard>
       )
   }
 }
@@ -168,7 +159,7 @@ function EmptyBoardsState() {
         description="Configure your feedback board settings and preferences"
       />
 
-      <div className="rounded-xl border border-border/50 bg-card p-8 shadow-sm">
+      <div className="rounded-xl border border-border/50 bg-card p-4 sm:p-6 shadow-sm">
         <EmptyState
           icon={ChatBubbleLeftIcon}
           title="No boards yet"
