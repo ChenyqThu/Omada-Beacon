@@ -5,7 +5,7 @@ const baseValid = {
   view: 'anonymous' as const,
   comment: 'anonymous' as const,
   submit: 'anonymous' as const,
-  segmentIds: [],
+  segments: { view: [], comment: [], submit: [] },
   approval: { posts: false, comments: false },
 }
 
@@ -26,26 +26,38 @@ describe('boardAccessSchema — valid shapes', () => {
     ).not.toThrow()
   })
 
-  it('accepts segments tier with non-empty segmentIds', () => {
+  it('accepts segments tier with non-empty per-action segments', () => {
     expect(() =>
       boardAccessSchema.parse({
         ...baseValid,
         view: 'segments',
         comment: 'segments',
         submit: 'segments',
-        segmentIds: ['seg_a'],
+        segments: { view: ['seg_a'], comment: ['seg_a'], submit: ['seg_a'] },
       })
     ).not.toThrow()
   })
 
-  it('accepts segments tier on just comment/submit (view stays anonymous)', () => {
+  it('accepts segments tier on just comment/submit (view stays anonymous, only those lists required)', () => {
     expect(() =>
       boardAccessSchema.parse({
         ...baseValid,
         view: 'anonymous',
         comment: 'segments',
         submit: 'segments',
-        segmentIds: ['seg_a'],
+        segments: { view: [], comment: ['seg_a'], submit: ['seg_a'] },
+      })
+    ).not.toThrow()
+  })
+
+  it('accepts mixed per-action segment lists (view picks pro; submit picks beta)', () => {
+    expect(() =>
+      boardAccessSchema.parse({
+        ...baseValid,
+        view: 'segments',
+        comment: 'segments',
+        submit: 'segments',
+        segments: { view: ['seg_pro'], comment: ['seg_pro'], submit: ['seg_beta'] },
       })
     ).not.toThrow()
   })
@@ -71,45 +83,58 @@ describe('boardAccessSchema — tier rank invariants', () => {
         view: 'segments',
         comment: 'anonymous',
         submit: 'segments',
-        segmentIds: ['seg_a'],
+        segments: { view: ['seg_a'], comment: [], submit: ['seg_a'] },
       })
     ).toThrow(/comment/i)
   })
 })
 
 describe('boardAccessSchema — segments invariant', () => {
-  it('rejects segments tier with empty segmentIds', () => {
+  it('rejects segments tier with all per-action lists empty', () => {
     expect(() =>
       boardAccessSchema.parse({
         ...baseValid,
         view: 'segments',
         comment: 'segments',
         submit: 'segments',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
       })
     ).toThrow(/segment/i)
   })
 
-  it('rejects when only one of the three tiers is segments and segmentIds is empty', () => {
+  it('rejects when only one of the three tiers is segments and that action list is empty', () => {
     expect(() =>
       boardAccessSchema.parse({
         ...baseValid,
         view: 'anonymous',
         comment: 'anonymous',
         submit: 'segments',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
       })
     ).toThrow(/segment/i)
   })
 
-  it('caps segmentIds at 50', () => {
+  it('rejects when comment is segments and only comment list is empty (per-action enforcement)', () => {
     expect(() =>
       boardAccessSchema.parse({
         ...baseValid,
         view: 'segments',
         comment: 'segments',
         submit: 'segments',
-        segmentIds: Array.from({ length: 51 }, (_, i) => `seg_${i}`),
+        segments: { view: ['seg_a'], comment: [], submit: ['seg_a'] },
+      })
+    ).toThrow(/segment/i)
+  })
+
+  it('caps each per-action segment list at 50', () => {
+    const fifty1 = Array.from({ length: 51 }, (_, i) => `seg_${i}`)
+    expect(() =>
+      boardAccessSchema.parse({
+        ...baseValid,
+        view: 'segments',
+        comment: 'segments',
+        submit: 'segments',
+        segments: { view: fifty1, comment: ['seg_a'], submit: ['seg_a'] },
       })
     ).toThrow(/50/)
   })

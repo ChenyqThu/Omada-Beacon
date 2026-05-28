@@ -156,7 +156,7 @@ export const createBoardFn = createServerFn({ method: 'POST' })
         view: tier,
         comment: tier,
         submit: tier,
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       },
     })

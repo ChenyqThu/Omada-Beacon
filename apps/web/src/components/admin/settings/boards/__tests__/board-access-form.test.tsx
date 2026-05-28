@@ -118,7 +118,7 @@ describe('<BoardAccessForm> presets', () => {
       view: 'authenticated',
       comment: 'authenticated',
       submit: 'authenticated',
-      segmentIds: [],
+      segments: { view: [], comment: [], submit: [] },
       approval: { posts: false, comments: false },
     })
     expect(screen.getByRole('radio', { name: /auth-only/i })).toBeChecked()
@@ -129,7 +129,7 @@ describe('<BoardAccessForm> presets', () => {
       view: 'team',
       comment: 'team',
       submit: 'team',
-      segmentIds: [],
+      segments: { view: [], comment: [], submit: [] },
       approval: { posts: false, comments: false },
     })
     // "Team only" appears as a preset card AND as a tier radio inside each
@@ -187,12 +187,12 @@ describe('<BoardAccessForm> segments picker', () => {
 // ---------------------------------------------------------------------------
 
 describe('<BoardAccessForm> save', () => {
-  it('disables Save when a tier is "segments" but segmentIds is empty', () => {
+  it('disables Save when a tier is "segments" but no segments are picked', () => {
     renderForm({
       view: 'segments',
       comment: 'segments',
       submit: 'segments',
-      segmentIds: [],
+      segments: { view: [], comment: [], submit: [] },
       approval: { posts: false, comments: false },
     })
     expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled()
@@ -203,7 +203,7 @@ describe('<BoardAccessForm> save', () => {
       view: 'segments',
       comment: 'segments',
       submit: 'segments',
-      segmentIds: ['seg_alpha'],
+      segments: { view: ['seg_alpha'], comment: ['seg_alpha'], submit: ['seg_alpha'] },
       approval: { posts: false, comments: false },
     })
     expect(screen.getByRole('button', { name: /save changes/i })).not.toBeDisabled()
@@ -214,7 +214,7 @@ describe('<BoardAccessForm> save', () => {
       view: 'anonymous',
       comment: 'authenticated',
       submit: 'authenticated',
-      segmentIds: [],
+      segments: { view: [], comment: [], submit: [] },
       approval: { posts: true, comments: false },
     }
     renderForm(access)
@@ -229,7 +229,7 @@ describe('<BoardAccessForm> save', () => {
           view: 'anonymous',
           comment: 'authenticated',
           submit: 'authenticated',
-          segmentIds: [],
+          segments: { view: [], comment: [], submit: [] },
           approval: { posts: true, comments: false },
         }),
       })
@@ -241,7 +241,7 @@ describe('<BoardAccessForm> save', () => {
       view: 'segments',
       comment: 'segments',
       submit: 'segments',
-      segmentIds: [],
+      segments: { view: [], comment: [], submit: [] },
       approval: { posts: false, comments: false },
     })
     const button = screen.getByRole('button', { name: /save changes/i })
@@ -263,7 +263,7 @@ describe('BoardAccessForm — tier rank invariant', () => {
       view: 'anonymous',
       comment: 'anonymous',
       submit: 'anonymous',
-      segmentIds: [],
+      segments: { view: [], comment: [], submit: [] },
       approval: { posts: false, comments: false },
     })
     // Click "Team only" in the View tier radio group
@@ -278,26 +278,28 @@ describe('BoardAccessForm — tier rank invariant', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Preset segmentIds cleanup
+// Preset segments cleanup
 // ---------------------------------------------------------------------------
 
-describe('BoardAccessForm — preset segmentIds cleanup', () => {
-  it('clicking Public preset clears stale segmentIds', async () => {
+describe('BoardAccessForm — preset segments cleanup', () => {
+  it('clicking Public preset clears stale segment selections', async () => {
     renderForm({
       view: 'segments',
       comment: 'segments',
       submit: 'segments',
-      segmentIds: ['seg_alpha'],
+      segments: { view: ['seg_alpha'], comment: ['seg_alpha'], submit: ['seg_alpha'] },
       approval: { posts: false, comments: false },
     })
     const publicPresetRadio = document.getElementById('preset-public') as HTMLElement
     fireEvent.click(publicPresetRadio)
-    // Saving now should send empty segmentIds
+    // Saving now should send empty per-action segment lists.
     fireEvent.submit(screen.getByRole('button', { name: /save changes/i }).closest('form')!)
     await waitFor(() => {
       expect(mutate).toHaveBeenCalledWith(
         expect.objectContaining({
-          access: expect.objectContaining({ segmentIds: [] }),
+          access: expect.objectContaining({
+            segments: { view: [], comment: [], submit: [] },
+          }),
         })
       )
     })

@@ -28,7 +28,7 @@ function viewDenyMessage(tier: AccessTier): string {
 
 /** Single-row board read authorization. */
 export function canViewBoard(actor: Actor, board: { access: BoardAccess }): Decision {
-  return tierAllows(actor, board.access.view, board.access.segmentIds)
+  return tierAllows(actor, board.access.view, board.access.segments.view)
     ? allowDecision()
     : denyDecision(viewDenyMessage(board.access.view))
 }
@@ -66,7 +66,7 @@ export function boardViewFilter(actor: Actor): SQL {
       ? sql`
         ${boards.access}->>'view' = 'segments'
         AND EXISTS (
-          SELECT 1 FROM jsonb_array_elements_text(${boards.access}->'segmentIds') seg
+          SELECT 1 FROM jsonb_array_elements_text(${boards.access}->'segments'->'view') seg
           WHERE seg = ANY(ARRAY[${sql.join(
             memberIds.map((id) => sql`${id}`),
             sql`, `

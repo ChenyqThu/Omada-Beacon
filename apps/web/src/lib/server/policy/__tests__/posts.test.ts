@@ -62,12 +62,13 @@ const ALL_MODERATION_STATES = [...MODERATION_STATES]
 
 // Equivalent BoardAccess shapes for the four legacy audience kinds. The
 // mapping mirrors audienceToAccess() in board.service — same tier on every
-// action, approval off — so the moderation-state matrix stays meaningful.
+// action, approval off, segment list shared across all three actions —
+// so the moderation-state matrix stays meaningful.
 const mkAccess = (view: BoardAccess['view'], segmentIds: string[] = []): BoardAccess => ({
   view,
   comment: view,
   submit: view,
-  segmentIds,
+  segments: { view: segmentIds, comment: segmentIds, submit: segmentIds },
   approval: { posts: false, comments: false },
 })
 
@@ -368,7 +369,7 @@ describe('canCreatePost — board.approval.posts composes OR with workspace requ
       view: 'anonymous' as AccessTier,
       comment: 'anonymous' as AccessTier,
       submit: 'anonymous' as AccessTier,
-      segmentIds: [],
+      segments: { view: [], comment: [], submit: [] },
       approval: { posts: false, comments: false, ...overrides },
     } satisfies BoardAccess,
   })
@@ -401,7 +402,7 @@ describe('canCreatePost — board.access.submit tier gates submission independen
         view: 'anonymous',
         comment: 'anonymous',
         submit: 'team',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       } satisfies BoardAccess,
     }
@@ -414,7 +415,7 @@ describe('canCreatePost — board.access.submit tier gates submission independen
         view: 'anonymous',
         comment: 'anonymous',
         submit: 'authenticated',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       } satisfies BoardAccess,
     }
@@ -427,7 +428,7 @@ describe('canCreatePost — board.access.submit tier gates submission independen
         view: 'anonymous',
         comment: 'anonymous',
         submit: 'authenticated',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       } satisfies BoardAccess,
     }
@@ -440,7 +441,7 @@ describe('canCreatePost — board.access.submit tier gates submission independen
         view: 'anonymous',
         comment: 'anonymous',
         submit: 'segments',
-        segmentIds: ['segment_x'],
+        segments: { view: [], comment: [], submit: ['segment_x'] },
         approval: { posts: false, comments: false },
       } satisfies BoardAccess,
     }
@@ -549,7 +550,7 @@ describe('canCreateComment — board.access.comment tier gates commenting indepe
         view: 'anonymous',
         comment: 'authenticated',
         submit: 'authenticated',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       } satisfies BoardAccess,
     }
@@ -562,7 +563,7 @@ describe('canCreateComment — board.access.comment tier gates commenting indepe
         view: 'anonymous',
         comment: 'team',
         submit: 'team',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       } satisfies BoardAccess,
     }
@@ -575,7 +576,7 @@ describe('canCreateComment — board.access.comment tier gates commenting indepe
         view: 'team',
         comment: 'team',
         submit: 'team',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       } satisfies BoardAccess,
     }
@@ -588,7 +589,7 @@ describe('canCreateComment — board.access.comment tier gates commenting indepe
         view: 'anonymous',
         comment: 'segments',
         submit: 'segments',
-        segmentIds: ['segment_x'],
+        segments: { view: [], comment: ['segment_x'], submit: ['segment_x'] },
         approval: { posts: false, comments: false },
       } satisfies BoardAccess,
     }
@@ -609,7 +610,7 @@ describe('canCreateComment — board.approval.comments composition', () => {
         view: 'anonymous',
         comment: 'anonymous',
         submit: 'anonymous',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: true },
       } satisfies BoardAccess,
     }
@@ -625,7 +626,7 @@ describe('canCreateComment — board.approval.comments composition', () => {
         view: 'anonymous',
         comment: 'anonymous',
         submit: 'anonymous',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: true },
       } satisfies BoardAccess,
     }
@@ -641,7 +642,7 @@ describe('canCreateComment — board.approval.comments composition', () => {
         view: 'anonymous',
         comment: 'anonymous',
         submit: 'anonymous',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       } satisfies BoardAccess,
     }

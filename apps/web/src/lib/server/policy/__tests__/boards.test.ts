@@ -68,57 +68,62 @@ const serviceInAlpha: Actor = {
 }
 
 // ----------------------------------------------------------------------
-// Access fixtures — one per meaningful (view tier, segmentIds) shape
+// Access fixtures — one per meaningful (view tier, segments) shape.
+// For these fixtures the same allowlist is mirrored across all three
+// actions, matching the historical single-list semantics so the matrix
+// below keeps its meaning post-migration.
 // ----------------------------------------------------------------------
+
+const sharedSegments = (ids: string[]) => ({ view: ids, comment: ids, submit: ids })
 
 const A: Record<string, BoardAccess> = {
   public: {
     view: 'anonymous',
     comment: 'anonymous',
     submit: 'anonymous',
-    segmentIds: [],
+    segments: sharedSegments([]),
     approval: { posts: false, comments: false },
   },
   authenticated: {
     view: 'authenticated',
     comment: 'authenticated',
     submit: 'authenticated',
-    segmentIds: [],
+    segments: sharedSegments([]),
     approval: { posts: false, comments: false },
   },
   team: {
     view: 'team',
     comment: 'team',
     submit: 'team',
-    segmentIds: [],
+    segments: sharedSegments([]),
     approval: { posts: false, comments: false },
   },
   segmentAlpha: {
     view: 'segments',
     comment: 'segments',
     submit: 'segments',
-    segmentIds: ['segment_alpha'],
+    segments: sharedSegments(['segment_alpha']),
     approval: { posts: false, comments: false },
   },
   segmentBeta: {
     view: 'segments',
     comment: 'segments',
     submit: 'segments',
-    segmentIds: ['segment_beta'],
+    segments: sharedSegments(['segment_beta']),
     approval: { posts: false, comments: false },
   },
   segmentAlphaBeta: {
     view: 'segments',
     comment: 'segments',
     submit: 'segments',
-    segmentIds: ['segment_alpha', 'segment_beta'],
+    segments: sharedSegments(['segment_alpha', 'segment_beta']),
     approval: { posts: false, comments: false },
   },
   segmentEmpty: {
     view: 'segments',
     comment: 'segments',
     submit: 'segments',
-    segmentIds: [],
+    segments: sharedSegments([]),
     approval: { posts: false, comments: false },
   },
 }

@@ -62,10 +62,15 @@ export interface BoardAccess {
   view: AccessTier
   comment: AccessTier
   submit: AccessTier
-  /** Board-level segment list — used wherever any tier === 'segments'.
-   *  Invalid (and rejected on save) when at least one tier is 'segments'
-   *  but this array is empty. */
-  segmentIds: string[]
+  /** Per-action segment allowlists — used wherever the matching tier is
+   *  'segments'. A board can say "Active Users can view & comment, but
+   *  only Beta testers can submit." Invalid (and rejected on save) when
+   *  an action's tier is 'segments' but that action's list is empty. */
+  segments: {
+    view: string[]
+    comment: string[]
+    submit: string[]
+  }
   approval: {
     /** Hold new posts on this board for review (any non-team submitter).
      *  Composes OR with workspace requireApproval — a board can be MORE
@@ -80,7 +85,7 @@ export const DEFAULT_BOARD_ACCESS: BoardAccess = {
   view: 'anonymous',
   comment: 'anonymous',
   submit: 'anonymous',
-  segmentIds: [],
+  segments: { view: [], comment: [], submit: [] },
   approval: { posts: false, comments: false },
 }
 

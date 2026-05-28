@@ -568,6 +568,13 @@
       "when": 1779580800000,
       "tag": "0080_drop_board_audience",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1779667200000,
+      "tag": "0081_per_action_segments",
+      "breakpoints": true
     }
   ]
 }

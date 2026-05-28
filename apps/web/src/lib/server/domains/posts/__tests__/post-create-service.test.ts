@@ -64,7 +64,7 @@ vi.mock('@/lib/server/db', async () => {
               view: 'anonymous',
               comment: 'anonymous',
               submit: 'anonymous',
-              segmentIds: [],
+              segments: { view: [], comment: [], submit: [] },
               approval: { posts: false, comments: false },
             },
           }),
@@ -202,7 +202,7 @@ describe('createPost held audit event', () => {
         view: 'anonymous',
         comment: 'anonymous',
         submit: 'anonymous',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       },
     } as unknown as Awaited<ReturnType<typeof db.query.boards.findFirst>>)
@@ -249,7 +249,7 @@ describe('createPost held audit event', () => {
         view: 'anonymous',
         comment: 'anonymous',
         submit: 'anonymous',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       },
     } as unknown as Awaited<ReturnType<typeof db.query.boards.findFirst>>)
@@ -300,7 +300,7 @@ describe('createPost dispatch guard (moderation)', () => {
         view: 'anonymous',
         comment: 'anonymous',
         submit: 'anonymous',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       },
     } as unknown as Awaited<ReturnType<typeof db.query.boards.findFirst>>)
@@ -338,7 +338,7 @@ describe('createPost dispatch guard (moderation)', () => {
         view: 'anonymous',
         comment: 'anonymous',
         submit: 'anonymous',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       },
     } as unknown as Awaited<ReturnType<typeof db.query.boards.findFirst>>)
@@ -376,7 +376,7 @@ describe('createPost dispatch guard (moderation)', () => {
         view: 'anonymous',
         comment: 'anonymous',
         submit: 'anonymous',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       },
     } as unknown as Awaited<ReturnType<typeof db.query.boards.findFirst>>)

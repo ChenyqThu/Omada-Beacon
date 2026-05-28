@@ -37,16 +37,21 @@ import { TierSelect } from './tier-select'
 
 /**
  * Per-board access matrix form. Backed by the BoardAccess shape
- * (view / comment / submit tiers + segmentIds + approval flags).
+ * (view / comment / submit tiers + per-action segment lists + approval).
+ *
+ * D1 → D2 transition note: the data model now stores a per-action
+ * `segments: { view, comment, submit }` matrix, but this form still
+ * shows a single shared segment picker (legacy UX). On read we use the
+ * union of the three per-action lists; on write we mirror the picker
+ * selection back to every action whose tier is 'segments'. D2 will
+ * rewrite this form into the per-action matrix UI.
  *
  * Layout (top to bottom):
  *  1. Quick presets card grid — Public / Auth-only / Team / Custom.
- *     Selecting a preset fills the tier row; Custom auto-selects when
- *     the form drifts from any known preset.
- *  2. View tier picker (full 4-option TierSelect).
+ *  2. View tier picker.
  *  3. Comment tier picker — minTier = view so it can't be more permissive.
  *  4. Submit tier picker — same rank invariant.
- *  5. Segments multi-select — only rendered when any tier is 'segments'.
+ *  5. Single shared segments multi-select — only rendered when any tier is 'segments'.
  *  6. Approval card — two checkboxes (hold posts / hold comments).
  *  7. Save button — disabled while segments are required but unselected.
  *
@@ -98,11 +103,56 @@ const PRESET_META: Record<
   },
 }
 
+/**
+ * Form-local shape. The persisted BoardAccess stores per-action segment
+ * lists; while the form still has a single shared picker (legacy UX,
+ * to be replaced in D2) we keep a single `segmentIds: string[]` field on
+ * the form and translate on submit. We also derive it on read from the
+ * union of the three persisted lists so existing rows show every picked
+ * segment when the form opens.
+ */
+type FormAccess = Omit<BoardAccess, 'segments'> & { segmentIds: string[] }
+
+function unionSegments(access: BoardAccess): string[] {
+  const seen = new Set<string>()
+  for (const list of [access.segments.view, access.segments.comment, access.segments.submit]) {
+    for (const id of list) seen.add(id)
+  }
+  return Array.from(seen)
+}
+
+function toFormAccess(access: BoardAccess): FormAccess {
+  return {
+    view: access.view,
+    comment: access.comment,
+    submit: access.submit,
+    segmentIds: unionSegments(access),
+    approval: { ...access.approval },
+  }
+}
+
+function fromFormAccess(form: FormAccess): BoardAccess {
+  // Mirror the shared picker selection to every action whose tier requires
+  // segments. Other actions get an empty list — the server enforces the
+  // per-action non-empty invariant only for the 'segments' tier.
+  return {
+    view: form.view,
+    comment: form.comment,
+    submit: form.submit,
+    segments: {
+      view: form.view === 'segments' ? form.segmentIds : [],
+      comment: form.comment === 'segments' ? form.segmentIds : [],
+      submit: form.submit === 'segments' ? form.segmentIds : [],
+    },
+    approval: { ...form.approval },
+  }
+}
+
 /** Find the preset the current form values correspond to, if any.
  *  We require tier match + approval flags both off; for the segments-bearing
  *  case (which today no preset uses) we also require segmentIds to be empty
  *  so picked segments don't silently survive a preset switch. */
-function detectPreset(access: BoardAccess): PresetName {
+function detectPreset(access: FormAccess): PresetName {
   for (const [name, meta] of Object.entries(PRESET_META) as [
     Exclude<PresetName, 'custom'>,
     (typeof PRESET_META)[Exclude<PresetName, 'custom'>],
@@ -124,7 +174,7 @@ function detectPreset(access: BoardAccess): PresetName {
   return 'custom'
 }
 
-function applyPreset(name: Exclude<PresetName, 'custom'>, current: BoardAccess): BoardAccess {
+function applyPreset(name: Exclude<PresetName, 'custom'>, current: FormAccess): FormAccess {
   const tiers = PRESET_META[name].tiers
   // If the target preset doesn't use the 'segments' tier anywhere, drop any
   // stale segmentIds so a preset switch fully resets the selection state.
@@ -174,8 +224,8 @@ export function BoardAccessForm({ board }: BoardAccessFormProps) {
   const portalConfigQuery = useQuery(settingsQueries.portalConfig())
   const features = portalConfigQuery.data?.features
 
-  const form = useForm<BoardAccess>({
-    defaultValues: board.access ?? DEFAULT_BOARD_ACCESS,
+  const form = useForm<FormAccess>({
+    defaultValues: toFormAccess(board.access ?? DEFAULT_BOARD_ACCESS),
   })
 
   // Sync form state when the server-side board.access changes (e.g. successful
@@ -183,7 +233,7 @@ export function BoardAccessForm({ board }: BoardAccessFormProps) {
   // dep check because deep-eq on the nested object is the source of truth.
   const accessKey = JSON.stringify(board.access)
   useEffect(() => {
-    form.reset(board.access ?? DEFAULT_BOARD_ACCESS)
+    form.reset(toFormAccess(board.access ?? DEFAULT_BOARD_ACCESS))
   }, [accessKey, board.access, form])
 
   const values = form.watch()
@@ -195,7 +245,7 @@ export function BoardAccessForm({ board }: BoardAccessFormProps) {
   const needsSegments = anySegments && values.segmentIds.length === 0
   const preset = detectPreset(values)
 
-  async function onSubmit(next: BoardAccess) {
+  async function onSubmit(next: FormAccess) {
     // Defense-in-depth: the button is disabled when segments are required
     // but empty; this re-check covers Enter-key submit from a focused input.
     if (
@@ -204,7 +254,7 @@ export function BoardAccessForm({ board }: BoardAccessFormProps) {
     ) {
       return
     }
-    mutation.mutate({ boardId: board.id, access: next })
+    mutation.mutate({ boardId: board.id, access: fromFormAccess(next) })
   }
 
   return (

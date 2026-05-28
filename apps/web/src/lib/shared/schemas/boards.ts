@@ -33,23 +33,28 @@ const tierSchema = z.enum(ACCESS_TIERS)
 
 /**
  * Validation for the per-action `BoardAccess` payload (view/comment/submit
- * + segmentIds + approval). Enforces the spec's tier-rank invariants so a
- * board can't accidentally land in a contradictory state (e.g. anonymous
- * comments on a team-only-visible board).
+ * + per-action segments + approval). Enforces the spec's tier-rank
+ * invariants so a board can't accidentally land in a contradictory state
+ * (e.g. anonymous comments on a team-only-visible board).
  *
  * Invariants:
  *  - `comment.rank >= view.rank` (can't be more permissive than view)
  *  - `submit.rank >= view.rank`
- *  - If ANY tier is `'segments'`, `segmentIds.length >= 1` (empty allowlist
+ *  - For each action, if its tier is `'segments'`, the matching
+ *    `segments[action]` array must be non-empty (an empty allowlist
  *    would hide the board from everyone in that tier)
- *  - `segmentIds.length <= 50` (board capacity cap)
+ *  - `segments[action].length <= 50` per action (board capacity cap)
  */
 export const boardAccessSchema = z
   .object({
     view: tierSchema,
     comment: tierSchema,
     submit: tierSchema,
-    segmentIds: z.array(z.string()).max(50, 'At most 50 segments per board.'),
+    segments: z.object({
+      view: z.array(z.string()).max(50, 'At most 50 segments per board.'),
+      comment: z.array(z.string()).max(50, 'At most 50 segments per board.'),
+      submit: z.array(z.string()).max(50, 'At most 50 segments per board.'),
+    }),
     approval: z.object({
       posts: z.boolean(),
       comments: z.boolean(),
@@ -70,14 +75,14 @@ export const boardAccessSchema = z
         message: 'Submit tier cannot be more permissive than view.',
       })
     }
-    const anyTierSegments =
-      val.view === 'segments' || val.comment === 'segments' || val.submit === 'segments'
-    if (anyTierSegments && val.segmentIds.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['segmentIds'],
-        message:
-          'Pick at least one segment — empty allowlist hides the board from everyone in that tier.',
-      })
+    // Per-action segments-non-empty when that action is set to 'segments'.
+    for (const action of ['view', 'comment', 'submit'] as const) {
+      if (val[action] === 'segments' && val.segments[action].length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['segments', action],
+          message: `Pick at least one segment for ${action} — empty allowlist hides the board.`,
+        })
+      }
     }
   })

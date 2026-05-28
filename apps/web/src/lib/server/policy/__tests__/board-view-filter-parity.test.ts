@@ -8,7 +8,7 @@
  * would admit in memory.
  *
  * A future refactor could split the two predicates apart (e.g. by
- * changing how the JSONB `segmentIds` array is matched, or by adding
+ * changing how the JSONB `segments.view` array is matched, or by adding
  * a new tier to canViewBoard without updating the SQL) and ship a
  * subtle list-vs-detail visibility drift that no current test catches.
  *
@@ -36,21 +36,23 @@ import { ANONYMOUS_ACTOR, type Actor } from '../types'
 import { createId, type SegmentId, type PrincipalId, type BoardId } from '@quackback/ids'
 
 // Two real TypeIDs so segment-tier rows have something to match against.
-// The board-level access.segmentIds[] is a string[] in the schema, but
-// callers always feed it real segment ids; mirroring that here keeps
-// the JSONB containment semantics realistic.
+// The board-level segments[] are string[] in the schema, but callers
+// always feed them real segment ids; mirroring that here keeps the JSONB
+// containment semantics realistic.
 const SEGMENT_ALPHA = createId('segment') as SegmentId
 const SEGMENT_BETA = createId('segment') as SegmentId
 
 function mkAccess(view: BoardAccess['view'], segmentIds: string[] = []): BoardAccess {
   // Mirror BoardAccess invariants enforced on save: all three actions
   // pinned to the same tier so parity reasoning stays simple. The view
-  // tier is the only knob this test cares about.
+  // tier is the only knob this test cares about. Segments mirror the
+  // shared shape (same list across all three actions) so the parity
+  // matrix continues to express what the legacy shared-list shape did.
   return {
     view,
     comment: view,
     submit: view,
-    segmentIds,
+    segments: { view: segmentIds, comment: segmentIds, submit: segmentIds },
     approval: { posts: false, comments: false },
   }
 }

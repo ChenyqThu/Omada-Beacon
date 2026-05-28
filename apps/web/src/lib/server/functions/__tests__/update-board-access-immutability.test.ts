@@ -103,7 +103,7 @@ type BoardAccess = {
   view: 'anonymous' | 'authenticated' | 'segments' | 'team'
   comment: 'anonymous' | 'authenticated' | 'segments' | 'team'
   submit: 'anonymous' | 'authenticated' | 'segments' | 'team'
-  segmentIds: string[]
+  segments: { view: string[]; comment: string[]; submit: string[] }
   approval: { posts: boolean; comments: boolean }
 }
 type BoardRow = {
@@ -127,7 +127,7 @@ const BOARD_ROW: BoardRow = {
     view: 'segments',
     comment: 'segments',
     submit: 'segments',
-    segmentIds: ['seg_1'],
+    segments: { view: ['seg_1'], comment: ['seg_1'], submit: ['seg_1'] },
     approval: { posts: false, comments: false },
   },
   settings: {},
@@ -163,7 +163,9 @@ describe('updateBoardFn — access immutability', () => {
 
     // The segments access must come back intact — no clobber
     expect(result.access.view).toBe('segments')
-    expect(result.access.segmentIds).toEqual(['seg_1'])
+    expect(result.access.segments.view).toEqual(['seg_1'])
+    expect(result.access.segments.comment).toEqual(['seg_1'])
+    expect(result.access.segments.submit).toEqual(['seg_1'])
   })
 
   it('passes name / description / settings to updateBoard service', async () => {

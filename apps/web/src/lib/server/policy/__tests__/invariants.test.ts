@@ -75,7 +75,7 @@ function mkAccess(view: AccessTier, segmentIds: string[] = []): BoardAccess {
     view,
     comment: view,
     submit: view,
-    segmentIds,
+    segments: { view: segmentIds, comment: segmentIds, submit: segmentIds },
     approval: { posts: false, comments: false },
   }
 }

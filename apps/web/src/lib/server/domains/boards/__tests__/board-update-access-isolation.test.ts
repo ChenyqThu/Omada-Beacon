@@ -56,7 +56,7 @@ const EXISTING_BOARD = {
     view: 'anonymous',
     comment: 'anonymous',
     submit: 'anonymous',
-    segmentIds: [],
+    segments: { view: [], comment: [], submit: [] },
     approval: { posts: false, comments: false },
   },
   settings: {},

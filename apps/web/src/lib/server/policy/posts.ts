@@ -98,7 +98,7 @@ export function canCreateComment(
   const view = canViewPost(actor, post, board)
   if (!view.allowed) return { allowed: false, reason: view.reason }
 
-  if (!tierAllows(actor, board.access.comment, board.access.segmentIds)) {
+  if (!tierAllows(actor, board.access.comment, board.access.segments.comment)) {
     return { allowed: false, reason: commentDenyMessage(board.access.comment) }
   }
   if (post.isCommentsLocked && !isTeam(actor)) {
@@ -136,7 +136,7 @@ export function canCreatePost(
   // Submit is its own decision — a board can be public to view but
   // team-only to submit (admin-curated roadmap pattern). Gate on
   // access.submit directly rather than delegating to canViewBoard.
-  if (!tierAllows(actor, board.access.submit, board.access.segmentIds)) {
+  if (!tierAllows(actor, board.access.submit, board.access.segments.submit)) {
     return { allowed: false, reason: submitDenyMessage(board.access.submit) }
   }
 

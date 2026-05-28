@@ -47,7 +47,8 @@ export type LegacyBoardAudience =
  * the three-action matrix onto `view` — that's the historical meaning of
  * "audience" (who can see the board). Boards with mixed tiers map to the
  * view tier; non-view restrictions (e.g. team-only comment on a public
- * board) aren't expressible in the legacy shape.
+ * board) aren't expressible in the legacy shape. Likewise the segments
+ * list reflects the view-action allowlist only.
  */
 export function accessToAudience(access: BoardAccess): LegacyBoardAudience {
   switch (access.view) {
@@ -56,7 +57,7 @@ export function accessToAudience(access: BoardAccess): LegacyBoardAudience {
     case 'authenticated':
       return { kind: 'authenticated' }
     case 'segments':
-      return { kind: 'segments', segmentIds: access.segmentIds }
+      return { kind: 'segments', segmentIds: access.segments.view }
     case 'team':
       return { kind: 'team' }
     default:

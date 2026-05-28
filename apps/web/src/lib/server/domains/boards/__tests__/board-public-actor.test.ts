@@ -55,7 +55,7 @@ describe('getPublicBoardById — defensive policy check', () => {
         view: 'team',
         comment: 'team',
         submit: 'team',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       },
     })
@@ -71,7 +71,7 @@ describe('getPublicBoardById — defensive policy check', () => {
         view: 'team',
         comment: 'team',
         submit: 'team',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       },
     })
@@ -87,7 +87,7 @@ describe('getPublicBoardById — defensive policy check', () => {
         view: 'segments',
         comment: 'segments',
         submit: 'segments',
-        segmentIds: ['seg_alpha'],
+        segments: { view: ['seg_alpha'], comment: ['seg_alpha'], submit: ['seg_alpha'] },
         approval: { posts: false, comments: false },
       },
     })
@@ -103,7 +103,7 @@ describe('getPublicBoardById — defensive policy check', () => {
         view: 'segments',
         comment: 'segments',
         submit: 'segments',
-        segmentIds: ['seg_alpha'],
+        segments: { view: ['seg_alpha'], comment: ['seg_alpha'], submit: ['seg_alpha'] },
         approval: { posts: false, comments: false },
       },
     })
@@ -135,7 +135,7 @@ describe('getPublicBoardById — defensive policy check', () => {
         view: 'anonymous',
         comment: 'anonymous',
         submit: 'anonymous',
-        segmentIds: [],
+        segments: { view: [], comment: [], submit: [] },
         approval: { posts: false, comments: false },
       },
     })

@@ -1,8 +1,8 @@
 /**
  * Tests for updateBoardAccessFn.
  *
- * The handler accepts a `BoardAccess` matrix (view/comment/submit + segmentIds
- * + approval). boardAccessSchema's tier-rank invariants must be enforced by
+ * The handler accepts a `BoardAccess` matrix (view/comment/submit + per-action
+ * segments + approval). boardAccessSchema's tier-rank invariants must be enforced by
  * input validation so callers can't slip an inconsistent matrix past the
  * server. Each successful call writes the matrix and records a
  * `board.access.changed` audit event.
@@ -154,7 +154,7 @@ const BOARD_DEFAULT: BoardRow = {
     view: 'anonymous',
     comment: 'anonymous',
     submit: 'anonymous',
-    segmentIds: [],
+    segments: { view: [], comment: [], submit: [] },
     approval: { posts: false, comments: false },
   },
 }
@@ -176,7 +176,7 @@ describe('updateBoardAccessFn — accepts BoardAccess payload', () => {
           view: 'anonymous',
           comment: 'anonymous',
           submit: 'anonymous',
-          segmentIds: [],
+          segments: { view: [], comment: [], submit: [] },
           approval: { posts: false, comments: false },
         },
       },
@@ -193,7 +193,7 @@ describe('updateBoardAccessFn — accepts BoardAccess payload', () => {
             view: 'authenticated',
             comment: 'anonymous',
             submit: 'authenticated',
-            segmentIds: [],
+            segments: { view: [], comment: [], submit: [] },
             approval: { posts: false, comments: false },
           },
         },
@@ -201,7 +201,7 @@ describe('updateBoardAccessFn — accepts BoardAccess payload', () => {
     ).rejects.toThrow()
   })
 
-  it('rejects an access with segments tier and empty segmentIds', async () => {
+  it('rejects an access with segments tier and empty per-action segments', async () => {
     await expect(
       getUpdateBoardAccessFn()({
         data: {
@@ -210,7 +210,7 @@ describe('updateBoardAccessFn — accepts BoardAccess payload', () => {
             view: 'segments',
             comment: 'segments',
             submit: 'segments',
-            segmentIds: [],
+            segments: { view: [], comment: [], submit: [] },
             approval: { posts: false, comments: false },
           },
         },
@@ -225,7 +225,7 @@ describe('updateBoardAccessFn — writes access and emits audit event', () => {
       view: 'authenticated' as const,
       comment: 'team' as const,
       submit: 'team' as const,
-      segmentIds: [],
+      segments: { view: [], comment: [], submit: [] },
       approval: { posts: true, comments: false },
     }
     await getUpdateBoardAccessFn()({ data: { boardId: 'board_1', access } })
@@ -240,7 +240,7 @@ describe('updateBoardAccessFn — writes access and emits audit event', () => {
       view: 'authenticated' as const,
       comment: 'team' as const,
       submit: 'team' as const,
-      segmentIds: [],
+      segments: { view: [], comment: [], submit: [] },
       approval: { posts: true, comments: false },
     }
     await getUpdateBoardAccessFn()({ data: { boardId: 'board_1', access } })
@@ -267,7 +267,7 @@ describe('updateBoardAccessFn — auth + not-found', () => {
             view: 'anonymous',
             comment: 'anonymous',
             submit: 'anonymous',
-            segmentIds: [],
+            segments: { view: [], comment: [], submit: [] },
             approval: { posts: false, comments: false },
           },
         },
@@ -292,7 +292,7 @@ describe('updateBoardAccessFn — auth + not-found', () => {
             view: 'anonymous',
             comment: 'anonymous',
             submit: 'anonymous',
-            segmentIds: [],
+            segments: { view: [], comment: [], submit: [] },
             approval: { posts: false, comments: false },
           },
         },
@@ -310,7 +310,7 @@ describe('updateBoardAccessFn — auth + not-found', () => {
             view: 'anonymous',
             comment: 'anonymous',
             submit: 'anonymous',
-            segmentIds: [],
+            segments: { view: [], comment: [], submit: [] },
             approval: { posts: false, comments: false },
           },
         },
