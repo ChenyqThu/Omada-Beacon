@@ -438,10 +438,12 @@ export async function deleteComment(
   }
 
   // Only decrement count if comment is not already soft-deleted
-  // (soft-delete already decremented the count)
-  // Private comments never incremented the count, so skip decrement for them
+  // (soft-delete already decremented the count).
+  // Private comments and held (pending) comments never incremented the count
+  // — pending comments are counted only on approval — so skip decrement for them.
   const wasActive = !existingComment.deletedAt
-  const shouldDecrement = wasActive && !existingComment.isPrivate
+  const shouldDecrement =
+    wasActive && !existingComment.isPrivate && existingComment.moderationState !== 'pending'
 
   // Atomic transaction: delete comment + conditionally decrement comment count
   await db.transaction(async (tx) => {

@@ -329,6 +329,51 @@ describe('Comment count maintenance', () => {
       })
       expect(hasCommentCountUpdate).toBe(true)
     })
+
+    it('does NOT decrement comment_count when deleting a held (pending) comment', async () => {
+      // A held comment was never added to the public count on insert (the
+      // pending path skips the bump). Deleting it before approval must NOT
+      // decrement, or it underflows the count of already-published comments.
+      // Two findFirst calls: canDeleteComment, then softDeleteComment itself.
+      const { db } = await import('@/lib/server/db')
+      const heldComment = {
+        id: 'comment_mock',
+        postId: 'post_mock',
+        content: 'held comment',
+        parentId: null,
+        principalId: 'principal_mock',
+        isTeamMember: false,
+        isPrivate: false,
+        moderationState: 'pending',
+        createdAt: new Date(),
+        deletedAt: null,
+        post: {
+          id: 'post_mock',
+          title: 'Test Post',
+          boardId: 'board_mock',
+          statusId: 'status_mock',
+          pinnedCommentId: null,
+          board: { id: 'board_mock', slug: 'test' },
+        },
+      }
+      vi.mocked(db.query.comments.findFirst)
+        .mockResolvedValueOnce(heldComment as never)
+        .mockResolvedValueOnce(heldComment as never)
+
+      const { softDeleteComment } = await import('../comment.permissions')
+      setCalls.length = 0
+
+      await softDeleteComment('comment_mock' as CommentId, {
+        principalId: 'principal_mock' as PrincipalId,
+        role: 'admin',
+      })
+
+      const hasCommentCountUpdate = setCalls.some((args) => {
+        const setArg = (args as unknown[])[0] as Record<string, unknown>
+        return 'commentCount' in setArg
+      })
+      expect(hasCommentCountUpdate).toBe(false)
+    })
   })
 
   describe('deleteComment', () => {
@@ -389,6 +434,46 @@ describe('Comment count maintenance', () => {
       })
 
       // Should NOT have any set() call with commentCount
+      const hasCommentCountUpdate = setCalls.some((args) => {
+        const setArg = (args as unknown[])[0] as Record<string, unknown>
+        return 'commentCount' in setArg
+      })
+      expect(hasCommentCountUpdate).toBe(false)
+    })
+
+    it('should NOT decrement comment_count when deleting a held (pending) comment', async () => {
+      // Same invariant as softDeleteComment: a pending comment was never
+      // counted on insert, so the hard-delete path must not decrement either.
+      const { db } = await import('@/lib/server/db')
+      vi.mocked(db.query.comments.findFirst).mockResolvedValueOnce({
+        id: 'comment_mock',
+        postId: 'post_mock',
+        content: 'held comment',
+        parentId: null,
+        principalId: 'principal_mock',
+        isTeamMember: false,
+        isPrivate: false,
+        moderationState: 'pending',
+        createdAt: new Date(),
+        deletedAt: null,
+        post: {
+          id: 'post_mock',
+          title: 'Test Post',
+          boardId: 'board_mock',
+          statusId: 'status_mock',
+          pinnedCommentId: null,
+          board: { id: 'board_mock', slug: 'test' },
+        },
+      } as never)
+
+      const { deleteComment } = await import('../comment.service')
+      setCalls.length = 0
+
+      await deleteComment('comment_mock' as CommentId, {
+        principalId: 'principal_mock' as PrincipalId,
+        role: 'admin',
+      })
+
       const hasCommentCountUpdate = setCalls.some((args) => {
         const setArg = (args as unknown[])[0] as Record<string, unknown>
         return 'commentCount' in setArg
