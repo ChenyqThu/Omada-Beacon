@@ -275,8 +275,11 @@ export function boardCapabilitiesForActor(
     board,
     undefined
   ).allowed
-  // Compose the workspace anonymous ceiling for non-user actors only.
-  if (actor.principalType !== 'user') {
+  // Compose the workspace anonymous ceiling for non-user actors only. Team
+  // actors are never gated by the anon ceiling (tierAllows already bypasses
+  // for them), so guard on !isTeam too — a hypothetical non-user team actor
+  // (e.g. a service principal carrying a team role) must stay ungated.
+  if (!isTeam(actor) && actor.principalType !== 'user') {
     return {
       canSubmit: canSubmit && allowAnonymous,
       canVote: canVote && allowAnonymous,

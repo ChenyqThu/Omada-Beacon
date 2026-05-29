@@ -13,7 +13,7 @@ import {
 } from '@/components/public/feedback/public-filters-bar'
 import { usePublicFilters } from '@/components/public/feedback/use-public-filters'
 import { PostCard } from '@/components/public/post-card'
-import type { BoardWithStats } from '@/lib/shared/types'
+import type { PublicBoardWithStats } from '@/lib/shared/types'
 import type { PortalWelcomeCard as PortalWelcomeCardData } from '@/lib/shared/types/settings'
 import type { PostStatusEntity, Tag } from '@/lib/shared/db-types'
 import { useAuthBroadcast } from '@/lib/client/hooks/use-auth-broadcast'
@@ -28,7 +28,7 @@ import { cn } from '@/lib/shared/utils'
 interface FeedbackContainerProps {
   workspaceName: string
   workspaceSlug: string
-  boards: BoardWithStats[]
+  boards: PublicBoardWithStats[]
   posts: PublicPostListItem[]
   statuses: PostStatusEntity[]
   tags: Tag[]

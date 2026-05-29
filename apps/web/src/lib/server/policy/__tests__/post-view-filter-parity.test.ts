@@ -67,6 +67,9 @@ const accessShapes: AccessCase[] = [
   { name: 'authenticated', access: mkAccess('authenticated') },
   { name: 'team', access: mkAccess('team') },
   { name: 'segments_alpha', access: mkAccess('segments', [SEGMENT_ALPHA]) },
+  // Empty segment allowlist must fail closed for every non-team actor — pin
+  // it at the composed post layer too, matching board-view-filter-parity.
+  { name: 'segments_empty', access: mkAccess('segments', []) },
 ]
 
 const STATES: ModerationState[] = ['published', 'pending', 'spam', 'deleted']

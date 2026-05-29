@@ -38,8 +38,8 @@ export function canViewBoard(actor: Actor, board: { access: BoardAccess }): Deci
  * match canViewBoard exactly — invariant test enforces this.
  *
  * Reads from the `access` JSONB column (matching canViewBoard). The legacy
- * `audience` column is still written by the dual-write path for backward
- * compatibility but is no longer read here.
+ * `audience` column was dropped in migration 0080; the REST API synthesises
+ * its old shape from `access.view` via `accessToAudience()` at read time.
  *
  * Every branch is AND-ed with `isNull(boards.deletedAt)`: a soft-deleted
  * board must never surface through any public reader path, regardless of

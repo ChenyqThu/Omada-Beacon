@@ -760,7 +760,7 @@ export const getVoteSidebarDataFn = createServerFn({ method: 'GET' })
           typeof settings?.portalConfig === 'string'
             ? JSON.parse(settings.portalConfig)
             : settings?.portalConfig
-        const anonEnabled = parsed?.features?.allowAnonymous ?? true
+        const anonEnabled = parsed?.features?.allowAnonymous ?? false
         const canVote = anonEnabled && voteDecision.allowed
         console.log(
           `[fn:public-posts] getVoteSidebarDataFn: no session, canVote=${canVote} (anonEnabled=${anonEnabled}, voteAllowed=${voteDecision.allowed})`
@@ -791,7 +791,7 @@ export const getVoteSidebarDataFn = createServerFn({ method: 'GET' })
           typeof settings?.portalConfig === 'string'
             ? JSON.parse(settings.portalConfig)
             : settings?.portalConfig
-        const anonEnabled = parsed?.features?.allowAnonymous ?? true
+        const anonEnabled = parsed?.features?.allowAnonymous ?? false
         canVote = anonEnabled && voteDecision.allowed
       }
 
