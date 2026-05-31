@@ -133,6 +133,8 @@ export function WidgetLiveChat() {
         onRemoteTyping()
       } else if (evt.kind === 'read' && evt.side === 'agent') {
         setAgentReadAt(evt.at)
+      } else if (evt.kind === 'message_deleted') {
+        setMessages((prev) => prev.filter((m) => m.id !== evt.messageId))
       }
     },
     onReconnect: () => void refreshMessages(),

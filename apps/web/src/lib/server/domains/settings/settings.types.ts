@@ -389,10 +389,17 @@ export interface UpdateDeveloperConfigInput {
  * Controls the embeddable feedback widget behavior
  * Note: widgetSecret is stored in its own DB column, NOT here
  */
+/** An agent saved reply (canned response). */
+export interface CannedReply {
+  id: string
+  title: string
+  body: string
+}
+
 /**
- * Live chat settings (sub-section of WidgetConfig). All fields are client-safe
- * — they're projected verbatim into PublicWidgetConfig and rendered in the
- * widget, so do not add secrets or internal routing rules here.
+ * Live chat settings (sub-section of WidgetConfig). Most fields are client-safe
+ * and projected into PublicLiveChatConfig; `cannedReplies` is agent-only and is
+ * stripped from the public projection (see getPublicWidgetConfig).
  */
 export interface LiveChatConfig {
   /** Master toggle for the chat tab + endpoints. */
@@ -403,7 +410,12 @@ export interface LiveChatConfig {
   offlineMessage?: string
   /** Heading shown for the chat tab/view (falls back to the workspace name). */
   teamName?: string
+  /** Agent-only saved replies — NEVER projected into the public widget config. */
+  cannedReplies?: CannedReply[]
 }
+
+/** Client-safe subset of LiveChatConfig (drops agent-only fields). */
+export type PublicLiveChatConfig = Omit<LiveChatConfig, 'cannedReplies'>
 
 export interface WidgetConfig {
   enabled: boolean
@@ -432,10 +444,12 @@ export interface WidgetConfig {
  */
 export type PublicWidgetConfig = Pick<
   WidgetConfig,
-  'enabled' | 'defaultBoard' | 'position' | 'tabs' | 'imageUploadsInWidget' | 'chat'
+  'enabled' | 'defaultBoard' | 'position' | 'tabs' | 'imageUploadsInWidget'
 > & {
   /** Whether verified identity is required (derived from identifyVerification) */
   hmacRequired?: boolean
+  /** Client-safe live chat config (no agent-only fields like cannedReplies). */
+  chat?: PublicLiveChatConfig
 }
 
 export const DEFAULT_LIVE_CHAT_CONFIG: LiveChatConfig = {

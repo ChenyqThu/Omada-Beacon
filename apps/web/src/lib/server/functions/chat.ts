@@ -9,7 +9,7 @@
  */
 import { z } from 'zod'
 import { createServerFn } from '@tanstack/react-start'
-import type { ConversationId, PrincipalId } from '@quackback/ids'
+import type { ConversationId, ChatMessageId, PrincipalId } from '@quackback/ids'
 import {
   MAX_CHAT_MESSAGE_LENGTH,
   MAX_CHAT_ATTACHMENTS,
@@ -49,8 +49,11 @@ const listMessagesSchema = z.object({
 const listConversationsSchema = z.object({
   status: z.enum(['open', 'snoozed', 'closed']).optional(),
   assignedToMe: z.boolean().optional(),
+  search: z.string().max(200).optional(),
   before: z.string().optional(),
 })
+
+const messageIdSchema = z.object({ messageId: z.string() })
 
 const agentSendSchema = z.object({
   conversationId: z.string(),
@@ -222,7 +225,36 @@ export const mintChatStreamTokenFn = createServerFn({ method: 'GET' }).handler(a
   }
 })
 
+/** Soft-delete a message (team members; or a visitor deleting their own). */
+export const deleteChatMessageFn = createServerFn({ method: 'POST' })
+  .inputValidator(messageIdSchema)
+  .handler(async ({ data }) => {
+    try {
+      const ctx = await requireAuth({ roles: ['admin', 'member', 'user'] })
+      const actor = await policyActorFromAuth(ctx)
+      const { deleteChatMessage } = await import('@/lib/server/domains/chat/chat.service')
+      await deleteChatMessage(data.messageId as ChatMessageId, actor)
+      return { ok: true }
+    } catch (error) {
+      console.error('[fn:chat] deleteChatMessageFn failed:', error)
+      throw error
+    }
+  })
+
 // ── Agent functions ──────────────────────────────────────────────────────
+
+/** Saved replies for the agent composer (team-gated; agent-only, not public). */
+export const getCannedRepliesFn = createServerFn({ method: 'GET' }).handler(async () => {
+  try {
+    await requireAuth({ roles: ['admin', 'member'] })
+    const { getLiveChatConfig } = await import('@/lib/server/domains/settings/settings.widget')
+    const chat = await getLiveChatConfig()
+    return { cannedReplies: chat.cannedReplies ?? [] }
+  } catch (error) {
+    console.error('[fn:chat] getCannedRepliesFn failed:', error)
+    throw error
+  }
+})
 
 /** Inbox feed for the support team. */
 export const listConversationsFn = createServerFn({ method: 'GET' })
@@ -234,6 +266,7 @@ export const listConversationsFn = createServerFn({ method: 'GET' })
       return await listConversationsForAgent({
         status: data.status,
         assignedAgentPrincipalId: data.assignedToMe ? ctx.principal.id : undefined,
+        search: data.search,
         before: data.before,
       })
     } catch (error) {

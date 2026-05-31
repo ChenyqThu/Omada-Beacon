@@ -2,6 +2,8 @@ import { useState, useTransition } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { ChatBubbleLeftRightIcon, ArrowPathIcon } from '@heroicons/react/24/solid'
+import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
+import type { CannedReply } from '@/lib/server/domains/settings/settings.types'
 import { settingsQueries } from '@/lib/client/queries/settings'
 import { updateWidgetConfigFn } from '@/lib/server/functions/settings'
 import { BackLink } from '@/components/ui/back-link'
@@ -11,6 +13,7 @@ import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/admin/settings/live-chat')({
   loader: async ({ context }) => {
@@ -33,8 +36,20 @@ function LiveChatSettingsPage() {
   const [welcomeMessage, setWelcomeMessage] = useState(config.chat?.welcomeMessage ?? '')
   const [offlineMessage, setOfflineMessage] = useState(config.chat?.offlineMessage ?? '')
   const [teamName, setTeamName] = useState(config.chat?.teamName ?? '')
+  const [cannedReplies, setCannedReplies] = useState<CannedReply[]>(
+    config.chat?.cannedReplies ?? []
+  )
 
   const widgetEnabled = config.enabled
+
+  function saveCannedReplies(next: CannedReply[]) {
+    setCannedReplies(next)
+    // Persist only well-formed rows (both fields filled).
+    const cleaned = next
+      .map((r) => ({ id: r.id, title: r.title.trim(), body: r.body.trim() }))
+      .filter((r) => r.title && r.body)
+    void persist('cannedReplies', { chat: { cannedReplies: cleaned } })
+  }
 
   async function persist(
     field: string,
@@ -165,6 +180,74 @@ function LiveChatSettingsPage() {
               Shown when no agents are currently available to reply.
             </p>
           </div>
+        </div>
+      </SettingsCard>
+
+      <SettingsCard
+        title="Saved replies"
+        description="Reusable responses agents can insert into a reply with one click."
+      >
+        <div className="space-y-3">
+          {cannedReplies.length === 0 && (
+            <p className="text-sm text-muted-foreground">No saved replies yet.</p>
+          )}
+          {cannedReplies.map((reply, i) => (
+            <div
+              key={reply.id}
+              className="flex items-start gap-2 rounded-lg border border-border/60 p-2.5"
+            >
+              <div className="flex-1 space-y-1.5">
+                <Input
+                  value={reply.title}
+                  maxLength={80}
+                  placeholder="Title (e.g. Greeting)"
+                  onChange={(e) =>
+                    setCannedReplies((prev) =>
+                      prev.map((r, idx) => (idx === i ? { ...r, title: e.target.value } : r))
+                    )
+                  }
+                  onBlur={() => saveCannedReplies(cannedReplies)}
+                  disabled={isBusy}
+                />
+                <Textarea
+                  value={reply.body}
+                  maxLength={2000}
+                  rows={2}
+                  placeholder="Reply text…"
+                  onChange={(e) =>
+                    setCannedReplies((prev) =>
+                      prev.map((r, idx) => (idx === i ? { ...r, body: e.target.value } : r))
+                    )
+                  }
+                  onBlur={() => saveCannedReplies(cannedReplies)}
+                  disabled={isBusy}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => saveCannedReplies(cannedReplies.filter((_, idx) => idx !== i))}
+                disabled={isBusy}
+                className="mt-1 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive transition-colors"
+                aria-label="Remove saved reply"
+              >
+                <TrashIcon className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isBusy}
+            onClick={() =>
+              setCannedReplies((prev) => [
+                ...prev,
+                { id: crypto.randomUUID(), title: '', body: '' },
+              ])
+            }
+          >
+            <PlusIcon className="h-4 w-4" /> Add reply
+          </Button>
         </div>
       </SettingsCard>
     </div>

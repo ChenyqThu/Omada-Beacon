@@ -3,10 +3,21 @@ import { db, eq, settings } from '@/lib/server/db'
 import type {
   WidgetConfig,
   PublicWidgetConfig,
+  PublicLiveChatConfig,
   UpdateWidgetConfigInput,
   LiveChatConfig,
 } from './settings.types'
 import { DEFAULT_WIDGET_CONFIG, DEFAULT_LIVE_CHAT_CONFIG } from './settings.types'
+
+/** Drop agent-only fields (cannedReplies) from a chat config for public exposure. */
+function publicLiveChatConfig(chat: LiveChatConfig): PublicLiveChatConfig {
+  return {
+    enabled: chat.enabled,
+    welcomeMessage: chat.welcomeMessage,
+    offlineMessage: chat.offlineMessage,
+    teamName: chat.teamName,
+  }
+}
 import {
   requireSettings,
   wrapDbError,
@@ -54,8 +65,8 @@ export async function getPublicWidgetConfig(): Promise<PublicWidgetConfig> {
       tabs: config.tabs,
       hmacRequired: config.identifyVerification ?? false,
       imageUploadsInWidget: config.imageUploadsInWidget ?? true,
-      // Chat fields are all client-safe (greeting/offline copy + team name).
-      chat: config.chat ?? DEFAULT_LIVE_CHAT_CONFIG,
+      // Project only client-safe chat fields; cannedReplies is agent-only.
+      chat: publicLiveChatConfig(config.chat ?? DEFAULT_LIVE_CHAT_CONFIG),
     }
   } catch (error) {
     console.error(`[domain:settings] getPublicWidgetConfig failed:`, error)

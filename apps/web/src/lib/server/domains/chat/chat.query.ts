@@ -222,6 +222,8 @@ export async function listMessages(
 export interface ConversationListFilter {
   status?: 'open' | 'snoozed' | 'closed'
   assignedAgentPrincipalId?: PrincipalId
+  /** Free-text match over the visitor name + message content. */
+  search?: string
   /** Cursor: lastMessageAt ISO string — fetch conversations older than it. */
   before?: string
   limit?: number
@@ -239,6 +241,26 @@ export async function listConversationsForAgent(
 ): Promise<ConversationListPage> {
   const limit = Math.min(filter.limit ?? INBOX_PAGE_SIZE, 100)
   const beforeDate = filter.before ? new Date(filter.before) : null
+  const search = filter.search?.trim()
+  // Match the visitor's name or any non-deleted message content. EXISTS keeps
+  // the select shape (conversations only) — no join row fan-out. The term is
+  // parameter-bound, so `%`/`_` are treated as literals-plus-wildcards, not SQLi.
+  const searchCondition =
+    search && search.length > 0
+      ? sql`(
+          EXISTS (
+            SELECT 1 FROM ${principal} p
+            WHERE p.id = ${conversations.visitorPrincipalId}
+              AND p.display_name ILIKE ${'%' + search + '%'}
+          )
+          OR EXISTS (
+            SELECT 1 FROM ${chatMessages} m
+            WHERE m.conversation_id = ${conversations.id}
+              AND m.deleted_at IS NULL
+              AND m.content ILIKE ${'%' + search + '%'}
+          )
+        )`
+      : undefined
 
   const rows = await db
     .select()
@@ -249,6 +271,7 @@ export async function listConversationsForAgent(
         filter.assignedAgentPrincipalId
           ? eq(conversations.assignedAgentPrincipalId, filter.assignedAgentPrincipalId)
           : undefined,
+        searchCondition,
         beforeDate ? lt(conversations.lastMessageAt, beforeDate) : undefined
       )
     )

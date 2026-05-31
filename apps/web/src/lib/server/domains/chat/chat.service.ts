@@ -8,9 +8,17 @@
  *   - sendVisitorMessage: the conversation owner posts (senderType 'visitor').
  *   - sendAgentMessage:    a team member replies (senderType 'agent').
  */
-import { db, eq, conversations, chatMessages, type Conversation } from '@/lib/server/db'
+import {
+  db,
+  eq,
+  and,
+  isNull,
+  conversations,
+  chatMessages,
+  type Conversation,
+} from '@/lib/server/db'
 import type { ChatAttachment } from '@/lib/server/db'
-import type { ConversationId, PrincipalId } from '@quackback/ids'
+import type { ConversationId, ChatMessageId, PrincipalId } from '@quackback/ids'
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/shared/errors'
 import { config } from '@/lib/server/config'
 import {
@@ -18,6 +26,7 @@ import {
   canStartConversation,
   canActAsAgent,
   canViewConversation,
+  canDeleteMessage,
 } from '@/lib/server/policy/chat'
 import type { Actor } from '@/lib/server/policy/types'
 import {
@@ -41,14 +50,27 @@ const PREVIEW_LENGTH = 120
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
 
 /**
- * Only accept attachment URLs that came from our own upload pipeline (relative
- * /api/storage/... or the configured S3 public host) — never an arbitrary URL
- * a client could inject into the message body.
+ * Only accept attachment URLs that came from our own upload pipeline. Parse the
+ * URL and match scheme + host + path STRUCTURALLY — a substring check is
+ * bypassable (e.g. `javascript:'/api/storage/'` or `https://evil/api/storage/`)
+ * and would become stored XSS when rendered into an href/src.
  */
 function isTrustedAttachmentUrl(url: string): boolean {
   if (typeof url !== 'string' || url.length === 0) return false
-  if (config.s3PublicUrl && url.startsWith(config.s3PublicUrl)) return true
-  return url.includes('/api/storage/')
+  // Relative path served by our own storage proxy route.
+  if (url.startsWith('/api/storage/')) return true
+  try {
+    const u = new URL(url)
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return false
+    if (config.s3PublicUrl) {
+      const base = new URL(config.s3PublicUrl)
+      if (u.hostname === base.hostname && u.pathname.startsWith(base.pathname)) return true
+    }
+    const appBase = new URL(config.baseUrl)
+    return u.hostname === appBase.hostname && u.pathname.startsWith('/api/storage/')
+  } catch {
+    return false
+  }
 }
 
 function validateAttachments(attachments?: ChatAttachment[]): ChatAttachment[] {
@@ -326,6 +348,44 @@ export async function assignConversation(
   const dto = await conversationToDTO(updated, 'agent')
   publishChatEvent(conversationId, { kind: 'conversation', conversation: dto })
   return updated
+}
+
+/** Soft-delete a message. Team members may delete any message; a visitor may
+ * delete only their own. Broadcasts a message_deleted event so open clients
+ * drop the bubble. Idempotent. */
+export async function deleteChatMessage(messageId: ChatMessageId, actor: Actor): Promise<void> {
+  const [message] = await db
+    .select()
+    .from(chatMessages)
+    .where(eq(chatMessages.id, messageId))
+    .limit(1)
+  if (!message) throw new NotFoundError('MESSAGE_NOT_FOUND', 'Message not found')
+
+  const conversation = await loadConversationOr404(message.conversationId)
+
+  const decision = canDeleteMessage(
+    actor,
+    { senderType: message.senderType, authorPrincipalId: message.principalId },
+    conversation
+  )
+  if (!decision.allowed) {
+    // Hide existence from anyone who can't even view the conversation.
+    if (!canViewConversation(actor, conversation).allowed) {
+      throw new NotFoundError('MESSAGE_NOT_FOUND', 'Message not found')
+    }
+    throw new ForbiddenError('FORBIDDEN', decision.reason)
+  }
+
+  await db
+    .update(chatMessages)
+    .set({ deletedAt: new Date(), deletedByPrincipalId: actor.principalId, updatedAt: new Date() })
+    .where(and(eq(chatMessages.id, messageId), isNull(chatMessages.deletedAt)))
+
+  publishChatEvent(message.conversationId, {
+    kind: 'message_deleted',
+    conversationId: message.conversationId,
+    messageId,
+  })
 }
 
 /** Broadcast an ephemeral typing signal (never persisted). */

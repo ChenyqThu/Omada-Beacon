@@ -208,4 +208,25 @@ describe('sendVisitorMessage attachments', () => {
     ).rejects.toBeInstanceOf(ValidationError)
     expect(insertedMessages).toHaveLength(0)
   })
+
+  // Structural URL validation must reject substring-bypass attempts that an
+  // includes('/api/storage/') check would have let through (stored-XSS vector).
+  it.each([
+    'javascript:alert(1)//api/storage/x',
+    'https://evil.example.com/api/storage/pixel.gif',
+    'https://localhost.evil.com/api/storage/x',
+    'data:text/html,/api/storage/',
+  ])('rejects bypass URL %s', async (badUrl) => {
+    await expect(
+      sendVisitorMessage(
+        {
+          content: 'hi',
+          attachments: [{ url: badUrl, name: 'x', contentType: 'image/png', size: 10 }],
+        },
+        { principalId: visitor },
+        visitorActor
+      )
+    ).rejects.toBeInstanceOf(ValidationError)
+    expect(insertedMessages).toHaveLength(0)
+  })
 })

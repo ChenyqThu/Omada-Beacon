@@ -54,3 +54,25 @@ export function canActAsAgent(actor: Actor): Decision {
   if (isTeamActor(actor)) return allowDecision()
   return denyDecision('Only team members can act as a support agent')
 }
+
+/**
+ * Who may delete a message: a team member (any message), or the visitor who
+ * authored it (their own visitor-side message in their own conversation).
+ */
+export function canDeleteMessage(
+  actor: Actor,
+  message: { senderType: 'visitor' | 'agent'; authorPrincipalId: PrincipalId },
+  conversation: ConversationShape
+): Decision {
+  if (isTeamActor(actor)) return allowDecision()
+  if (
+    actor.principalId &&
+    actor.principalType !== 'service' &&
+    message.senderType === 'visitor' &&
+    message.authorPrincipalId === actor.principalId &&
+    conversation.visitorPrincipalId === actor.principalId
+  ) {
+    return allowDecision()
+  }
+  return denyDecision('You can only delete your own messages')
+}

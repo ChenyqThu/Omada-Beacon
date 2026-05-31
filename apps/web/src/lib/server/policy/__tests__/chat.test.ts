@@ -8,6 +8,7 @@ import {
   canSendVisitorMessage,
   canStartConversation,
   canActAsAgent,
+  canDeleteMessage,
   type ConversationShape,
 } from '../chat'
 import { ANONYMOUS_ACTOR, type Actor } from '../types'
@@ -130,5 +131,44 @@ describe('canActAsAgent', () => {
     expect(canActAsAgent(visitorActor).allowed).toBe(false)
     expect(canActAsAgent(anonVisitorActor).allowed).toBe(false)
     expect(canActAsAgent(ANONYMOUS_ACTOR).allowed).toBe(false)
+  })
+})
+
+describe('canDeleteMessage', () => {
+  const ownVisitorMsg = { senderType: 'visitor' as const, authorPrincipalId: VISITOR }
+  const agentMsg = {
+    senderType: 'agent' as const,
+    authorPrincipalId: 'principal_admin' as PrincipalId,
+  }
+
+  it('lets a team member delete any message', () => {
+    expect(canDeleteMessage(adminActor, ownVisitorMsg, openConv).allowed).toBe(true)
+    expect(canDeleteMessage(memberActor, agentMsg, openConv).allowed).toBe(true)
+  })
+
+  it('lets the owning visitor delete their own visitor message', () => {
+    expect(canDeleteMessage(visitorActor, ownVisitorMsg, openConv).allowed).toBe(true)
+    expect(canDeleteMessage(anonVisitorActor, ownVisitorMsg, openConv).allowed).toBe(true)
+  })
+
+  it('denies a visitor deleting an agent message', () => {
+    expect(canDeleteMessage(visitorActor, agentMsg, openConv).allowed).toBe(false)
+  })
+
+  it("denies a visitor deleting another visitor's message", () => {
+    const othersMsg = { senderType: 'visitor' as const, authorPrincipalId: OTHER }
+    expect(canDeleteMessage(visitorActor, othersMsg, openConv).allowed).toBe(false)
+  })
+
+  it('denies a non-team service principal via the visitor self-delete path', () => {
+    // A service principal acting as the conversation owner must not slip
+    // through the visitor branch (the team branch is role-gated separately).
+    const serviceVisitor: Actor = {
+      principalId: VISITOR,
+      role: 'user',
+      principalType: 'service',
+      segmentIds: new Set(),
+    }
+    expect(canDeleteMessage(serviceVisitor, ownVisitorMsg, openConv).allowed).toBe(false)
   })
 })

@@ -7,12 +7,27 @@ function humanSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+/**
+ * Defense-in-depth: only ever render http(s) or same-origin relative URLs into
+ * href/src, so a malformed/hostile URL can never become a javascript: sink.
+ */
+function isSafeUrl(url: string): boolean {
+  if (url.startsWith('/')) return true
+  try {
+    const proto = new URL(url).protocol
+    return proto === 'https:' || proto === 'http:'
+  } catch {
+    return false
+  }
+}
+
 /** Renders a message's attachments — images inline, other files as chips. */
 export function ChatAttachmentList({ attachments }: { attachments: ChatAttachment[] }) {
-  if (!attachments || attachments.length === 0) return null
+  const safe = (attachments ?? []).filter((a) => isSafeUrl(a.url))
+  if (safe.length === 0) return null
   return (
     <div className="mt-1.5 flex flex-col gap-1.5">
-      {attachments.map((a, i) =>
+      {safe.map((a, i) =>
         a.contentType.startsWith('image/') ? (
           <a key={i} href={a.url} target="_blank" rel="noreferrer" className="block">
             <img

@@ -72,6 +72,7 @@ export type ChatStreamEvent =
       side: ChatSenderType
       at: string
     }
+  | { kind: 'message_deleted'; conversationId: ConversationId; messageId: ChatMessageId }
 
 /** Hard caps shared by client + server validation. */
 export const MAX_CHAT_MESSAGE_LENGTH = 4000
