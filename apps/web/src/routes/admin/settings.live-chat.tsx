@@ -1,7 +1,6 @@
 import { useMemo, useState, useTransition } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
-import { toast } from 'sonner'
 import { ChatBubbleLeftRightIcon, ArrowPathIcon } from '@heroicons/react/24/solid'
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import type { CannedReply, ChatMacro } from '@/lib/server/domains/settings/settings.types'
@@ -55,11 +54,6 @@ function LiveChatSettingsPage() {
   )
   const [preChatEmail, setPreChatEmail] = useState<'off' | 'optional' | 'required'>(
     config.chat?.preChatEmail ?? 'off'
-  )
-  const [firstResponseTarget, setFirstResponseTarget] = useState<string>(
-    config.chat?.firstResponseTargetMinutes != null
-      ? String(config.chat.firstResponseTargetMinutes)
-      : ''
   )
 
   const widgetEnabled = config.enabled
@@ -245,44 +239,6 @@ function LiveChatSettingsPage() {
             </select>
             <p className="text-xs text-muted-foreground">
               Capture an email from anonymous visitors so you can follow up by email when offline.
-            </p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="chat-first-response-target">First response target (minutes)</Label>
-            <Input
-              id="chat-first-response-target"
-              type="number"
-              min={1}
-              max={10080}
-              value={firstResponseTarget}
-              placeholder="e.g. 60"
-              onChange={(e) => setFirstResponseTarget(e.target.value)}
-              onBlur={() => {
-                const trimmed = firstResponseTarget.trim()
-                if (trimmed === '') {
-                  // Empty clears a previously-set target.
-                  void persist('firstResponseTarget', {
-                    chat: { firstResponseTargetMinutes: null },
-                  })
-                  return
-                }
-                const parsed = Number.parseInt(trimmed, 10)
-                if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 10080) {
-                  void persist('firstResponseTarget', {
-                    chat: { firstResponseTargetMinutes: parsed },
-                  })
-                } else {
-                  // Mirror the server bound so an out-of-range value isn't
-                  // silently rejected — give the admin feedback instead.
-                  toast.error('Enter a target between 1 and 10080 minutes')
-                }
-              }}
-              disabled={isBusy || !enabled}
-              className="max-w-40"
-            />
-            <p className="text-xs text-muted-foreground">
-              Used by support analytics to report how quickly the team first replies.
             </p>
           </div>
         </div>
