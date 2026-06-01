@@ -64,17 +64,6 @@ export async function getWidgetSession(opts?: {
 
     if (!sessionRecord?.user) return null
 
-    // Roll the session's expiry forward on active use so a returning visitor
-    // isn't cut off 7 days after their first mint. Gated to ≥24h since the last
-    // touch so rapid reloads don't each write.
-    if (opts?.roll && shouldRollSession(sessionRecord.updatedAt, Date.now())) {
-      const nowDate = new Date()
-      await db
-        .update(session)
-        .set({ expiresAt: new Date(nowDate.getTime() + WIDGET_SESSION_TTL_MS), updatedAt: nowDate })
-        .where(eq(session.token, token))
-    }
-
     const userId = sessionRecord.userId as UserId
 
     const { getSettings } = await import('./workspace')
@@ -100,9 +89,21 @@ export async function getWidgetSession(opts?: {
       principalRecord = created
     }
 
-    // A cookie-resolved session may ONLY be anonymous — never let a first-party
-    // cookie stand in for an identified/elevated session.
+    // A cookie-resolved session may ONLY be anonymous — checked BEFORE any write
+    // (e.g. the TTL roll below) so the cookie channel never touches, let alone
+    // resolves, a non-anonymous session.
     if (viaCookie && (principalRecord.type ?? 'user') !== 'anonymous') return null
+
+    // Roll the session's expiry forward on active use so a returning visitor
+    // isn't cut off 7 days after their first mint. Gated to ≥24h since the last
+    // touch so rapid reloads don't each write.
+    if (opts?.roll && shouldRollSession(sessionRecord.updatedAt, Date.now())) {
+      const nowDate = new Date()
+      await db
+        .update(session)
+        .set({ expiresAt: new Date(nowDate.getTime() + WIDGET_SESSION_TTL_MS), updatedAt: nowDate })
+        .where(eq(session.token, token))
+    }
 
     return {
       settings: {
