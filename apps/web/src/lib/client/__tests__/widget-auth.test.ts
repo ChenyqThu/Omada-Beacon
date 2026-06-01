@@ -10,30 +10,9 @@ import {
   readPersistedToken,
   clearPersistedToken,
 } from '../widget-auth'
+import { installInMemoryLocalStorage } from '@/test/local-storage'
 
-// happy-dom ships a non-functional Storage stub in this project, so install a
-// minimal in-memory localStorage that the persistence layer (window.localStorage)
-// can exercise deterministically.
-const __store = new Map<string, string>()
-const localStorageMock: Storage = {
-  get length() {
-    return __store.size
-  },
-  clear: () => __store.clear(),
-  getItem: (k) => (__store.has(k) ? __store.get(k)! : null),
-  key: (i) => Array.from(__store.keys())[i] ?? null,
-  removeItem: (k) => {
-    __store.delete(k)
-  },
-  setItem: (k, v) => {
-    __store.set(k, String(v))
-  },
-}
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-  configurable: true,
-  writable: true,
-})
+installInMemoryLocalStorage()
 
 describe('widget-auth', () => {
   beforeEach(() => {
