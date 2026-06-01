@@ -13,6 +13,7 @@ import {
   and,
   or,
   lt,
+  gt,
   inArray,
   isNull,
   desc,
@@ -157,7 +158,11 @@ async function unreadCountFor(conversation: Conversation, side: ChatSenderType):
         isNull(chatMessages.deletedAt),
         // Internal notes never count toward unread (esp. for the visitor side).
         eq(chatMessages.isInternal, false),
-        readAt ? sql`${chatMessages.createdAt} > ${readAt}` : sql`true`
+        // Use the gt() operator (not a raw sql template) so the Date watermark
+        // is bound through Drizzle's timestamp encoder — embedding a Date in a
+        // raw sql fragment makes the driver reject it ("expected string, got
+        // Date") and aborts the whole send.
+        readAt ? gt(chatMessages.createdAt, readAt) : undefined
       )
     )
   return row?.c ?? 0
