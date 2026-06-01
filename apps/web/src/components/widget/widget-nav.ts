@@ -3,19 +3,25 @@
  * views, and which view/tab the widget lands on for a given enabled-surface
  * config. Kept as a pure module (no React) so the routing rules are unit-tested
  * directly rather than through the route component.
+ *
+ * Chat is folded into the Help (support) surface: the bottom bar carries at
+ * most home | feedback | changelog | help, and the Help tab hosts both articles
+ * and messages. A "content surface" is feedback, changelog, or support (help OR
+ * chat); the aggregated Home appears only when 2+ are enabled.
  */
 
-/** Bottom-bar tabs. Each maps to one enabled surface. */
-export type WidgetTab = 'feedback' | 'changelog' | 'help' | 'chat'
+/** Bottom-bar tabs. "help" is the combined support surface (articles + messages). */
+export type WidgetTab = 'home' | 'feedback' | 'changelog' | 'help'
 
 /**
  * Discrete views the widget can render. The feedback surface's root is
- * 'feedback-feed' (the ideas feed + composer); every other surface's root view
- * shares its tab name. Detail views ('post-detail', '*-detail', 'help-category',
- * 'success') are pushed on top of a root.
+ * 'feedback'; 'overview' is the aggregated Home. 'chat' is the live-chat
+ * thread, reached from inside the support surface (and the Home resume card),
+ * not from its own bottom tab. Detail views are pushed on top of a root.
  */
 export type WidgetView =
-  | 'feedback-feed'
+  | 'overview'
+  | 'feedback'
   | 'post-detail'
   | 'success'
   | 'changelog'
@@ -33,17 +39,53 @@ export interface EnabledTabs {
   chat?: boolean
 }
 
-/** Highest-priority enabled tab, in order feedback > changelog > help > chat. */
-export function resolveInitialTab(tabs: EnabledTabs): WidgetTab {
-  if (tabs.feedback) return 'feedback'
-  if (tabs.changelog) return 'changelog'
-  if (tabs.help) return 'help'
-  return 'chat'
+/** The support surface is on when either help articles or live chat is enabled. */
+export function supportEnabled(tabs: EnabledTabs): boolean {
+  return !!(tabs.help || tabs.chat)
 }
 
-/** Root view for the initial tab (feedback -> 'feedback-feed'; others share the name). */
+/**
+ * Root view for the support tab: the help articles when help is on, otherwise
+ * the chat thread directly (a chat-only support surface has nothing to list).
+ */
+export function supportRootView(tabs: EnabledTabs): Extract<WidgetView, 'help' | 'chat'> {
+  return tabs.help ? 'help' : 'chat'
+}
+
+/** Number of distinct content surfaces enabled (help + chat collapse to one). */
+export function contentSurfaceCount(tabs: EnabledTabs): number {
+  return [tabs.feedback, tabs.changelog, supportEnabled(tabs)].filter(Boolean).length
+}
+
+/** The aggregated Home is only worthwhile when 2+ content surfaces are enabled. */
+export function homeEnabled(tabs: EnabledTabs): boolean {
+  return contentSurfaceCount(tabs) > 1
+}
+
+/** Ordered tabs the bottom bar should render (Home first, only when enabled). */
+export function visibleTabs(tabs: EnabledTabs): WidgetTab[] {
+  const out: WidgetTab[] = []
+  if (homeEnabled(tabs)) out.push('home')
+  if (tabs.feedback) out.push('feedback')
+  if (tabs.changelog) out.push('changelog')
+  if (supportEnabled(tabs)) out.push('help')
+  return out
+}
+
+/** Tab highlighted on launch: Home when enabled, else the single surface. */
+export function resolveInitialTab(tabs: EnabledTabs): WidgetTab {
+  if (homeEnabled(tabs)) return 'home'
+  if (tabs.feedback) return 'feedback'
+  if (tabs.changelog) return 'changelog'
+  if (supportEnabled(tabs)) return 'help'
+  return 'feedback'
+}
+
+/** View shown on launch: the overview when Home is enabled, else the surface root. */
 export function resolveInitialView(tabs: EnabledTabs): WidgetView {
-  const tab = resolveInitialTab(tabs)
-  if (tab === 'feedback') return 'feedback-feed'
-  return tab
+  if (homeEnabled(tabs)) return 'overview'
+  if (tabs.feedback) return 'feedback'
+  if (tabs.changelog) return 'changelog'
+  if (supportEnabled(tabs)) return supportRootView(tabs)
+  return 'feedback'
 }

@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowLeftIcon,
   XMarkIcon,
+  HomeIcon,
   LightBulbIcon,
   NewspaperIcon,
   BookOpenIcon,
-  ChatBubbleLeftRightIcon,
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/solid'
 import { FormattedMessage, useIntl } from 'react-intl'
@@ -16,7 +16,7 @@ import { getWidgetAuthHeaders, generateOneTimeToken } from '@/lib/client/widget-
 import { sendToHost } from '@/lib/client/widget-bridge'
 import { useWidgetAuth } from './widget-auth-provider'
 
-import type { WidgetTab } from './widget-nav'
+import { type WidgetTab, type EnabledTabs, visibleTabs } from './widget-nav'
 export type { WidgetTab }
 
 const TAB_CONFIG: {
@@ -25,6 +25,7 @@ const TAB_CONFIG: {
   labelId: string
   defaultLabel: string
 }[] = [
+  { tab: 'home', icon: HomeIcon, labelId: 'widget.shell.tab.home', defaultLabel: 'Home' },
   {
     tab: 'feedback',
     icon: LightBulbIcon,
@@ -38,12 +39,6 @@ const TAB_CONFIG: {
     defaultLabel: 'Changelog',
   },
   { tab: 'help', icon: BookOpenIcon, labelId: 'widget.shell.tab.help', defaultLabel: 'Help' },
-  {
-    tab: 'chat',
-    icon: ChatBubbleLeftRightIcon,
-    labelId: 'widget.shell.tab.chat',
-    defaultLabel: 'Chat',
-  },
 ]
 
 interface PortalAccessProps {
@@ -58,7 +53,7 @@ interface WidgetShellProps {
   activeTab: WidgetTab
   onTabChange: (tab: WidgetTab) => void
   onBack?: () => void
-  enabledTabs?: { feedback?: boolean; changelog?: boolean; help?: boolean; chat?: boolean }
+  enabledTabs?: EnabledTabs
   /** Portal access config used to decide whether to show the "Go to portal" CTA. */
   portalAccess?: PortalAccessProps
   /**
@@ -83,13 +78,8 @@ export function WidgetShell({
   children,
 }: WidgetShellProps) {
   const intl = useIntl()
-  const enabledCount = [
-    enabledTabs.feedback,
-    enabledTabs.changelog,
-    enabledTabs.help,
-    enabledTabs.chat,
-  ].filter(Boolean).length
-  const showTabBar = enabledCount > 1
+  const tabsToShow = visibleTabs(enabledTabs)
+  const showTabBar = tabsToShow.length > 1
   const { user, isIdentified, hmacRequired, closeWidget } = useWidgetAuth()
   const isNative =
     typeof window !== 'undefined' &&
@@ -166,7 +156,7 @@ export function WidgetShell({
             >
               <ArrowLeftIcon className="w-4 h-4 text-muted-foreground" />
             </button>
-          ) : (
+          ) : activeTab === 'home' ? null : (
             <h2 className="text-sm font-semibold text-foreground ps-0.5">
               {activeTab === 'feedback' ? (
                 <FormattedMessage
@@ -175,8 +165,6 @@ export function WidgetShell({
                 />
               ) : activeTab === 'help' ? (
                 <FormattedMessage id="widget.shell.heading.help" defaultMessage="Help Center" />
-              ) : activeTab === 'chat' ? (
-                <FormattedMessage id="widget.shell.heading.chat" defaultMessage="Chat with us" />
               ) : (
                 <FormattedMessage id="widget.shell.heading.changelog" defaultMessage="What's new" />
               )}
@@ -233,8 +221,11 @@ export function WidgetShell({
       >
         {showTabBar && (
           <div className="flex">
-            {TAB_CONFIG.filter(({ tab }) => enabledTabs[tab]).map(
-              ({ tab, icon: Icon, labelId, defaultLabel }) => (
+            {tabsToShow.map((tab) => {
+              const cfg = TAB_CONFIG.find((c) => c.tab === tab)
+              if (!cfg) return null
+              const Icon = cfg.icon
+              return (
                 <button
                   key={tab}
                   type="button"
@@ -248,11 +239,11 @@ export function WidgetShell({
                 >
                   <Icon className="w-5 h-5" />
                   <span className="text-xs font-medium">
-                    <FormattedMessage id={labelId} defaultMessage={defaultLabel} />
+                    <FormattedMessage id={cfg.labelId} defaultMessage={cfg.defaultLabel} />
                   </span>
                 </button>
               )
-            )}
+            })}
           </div>
         )}
 

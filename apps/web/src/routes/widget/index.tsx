@@ -12,8 +12,11 @@ import {
   type WidgetView,
   resolveInitialTab,
   resolveInitialView,
+  supportRootView,
+  homeEnabled,
 } from '@/components/widget/widget-nav'
 import { WidgetHome } from '@/components/widget/widget-home'
+import { WidgetOverview } from '@/components/widget/widget-overview'
 import { WidgetPostDetail } from '@/components/widget/widget-post-detail'
 import { WidgetChangelog } from '@/components/widget/widget-changelog'
 import { WidgetChangelogDetail } from '@/components/widget/widget-changelog-detail'
@@ -186,17 +189,20 @@ function WidgetPage() {
       if (opts.view === 'changelog' && tabs.changelog) {
         setActiveTab('changelog')
         setView('changelog')
-      } else if (opts.view === 'help' && tabs.help) {
+      } else if (opts.view === 'help' && (tabs.help || tabs.chat)) {
         setActiveTab('help')
-        setView('help')
+        setView(supportRootView(tabs))
       } else if ((opts.view === 'chat' || opts.view === 'live-chat') && tabs.chat) {
-        setActiveTab('chat')
+        setActiveTab('help')
         setView('chat')
+      } else if ((opts.view === 'home' || opts.view === 'overview') && homeEnabled(tabs)) {
+        setActiveTab('home')
+        setView('overview')
       }
     }
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
-  }, [tabs.changelog, tabs.help, tabs.chat])
+  }, [tabs])
 
   const handlePostCreated = useCallback((post: SuccessPost) => {
     setCreatedPosts((prev) => [
@@ -239,26 +245,37 @@ function WidgetPage() {
       setView('help')
       return
     }
+    if (view === 'chat') {
+      // Chat is reached from within the support surface, so back returns to the
+      // help articles (this path is only wired when help is enabled — a
+      // chat-only support surface treats chat as its root, with no back).
+      setView('help')
+      return
+    }
     setSelectedPostId(null)
-    setView('feedback-feed')
+    setView('feedback')
   }, [view, selectedCategory])
 
-  const handleTabChange = useCallback((tab: WidgetTab) => {
-    setActiveTab(tab)
-    if (tab === 'feedback') {
-      setSelectedPostId(null)
-      setView('feedback-feed')
-    } else if (tab === 'changelog') {
-      setSelectedChangelogId(null)
-      setView('changelog')
-    } else if (tab === 'chat') {
-      setView('chat')
-    } else {
-      setSelectedHelpSlug(null)
-      setSelectedCategory(null)
-      setView('help')
-    }
-  }, [])
+  const handleTabChange = useCallback(
+    (tab: WidgetTab) => {
+      setActiveTab(tab)
+      if (tab === 'home') {
+        setView('overview')
+      } else if (tab === 'feedback') {
+        setSelectedPostId(null)
+        setView('feedback')
+      } else if (tab === 'changelog') {
+        setSelectedChangelogId(null)
+        setView('changelog')
+      } else {
+        // 'help' — the combined support surface (articles + messages)
+        setSelectedHelpSlug(null)
+        setSelectedCategory(null)
+        setView(supportRootView(tabs))
+      }
+    },
+    [tabs]
+  )
 
   const handleChangelogEntrySelect = useCallback((entryId: string) => {
     setSelectedChangelogId(entryId)
@@ -283,8 +300,16 @@ function WidgetPage() {
     setView('help-detail')
   }, [])
 
+  // Root views have no back arrow. Chat is a root only when it is the entire
+  // support surface (help disabled); when help is on, chat sits above the help
+  // articles and backs out to them.
+  const chatIsRoot = view === 'chat' && !tabs.help
   const shellOnBack =
-    view !== 'feedback-feed' && view !== 'changelog' && view !== 'help' && view !== 'chat'
+    view !== 'overview' &&
+    view !== 'feedback' &&
+    view !== 'changelog' &&
+    view !== 'help' &&
+    !chatIsRoot
       ? handleBack
       : undefined
 
@@ -298,6 +323,15 @@ function WidgetPage() {
       portalAccess={portalAccess}
       portalOrigin={portalOrigin}
     >
+      {view === 'overview' && (
+        <WidgetOverview
+          tabs={tabs}
+          onLeaveFeedback={() => handleTabChange('feedback')}
+          onGetHelp={() => handleTabChange('help')}
+          onSeeChangelog={() => handleTabChange('changelog')}
+        />
+      )}
+
       {view === 'changelog' && <WidgetChangelog onEntrySelect={handleChangelogEntrySelect} />}
 
       {view === 'chat' && (
@@ -312,6 +346,7 @@ function WidgetPage() {
         <WidgetHelp
           onArticleSelect={handleHelpArticleSelect}
           onCategorySelect={handleHelpCategorySelect}
+          onOpenChat={tabs.chat ? () => setView('chat') : undefined}
         />
       )}
 
@@ -331,8 +366,8 @@ function WidgetPage() {
       {/* Keep home mounted (hidden) when viewing post detail so form state is preserved */}
       <div
         className={
-          view === 'feedback-feed' || view === 'post-detail'
-            ? view === 'feedback-feed'
+          view === 'feedback' || view === 'post-detail'
+            ? view === 'feedback'
               ? 'flex flex-col h-full'
               : 'hidden'
             : 'hidden'
