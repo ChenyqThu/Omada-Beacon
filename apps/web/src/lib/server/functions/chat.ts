@@ -181,20 +181,27 @@ export const getMyChatFn = createServerFn({ method: 'GET' }).handler(async () =>
   try {
     const { getLiveChatConfig, isLiveChatEnabled } =
       await import('@/lib/server/domains/settings/settings.widget')
+    const { isEmailConfigured } = await import('@quackback/email')
+    const { canEmailVisitor } = await import('@/lib/shared/chat/reply-capability')
     const [enabled, chatConfig] = await Promise.all([isLiveChatEnabled(), getLiveChatConfig()])
     const officeHours = chatConfig.officeHours
+    const preChatEmail = chatConfig.preChatEmail ?? 'off'
+    const emailConfigured = isEmailConfigured()
     const base = {
       enabled,
       welcomeMessage: chatConfig.welcomeMessage ?? null,
       offlineMessage: chatConfig.offlineMessage ?? null,
       teamName: chatConfig.teamName ?? null,
-      preChatEmail: chatConfig.preChatEmail ?? 'off',
+      preChatEmail,
       // null = no office-hours schedule configured; the widget falls back to
       // live agent presence. true/false = the schedule's current verdict.
       withinOfficeHours: officeHours?.enabled ? isWithinOfficeHours(officeHours, new Date()) : null,
       // Whether we already have a contact email — the widget skips the pre-chat
       // prompt when true.
       visitorHasEmail: false,
+      // Whether an offline reply could actually reach this visitor by email —
+      // the widget shows a non-promising offline message when false.
+      canEmailVisitor: canEmailVisitor({ emailConfigured, preChatEmail, visitorHasEmail: false }),
     }
 
     if (!enabled || !hasAuthCredentials()) {
@@ -225,10 +232,12 @@ export const getMyChatFn = createServerFn({ method: 'GET' }).handler(async () =>
       isAnyAgentOnline(),
     ])
     const visitorHasEmail = Boolean(ctx.user?.email) || Boolean(conversation?.visitorEmail)
+    const canEmail = canEmailVisitor({ emailConfigured, preChatEmail, visitorHasEmail })
     if (!conversation) {
       return {
         ...base,
         visitorHasEmail,
+        canEmailVisitor: canEmail,
         conversation: null,
         messages: [],
         hasMore: false,
@@ -243,6 +252,7 @@ export const getMyChatFn = createServerFn({ method: 'GET' }).handler(async () =>
     return {
       ...base,
       visitorHasEmail,
+      canEmailVisitor: canEmail,
       conversation: dto,
       messages: page.messages,
       hasMore: page.hasMore,

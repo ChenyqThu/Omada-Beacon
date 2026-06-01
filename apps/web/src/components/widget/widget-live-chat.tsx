@@ -65,6 +65,9 @@ export function WidgetLiveChat({ helpEnabled, onArticleSelect }: WidgetLiveChatP
   const [preChatMode, setPreChatMode] = useState<'off' | 'optional' | 'required'>('off')
   const [emailKnown, setEmailKnown] = useState(false)
   const [emailInput, setEmailInput] = useState('')
+  // Whether an offline reply could actually reach this visitor by email — drives
+  // the offline copy so the widget never promises email it can't send.
+  const [canEmailReply, setCanEmailReply] = useState(false)
   // Older-message pagination.
   const [hasMoreOlder, setHasMoreOlder] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
@@ -116,6 +119,7 @@ export function WidgetLiveChat({ helpEnabled, onArticleSelect }: WidgetLiveChatP
         setAgentsOnline(res.agentsOnline)
         setWithinOfficeHours(res.withinOfficeHours)
         setPreChatMode(res.preChatEmail)
+        setCanEmailReply(res.canEmailVisitor)
         setEmailKnown(res.visitorHasEmail)
         setHasMoreOlder(res.hasMore)
         setConversationId((res.conversation?.id as ConversationId | undefined) ?? null)
@@ -299,6 +303,10 @@ export function WidgetLiveChat({ helpEnabled, onArticleSelect }: WidgetLiveChatP
   const needsEmail =
     preChatMode !== 'off' && !emailKnown && !conversationId && messages.length === 0
   const emailBlocksSend = preChatMode === 'required' && needsEmail && !emailValid
+  // Show the offline hint when the team is away. When we can email a reply, only
+  // echo the admin's message if one is set; when we can't, always show the
+  // neutral "we'll reply here" note instead of a false email promise.
+  const showOfflineHint = !available && (canEmailReply ? Boolean(offlineMessage) : true)
 
   // Flatten the thread into virtualized rows. anchorTo:'end' + followOnAppend
   // keep the view pinned to the newest message and stick to the bottom as
@@ -599,10 +607,19 @@ export function WidgetLiveChat({ helpEnabled, onArticleSelect }: WidgetLiveChatP
         </div>
       )}
 
-      {/* Offline hint */}
-      {!available && offlineMessage && (
+      {/* Offline hint (see showOfflineHint): echo the admin's email-promising
+          message only when a reply can actually reach them; otherwise a neutral
+          "reply here" note. */}
+      {showOfflineHint && (
         <p className="px-4 pt-2 text-[11px] text-muted-foreground/70 text-center">
-          {offlineMessage}
+          {canEmailReply ? (
+            offlineMessage
+          ) : (
+            <FormattedMessage
+              id="widget.chat.offline.noEmail"
+              defaultMessage="We're away right now — leave a message and we'll reply here when we're back."
+            />
+          )}
         </p>
       )}
 
@@ -635,6 +652,20 @@ export function WidgetLiveChat({ helpEnabled, onArticleSelect }: WidgetLiveChatP
               placeholder="you@example.com"
               className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
             />
+            {/* Optional mode: an explicit skip so blank-and-send is a choice,
+                not a silent fallthrough. */}
+            {preChatMode === 'optional' && (
+              <button
+                type="button"
+                onClick={() => setEmailKnown(true)}
+                className="mt-1 text-[11px] text-muted-foreground/70 underline hover:text-foreground"
+              >
+                <FormattedMessage
+                  id="widget.chat.email.skip"
+                  defaultMessage="Continue without email"
+                />
+              </button>
+            )}
           </div>
         )}
         {/* Pending attachment previews */}
