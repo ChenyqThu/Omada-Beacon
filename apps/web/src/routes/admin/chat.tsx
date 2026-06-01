@@ -15,6 +15,7 @@ import {
   PencilSquareIcon,
   BoltIcon,
   EnvelopeIcon,
+  ChevronLeftIcon,
 } from '@heroicons/react/24/outline'
 import { toast } from 'sonner'
 import type { ConversationId, ChatMessageId } from '@quackback/ids'
@@ -63,6 +64,7 @@ import { ConvertToPostDialog } from '@/components/admin/chat/convert-to-post-dia
 import { Avatar } from '@/components/ui/avatar'
 import { Spinner } from '@/components/shared/spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   DropdownMenu,
@@ -211,7 +213,14 @@ function ChatInboxPage() {
   return (
     <div className="flex h-full">
       {/* Conversation list */}
-      <div className="flex w-80 shrink-0 flex-col border-r border-border/50">
+      <div
+        className={cn(
+          'flex min-h-0 w-full shrink-0 flex-col border-r border-border/50 md:w-80',
+          // On mobile the list and thread are one column: hide the list while a
+          // conversation is open (a back button returns to it).
+          selectedId && 'hidden md:flex'
+        )}
+      >
         <div className="flex items-center gap-3 px-4 py-4 border-b border-border/50">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
             <ChatBubbleLeftRightIcon className="h-4 w-4 text-primary" />
@@ -230,14 +239,14 @@ function ChatInboxPage() {
             className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
-        <div className="flex items-center gap-1 px-3 py-2">
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-none px-3 py-2">
           {(['open', 'snoozed', 'pending', 'closed'] as const).map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => setStatus(s)}
               className={cn(
-                'px-2.5 py-1 rounded-md text-xs font-medium capitalize transition-colors',
+                'shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors',
                 status === s ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'
               )}
             >
@@ -250,7 +259,7 @@ function ChatInboxPage() {
                 type="button"
                 aria-label="Filter by priority"
                 className={cn(
-                  'ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors',
+                  'ml-auto inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium transition-colors',
                   priorityFilter !== 'all'
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:bg-muted'
@@ -271,7 +280,7 @@ function ChatInboxPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <ScrollArea className="min-h-0 flex-1">
           {listLoading ? (
             <div className="flex justify-center py-10">
               <Spinner />
@@ -338,21 +347,22 @@ function ChatInboxPage() {
               </button>
             ))
           )}
-        </div>
+        </ScrollArea>
       </div>
 
       {/* Thread */}
-      <div className="flex-1 min-w-0">
+      <div className={cn('min-w-0 flex-1', !selectedId && 'hidden md:block')}>
         {selectedId ? (
           <ChatThread
             key={selectedId}
             conversationId={selectedId}
             onChanged={refreshInbox}
+            onBack={() => setSelectedId(null)}
             isVisitorTyping={visitorTyping}
             isOtherAgentTyping={otherAgentTyping}
           />
         ) : (
-          <div className="flex h-full items-center justify-center">
+          <div className="hidden h-full items-center justify-center md:flex">
             <EmptyState
               icon={ChatBubbleLeftRightIcon}
               title="Select a conversation"
@@ -368,11 +378,14 @@ function ChatInboxPage() {
 function ChatThread({
   conversationId,
   onChanged,
+  onBack,
   isVisitorTyping,
   isOtherAgentTyping,
 }: {
   conversationId: ConversationId
   onChanged: () => void
+  /** Mobile-only: return to the conversation list (single-column layout). */
+  onBack: () => void
   isVisitorTyping: boolean
   isOtherAgentTyping: boolean
 }) {
@@ -599,10 +612,18 @@ function ChatThread({
 
   return (
     <div className="flex h-full">
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between gap-3 border-b border-border/50 px-5 py-3">
-          <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center justify-between gap-3 border-b border-border/50 px-4 py-3 sm:px-5">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <button
+              type="button"
+              onClick={onBack}
+              className="-ml-1 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden"
+              aria-label="Back to conversations"
+            >
+              <ChevronLeftIcon className="h-5 w-5" />
+            </button>
             <Avatar
               src={conversation?.visitor.avatarUrl ?? null}
               name={conversation?.visitor.displayName ?? 'Visitor'}
@@ -632,7 +653,7 @@ function ChatThread({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1.5">
             <ConvertToPostDialog
               conversationId={conversationId}
               defaultTitle={convertTitle}
@@ -659,7 +680,8 @@ function ChatThread({
                 disabled={statusMutation.isPending}
                 className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
               >
-                <ClockIcon className="h-3.5 w-3.5" /> Snooze
+                <ClockIcon className="h-3.5 w-3.5" />
+                <span className="hidden lg:inline">Snooze</span>
               </button>
             )}
             <button
@@ -670,20 +692,22 @@ function ChatThread({
             >
               {isClosed ? (
                 <>
-                  <ArrowUturnLeftIcon className="h-3.5 w-3.5" /> Reopen
+                  <ArrowUturnLeftIcon className="h-3.5 w-3.5" />
+                  <span className="hidden lg:inline">Reopen</span>
                 </>
               ) : (
                 <>
-                  <CheckCircleIcon className="h-3.5 w-3.5" /> Close
+                  <CheckCircleIcon className="h-3.5 w-3.5" />
+                  <span className="hidden lg:inline">Close</span>
                 </>
               )}
             </button>
           </div>
         </div>
 
-        {/* Messages */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4">
-          <div className="flex flex-col gap-3">
+        {/* Messages — min-h-0 so this scrolls and the composer stays pinned. */}
+        <ScrollArea className="min-h-0 flex-1" viewportRef={scrollRef}>
+          <div className="flex flex-col gap-3 px-5 py-4">
             {hasMoreOlder && (
               <button
                 type="button"
@@ -712,7 +736,7 @@ function ChatThread({
               </div>
             )}
           </div>
-        </div>
+        </ScrollArea>
 
         {/* Composer */}
         <div className="border-t border-border/50 p-3">
@@ -743,23 +767,36 @@ function ChatThread({
           </div>
           {!noteMode && pendingAttachments.length > 0 && (
             <div className="flex flex-wrap gap-1.5 px-1 pb-2">
-              {pendingAttachments.map((a, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-1 rounded-md border border-border/50 bg-muted/30 px-1.5 py-1 text-[11px]"
-                >
-                  <PaperClipIcon className="h-3 w-3 shrink-0 text-muted-foreground" />
-                  <span className="max-w-[140px] truncate">{a.name || 'file'}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeAttachment(i)}
-                    className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    aria-label="Remove attachment"
+              {pendingAttachments.map((a, i) => {
+                const isImage = a.contentType?.startsWith('image/') && a.url
+                return (
+                  <div
+                    key={i}
+                    className="group relative flex items-center gap-1 rounded-md border border-border/50 bg-muted/30 px-1.5 py-1 text-[11px]"
                   >
-                    <XMarkIcon className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
+                    <PaperClipIcon className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    <span className="max-w-[140px] truncate">{a.name || 'file'}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(i)}
+                      className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label="Remove attachment"
+                    >
+                      <XMarkIcon className="h-3 w-3" />
+                    </button>
+                    {/* Hover preview for images — a popover above the chip. */}
+                    {isImage && (
+                      <div className="pointer-events-none absolute bottom-full left-0 z-50 mb-2 rounded-lg border border-border bg-popover p-1 opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
+                        <img
+                          src={a.url}
+                          alt={a.name}
+                          className="max-h-40 max-w-[220px] rounded object-contain"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
           <div
@@ -1012,7 +1049,7 @@ function VisitorSidebar({
     <aside className="hidden w-64 shrink-0 flex-col border-l border-border/50 lg:flex">
       <div className="flex flex-col items-center gap-2 border-b border-border/50 px-4 py-5 text-center">
         <Avatar src={conversation.visitor.avatarUrl} name={name} className="size-12 text-base" />
-        <div className="min-w-0">
+        <div className="w-full min-w-0">
           <p className="truncate text-sm font-semibold">{name}</p>
           {hasEmail ? (
             <p className="truncate text-xs text-muted-foreground">
@@ -1038,34 +1075,36 @@ function VisitorSidebar({
         <LinkedPosts conversationId={conversation.id} />
       </div>
       {detail && (
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          <div className="mb-4 grid grid-cols-3 gap-1 text-center">
-            {[
-              { label: 'Posts', value: detail.postCount },
-              { label: 'Comments', value: detail.commentCount },
-              { label: 'Votes', value: detail.voteCount },
-            ].map((s) => (
-              <div key={s.label} className="rounded-md bg-muted/40 py-1.5">
-                <p className="text-sm font-semibold">{s.value}</p>
-                <p className="text-[10px] text-muted-foreground">{s.label}</p>
-              </div>
-            ))}
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="px-4 py-4">
+            <div className="mb-4 grid grid-cols-3 gap-1 text-center">
+              {[
+                { label: 'Posts', value: detail.postCount },
+                { label: 'Comments', value: detail.commentCount },
+                { label: 'Votes', value: detail.voteCount },
+              ].map((s) => (
+                <div key={s.label} className="rounded-md bg-muted/40 py-1.5">
+                  <p className="text-sm font-semibold">{s.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                </div>
+              ))}
+            </div>
+            {detail.engagedPosts.length > 0 && (
+              <>
+                <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">
+                  Recent feedback
+                </p>
+                <div className="flex flex-col gap-1">
+                  {detail.engagedPosts.slice(0, 5).map((p) => (
+                    <span key={p.id} className="truncate text-xs text-foreground/80">
+                      {p.title}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
-          {detail.engagedPosts.length > 0 && (
-            <>
-              <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">
-                Recent feedback
-              </p>
-              <div className="flex flex-col gap-1">
-                {detail.engagedPosts.slice(0, 5).map((p) => (
-                  <span key={p.id} className="truncate text-xs text-foreground/80">
-                    {p.title}
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+        </ScrollArea>
       )}
     </aside>
   )
