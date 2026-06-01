@@ -66,6 +66,8 @@ export interface ChatMessageDTO {
   attachments: ChatAttachment[]
   /** Agent-only internal note — only ever present on agent-facing payloads. */
   isInternal: boolean
+  /** True when this message arrived via the email channel (inbound reply). */
+  viaEmail: boolean
 }
 
 /** A conversation row as surfaced to clients (inbox list + thread header). */

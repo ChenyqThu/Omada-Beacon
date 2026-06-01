@@ -14,6 +14,7 @@ import {
   ChatBubbleBottomCenterTextIcon,
   PencilSquareIcon,
   BoltIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline'
 import { toast } from 'sonner'
 import type { ConversationId, ChatMessageId } from '@quackback/ids'
@@ -960,7 +961,14 @@ function AdminBubble({ message, onDelete }: { message: ChatMessageDTO; onDelete:
           </div>
         )}
         {message.attachments.length > 0 && <ChatAttachmentList attachments={message.attachments} />}
-        <span className="mt-0.5 px-1 text-[10px] text-muted-foreground/50">
+        <span className="mt-0.5 flex items-center gap-1 px-1 text-[10px] text-muted-foreground/50">
+          {message.viaEmail && (
+            <EnvelopeIcon
+              className="h-3 w-3"
+              aria-label="Received by email"
+              title="Received by email"
+            />
+          )}
           {new Date(message.createdAt).toLocaleTimeString([], {
             hour: 'numeric',
             minute: '2-digit',
