@@ -16,15 +16,19 @@ import {
   isNull,
   desc,
   sql,
+  posts,
+  boards,
+  postExternalLinks,
   type Conversation,
   type ChatMessage,
 } from '@/lib/server/db'
-import type { ConversationId, PrincipalId } from '@quackback/ids'
+import type { ConversationId, PrincipalId, PostId } from '@quackback/ids'
 import type {
   ChatAuthorDTO,
   ChatMessageDTO,
   ConversationDTO,
   ChatSenderType,
+  ConversationStatus,
 } from '@/lib/shared/chat/types'
 
 const MESSAGE_PAGE_SIZE = 30
@@ -182,6 +186,67 @@ export function selectActiveConversation(rows: Conversation[]): ActiveConversati
   const resumable = rows.find((r) => RESUMABLE_STATUSES.has(r.status))
   if (resumable) return { conversation: resumable, isReadOnly: false }
   return { conversation: rows[0] ?? null, isReadOnly: rows.length > 0 }
+}
+
+export interface LinkedPostSummary {
+  postId: PostId
+  title: string
+  boardSlug: string
+}
+
+/** Posts this conversation was converted into (chat.convert writes the link). */
+export async function getLinkedPostsForConversation(
+  conversationId: ConversationId
+): Promise<LinkedPostSummary[]> {
+  const rows = await db
+    .select({ postId: posts.id, title: posts.title, boardSlug: boards.slug })
+    .from(postExternalLinks)
+    .innerJoin(posts, eq(postExternalLinks.postId, posts.id))
+    .innerJoin(boards, eq(posts.boardId, boards.id))
+    .where(
+      and(
+        eq(postExternalLinks.integrationType, 'live_chat'),
+        eq(postExternalLinks.externalId, conversationId),
+        eq(postExternalLinks.status, 'active'),
+        isNull(posts.deletedAt)
+      )
+    )
+  return rows.map((r) => ({ postId: r.postId as PostId, title: r.title, boardSlug: r.boardSlug }))
+}
+
+export interface LinkedConversationSummary {
+  conversationId: ConversationId
+  subject: string | null
+  status: ConversationStatus
+}
+
+/** Conversations linked to a post (the other direction of chat.convert). */
+export async function getLinkedConversationsForPost(
+  postId: PostId
+): Promise<LinkedConversationSummary[]> {
+  const rows = await db
+    .select({
+      conversationId: conversations.id,
+      subject: conversations.subject,
+      status: conversations.status,
+    })
+    .from(postExternalLinks)
+    // Deliberately NO innerJoin(integrations): a 'live_chat' link has a null
+    // integrationId, so joining integrations would silently drop every chat
+    // link. The externalId IS the conversation id for these rows.
+    .innerJoin(conversations, eq(postExternalLinks.externalId, conversations.id))
+    .where(
+      and(
+        eq(postExternalLinks.postId, postId),
+        eq(postExternalLinks.integrationType, 'live_chat'),
+        eq(postExternalLinks.status, 'active')
+      )
+    )
+  return rows.map((r) => ({
+    conversationId: r.conversationId as ConversationId,
+    subject: r.subject,
+    status: r.status,
+  }))
 }
 
 export async function getActiveConversationForVisitor(

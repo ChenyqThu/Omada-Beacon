@@ -629,3 +629,29 @@ export const removeConversationTagFn = createServerFn({ method: 'POST' })
       throw error
     }
   })
+
+export const getLinkedPostsForConversationFn = createServerFn({ method: 'GET' })
+  .inputValidator(conversationIdSchema)
+  .handler(async ({ data }) => {
+    try {
+      await requireAuth({ roles: ['admin', 'member'] })
+      const { getLinkedPostsForConversation } = await import('@/lib/server/domains/chat/chat.query')
+      return await getLinkedPostsForConversation(data.conversationId as ConversationId)
+    } catch (error) {
+      console.error('[fn:chat] getLinkedPostsForConversationFn failed:', error)
+      throw error
+    }
+  })
+
+export const getLinkedConversationsForPostFn = createServerFn({ method: 'GET' })
+  .inputValidator(z.object({ postId: z.string() }))
+  .handler(async ({ data }) => {
+    try {
+      await requireAuth({ roles: ['admin', 'member'] })
+      const { getLinkedConversationsForPost } = await import('@/lib/server/domains/chat/chat.query')
+      return await getLinkedConversationsForPost(data.postId as PostId)
+    } catch (error) {
+      console.error('[fn:chat] getLinkedConversationsForPostFn failed:', error)
+      throw error
+    }
+  })
