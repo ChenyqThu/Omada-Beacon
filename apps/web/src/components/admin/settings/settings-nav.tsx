@@ -62,15 +62,6 @@ export function buildNavSections(flags?: {
         { label: 'Branding', to: '/admin/settings/branding', icon: PaintBrushIcon },
         { label: 'Portal', to: '/admin/settings/portal', icon: MegaphoneIcon },
         { label: 'Widget', to: '/admin/settings/portal-widget', icon: ChatBubbleLeftRightIcon },
-        ...(flags?.liveChat
-          ? [
-              {
-                label: 'Live Chat',
-                to: '/admin/settings/live-chat',
-                icon: ChatBubbleLeftRightIcon,
-              },
-            ]
-          : []),
       ],
     },
     {
@@ -84,11 +75,17 @@ export function buildNavSections(flags?: {
     },
   ]
 
-  if (flags?.helpCenter) {
-    sections.push({
-      label: 'Help Center',
-      items: [{ label: 'Help Center', to: '/admin/settings/help-center', icon: BookOpenIcon }],
-    })
+  // Support — Live Chat + Help Center bundled together, each gated on its own flag.
+  const supportItems: NavItem[] = [
+    ...(flags?.liveChat
+      ? [{ label: 'Live Chat', to: '/admin/settings/live-chat', icon: ChatBubbleLeftRightIcon }]
+      : []),
+    ...(flags?.helpCenter
+      ? [{ label: 'Help Center', to: '/admin/settings/help-center', icon: BookOpenIcon }]
+      : []),
+  ]
+  if (supportItems.length > 0) {
+    sections.push({ label: 'Support', items: supportItems })
   }
 
   sections.push({
