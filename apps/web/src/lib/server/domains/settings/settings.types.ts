@@ -748,16 +748,39 @@ export const FEATURE_FLAG_REGISTRY: Record<
   },
   helpCenter: {
     label: 'Help Center',
-    description: 'Create and manage a knowledge base with categories and articles for your users.',
+    description: 'Publish a searchable help center so customers can find answers on their own.',
   },
   aiFeedbackExtraction: {
     label: 'AI Feedback Extraction',
-    description:
-      'Automatically extract and categorize feedback from connected sources using large language models.',
+    description: 'Automatically pull in and categorize feedback from your connected sources.',
   },
   supportInbox: {
-    label: 'Support Inbox',
+    label: 'Conversations',
     description:
-      'A unified inbox for support conversations, with live chat offered through the widget and room for more channels like email.',
+      'Let visitors start a live chat from the widget; messages land in a shared inbox your team works from.',
   },
 }
+
+/**
+ * Labs page layout: experimental flags grouped into sections, each rendered as
+ * a card with a heading + high-level description. Every flag in FeatureFlags
+ * must belong to exactly one section (pinned by a test) so a new flag can never
+ * silently go unsurfaced.
+ */
+export const LAB_SECTIONS: Array<{
+  title: string
+  description: string
+  flags: Array<keyof FeatureFlags>
+}> = [
+  {
+    title: 'Support',
+    description: 'Support your customers with live chat and a self-serve help center.',
+    flags: ['supportInbox', 'helpCenter'],
+  },
+  {
+    title: 'Insights',
+    description:
+      'Understand your feedback faster, with usage analytics and AI that sorts it for you.',
+    flags: ['analytics', 'aiFeedbackExtraction'],
+  },
+]
