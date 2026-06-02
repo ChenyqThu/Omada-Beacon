@@ -41,8 +41,6 @@ const sendMessageSchema = z.object({
   attachments: z.array(attachmentSchema).max(MAX_CHAT_ATTACHMENTS).optional(),
   /** Optional pre-chat email capture (anonymous visitors). */
   visitorEmail: z.string().email().max(320).optional(),
-  /** Optional pre-chat name capture (anonymous visitors). */
-  visitorName: z.string().max(120).optional(),
 })
 
 const conversationIdSchema = z.object({ conversationId: z.string() })
@@ -156,7 +154,6 @@ export const sendChatMessageFn = createServerFn({ method: 'POST' })
           content: data.content,
           attachments: data.attachments as ChatAttachment[] | undefined,
           visitorEmail: data.visitorEmail,
-          visitorName: data.visitorName,
         },
         {
           principalId: ctx.principal.id,

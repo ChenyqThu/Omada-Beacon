@@ -69,8 +69,6 @@ export function WidgetLiveChat({ helpEnabled, onArticleSelect }: WidgetLiveChatP
   const [preChatMode, setPreChatMode] = useState<'off' | 'optional' | 'required'>('off')
   const [emailKnown, setEmailKnown] = useState(false)
   const [emailInput, setEmailInput] = useState('')
-  // Optional pre-chat name capture (anonymous visitors); shown alongside email.
-  const [nameInput, setNameInput] = useState('')
   // Whether an offline reply could actually reach this visitor by email — drives
   // the offline copy so the widget never promises email it can't send.
   const [canEmailReply, setCanEmailReply] = useState(false)
@@ -447,9 +445,8 @@ export function WidgetLiveChat({ helpEnabled, onArticleSelect }: WidgetLiveChatP
           conversationId: conversationId ?? undefined,
           content: text,
           attachments: attachments.length > 0 ? attachments : undefined,
-          // Attach the captured name + email on the first message only.
+          // Attach the captured email on the first message only.
           visitorEmail: needsEmail && emailValid ? emailInput.trim() : undefined,
-          visitorName: needsEmail && nameInput.trim() ? nameInput.trim() : undefined,
         },
         headers: getWidgetAuthHeaders(),
       })
@@ -470,7 +467,6 @@ export function WidgetLiveChat({ helpEnabled, onArticleSelect }: WidgetLiveChatP
     needsEmail,
     emailValid,
     emailInput,
-    nameInput,
     conversationId,
     ensureSession,
     appendMessage,
@@ -777,72 +773,47 @@ export function WidgetLiveChat({ helpEnabled, onArticleSelect }: WidgetLiveChatP
         </div>
       ) : (
         <div className="border-t border-border/40 p-2 shrink-0">
-          {/* Pre-chat capture (anonymous visitors): optional name + email. */}
+          {/* Pre-chat email capture (anonymous visitors). */}
           {needsEmail && (
-            <div className="space-y-2 px-1 pb-2">
-              <div>
-                <label
-                  htmlFor="widget-chat-name"
-                  className="mb-1 block text-[11px] font-medium text-muted-foreground"
+            <div className="px-1 pb-2">
+              <label
+                htmlFor="widget-chat-email"
+                className="mb-1 block text-[11px] font-medium text-muted-foreground"
+              >
+                {preChatMode === 'required' ? (
+                  <FormattedMessage
+                    id="widget.chat.email.required"
+                    defaultMessage="Your email so we can reply"
+                  />
+                ) : (
+                  <FormattedMessage
+                    id="widget.chat.email.optional"
+                    defaultMessage="Your email (optional)"
+                  />
+                )}
+              </label>
+              <input
+                id="widget-chat-email"
+                type="email"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              {/* Optional mode: an explicit skip so blank-and-send is a choice,
+                not a silent fallthrough. */}
+              {preChatMode === 'optional' && (
+                <button
+                  type="button"
+                  onClick={() => setEmailKnown(true)}
+                  className="mt-1 text-[11px] text-muted-foreground/70 underline hover:text-foreground"
                 >
                   <FormattedMessage
-                    id="widget.chat.name.optional"
-                    defaultMessage="Your name (optional)"
+                    id="widget.chat.email.skip"
+                    defaultMessage="Continue without email"
                   />
-                </label>
-                <input
-                  id="widget-chat-name"
-                  type="text"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  maxLength={120}
-                  placeholder={intl.formatMessage({
-                    id: 'widget.chat.name.placeholder',
-                    defaultMessage: 'Jane Doe',
-                  })}
-                  className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="widget-chat-email"
-                  className="mb-1 block text-[11px] font-medium text-muted-foreground"
-                >
-                  {preChatMode === 'required' ? (
-                    <FormattedMessage
-                      id="widget.chat.email.required"
-                      defaultMessage="Your email so we can reply"
-                    />
-                  ) : (
-                    <FormattedMessage
-                      id="widget.chat.email.optional"
-                      defaultMessage="Your email (optional)"
-                    />
-                  )}
-                </label>
-                <input
-                  id="widget-chat-email"
-                  type="email"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                />
-                {/* Optional mode: an explicit skip so blank-and-send is a choice,
-                  not a silent fallthrough. */}
-                {preChatMode === 'optional' && (
-                  <button
-                    type="button"
-                    onClick={() => setEmailKnown(true)}
-                    className="mt-1 text-[11px] text-muted-foreground/70 underline hover:text-foreground"
-                  >
-                    <FormattedMessage
-                      id="widget.chat.email.skip"
-                      defaultMessage="Continue without email"
-                    />
-                  </button>
-                )}
-              </div>
+                </button>
+              )}
             </div>
           )}
           {/* Pending attachment previews */}

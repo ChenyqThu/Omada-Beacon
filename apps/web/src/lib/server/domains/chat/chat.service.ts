@@ -262,16 +262,6 @@ export async function sendVisitorMessage(
         .where(and(eq(principal.id, author.principalId), isNull(principal.contactEmail)))
     }
 
-    // Capture a pre-chat name as the visitor's display name, so agents see who
-    // they're talking to. Only when none is set yet (never overwrite).
-    const captureName = input.visitorName?.trim()
-    if (captureName) {
-      await tx
-        .update(principal)
-        .set({ displayName: captureName })
-        .where(and(eq(principal.id, author.principalId), isNull(principal.displayName)))
-    }
-
     return { conversation: updated, message }
   })
 
