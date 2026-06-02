@@ -178,10 +178,10 @@ export const sendChatMessageFn = createServerFn({ method: 'POST' })
  */
 export const getChatPresenceFn = createServerFn({ method: 'GET' }).handler(async () => {
   const { getLiveChatConfig } = await import('@/lib/server/domains/settings/settings.widget')
-  const { isAnyAgentOnline } = await import('@/lib/server/realtime/presence')
+  const { isAnyAgentAvailable } = await import('@/lib/server/realtime/presence')
   const [liveChatConfig, agentsOnline] = await Promise.all([
     getLiveChatConfig(),
-    isAnyAgentOnline(),
+    isAnyAgentAvailable(),
   ])
   return {
     agentsOnline,
@@ -249,11 +249,11 @@ export const getMyChatFn = createServerFn({ method: 'GET' }).handler(async () =>
 
     const { getActiveConversationForVisitor, conversationToDTO, listMessages } =
       await import('@/lib/server/domains/chat/chat.query')
-    const { isAnyAgentOnline } = await import('@/lib/server/realtime/presence')
+    const { isAnyAgentAvailable } = await import('@/lib/server/realtime/presence')
 
     const [active, agentsOnline] = await Promise.all([
       getActiveConversationForVisitor(ctx.principal.id),
-      isAnyAgentOnline(),
+      isAnyAgentAvailable(),
     ])
     const conversation = active.conversation
     // Anonymous visitors carry a synthetic placeholder email — it must not count
@@ -393,6 +393,23 @@ export const submitCsatFn = createServerFn({ method: 'POST' })
       return { ok: true }
     } catch (error) {
       console.error('[fn:chat] submitCsatFn failed:', error)
+      throw error
+    }
+  })
+
+const agentAvailabilitySchema = z.object({ availability: z.enum(['online', 'away']) })
+
+/** Agent action: set my manual chat availability ('online' | 'away'). */
+export const setAgentAvailabilityFn = createServerFn({ method: 'POST' })
+  .inputValidator(agentAvailabilitySchema)
+  .handler(async ({ data }) => {
+    try {
+      const ctx = await requireAuth({ roles: ['admin', 'member'] })
+      const { setAgentAvailability } = await import('@/lib/server/realtime/presence')
+      await setAgentAvailability(ctx.principal.id, data.availability)
+      return { availability: data.availability }
+    } catch (error) {
+      console.error('[fn:chat] setAgentAvailabilityFn failed:', error)
       throw error
     }
   })

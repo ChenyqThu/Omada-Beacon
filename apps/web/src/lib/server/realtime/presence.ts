@@ -10,6 +10,7 @@
  * an abandoned set.
  */
 import { getRedis } from '../redis'
+import { db, principal, eq, and, inArray } from '@/lib/server/db'
 import type { PrincipalId } from '@quackback/ids'
 
 /** TTL must comfortably exceed the SSE heartbeat interval (20s). */
@@ -161,4 +162,44 @@ export async function listOnlineAgentIds(): Promise<PrincipalId[]> {
     console.warn('[presence] listOnlineAgentIds failed:', (err as Error).message)
     return []
   }
+}
+
+/**
+ * Of the given online principals, those NOT manually set to "away" — i.e. the
+ * ones a conversation can actually be routed to. Fails CLOSED ([]) on a DB
+ * error so we never route to an agent we can't confirm is available.
+ */
+export async function listAvailableAgentIds(onlineIds: PrincipalId[]): Promise<PrincipalId[]> {
+  if (onlineIds.length === 0) return []
+  try {
+    const rows = await db
+      .select({ id: principal.id })
+      .from(principal)
+      .where(and(inArray(principal.id, onlineIds), eq(principal.chatAvailability, 'online')))
+    return rows.map((r) => r.id)
+  } catch (err) {
+    console.warn('[presence] listAvailableAgentIds failed:', (err as Error).message)
+    return []
+  }
+}
+
+/**
+ * Whether any team member is online AND available (not "away"). Drives the
+ * widget's availability — a team that's connected but all-away reads as offline.
+ */
+export async function isAnyAgentAvailable(): Promise<boolean> {
+  const onlineIds = await listOnlineAgentIds()
+  if (onlineIds.length === 0) return false
+  return (await listAvailableAgentIds(onlineIds)).length > 0
+}
+
+/** Set an agent's manual availability ('online' | 'away'); persisted on the principal. */
+export async function setAgentAvailability(
+  principalId: PrincipalId,
+  availability: 'online' | 'away'
+): Promise<void> {
+  await db
+    .update(principal)
+    .set({ chatAvailability: availability })
+    .where(eq(principal.id, principalId))
 }

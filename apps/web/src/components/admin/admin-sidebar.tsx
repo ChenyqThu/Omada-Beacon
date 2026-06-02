@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { Link, useRouter, useRouterState, useRouteContext } from '@tanstack/react-router'
 import {
   ChatBubbleLeftIcon,
@@ -31,12 +32,43 @@ import { NotificationBell } from '@/components/notifications'
 import { cn } from '@/lib/shared/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { LatestVersionResult } from '@/lib/server/functions/version'
+import { setAgentAvailabilityFn } from '@/lib/server/functions/chat'
+
+/** Online / Away rows for the account menu (chat routing availability). */
+function AvailabilityMenuItems({
+  availability,
+  onSet,
+}: {
+  availability: 'online' | 'away'
+  onSet: (next: 'online' | 'away') => void
+}) {
+  return (
+    <>
+      <DropdownMenuItem
+        onClick={() => onSet('online')}
+        className={cn(availability === 'online' && 'font-medium')}
+      >
+        <span className="mr-2 h-2 w-2 rounded-full bg-green-500" />
+        Online
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() => onSet('away')}
+        className={cn(availability === 'away' && 'font-medium')}
+      >
+        <span className="mr-2 h-2 w-2 rounded-full bg-yellow-400" />
+        Away
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+    </>
+  )
+}
 
 interface AdminSidebarProps {
   initialUserData?: {
     name: string | null
     email: string | null
     avatarUrl: string | null
+    chatAvailability?: 'online' | 'away'
   }
   latestVersion?: LatestVersionResult | null
 }
@@ -111,6 +143,21 @@ export function AdminSidebar({ initialUserData, latestVersion }: AdminSidebarPro
   const name = user?.name ?? initialUserData?.name ?? null
   const email = user?.email ?? initialUserData?.email ?? null
   const avatarUrl = user?.image ?? initialUserData?.avatarUrl ?? null
+
+  // Agent chat availability (only meaningful when the support inbox is enabled).
+  const chatEnabled = flags?.supportInbox ?? false
+  const [availability, setAvailability] = useState<'online' | 'away'>(
+    initialUserData?.chatAvailability ?? 'online'
+  )
+  const availabilityMutation = useMutation({
+    mutationFn: (next: 'online' | 'away') =>
+      setAgentAvailabilityFn({ data: { availability: next } }),
+  })
+  const setAvail = (next: 'online' | 'away') => {
+    const prev = availability
+    setAvailability(next) // optimistic
+    availabilityMutation.mutate(next, { onError: () => setAvailability(prev) })
+  }
 
   const handleSignOut = async () => {
     await signOut()
@@ -238,8 +285,17 @@ export function AdminSidebar({ initialUserData, latestVersion }: AdminSidebarPro
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
-                      <button className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-muted/50 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <button className="relative flex items-center justify-center w-10 h-10 rounded-full hover:bg-muted/50 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                         <Avatar className="h-9 w-9" src={avatarUrl} name={name} />
+                        {chatEnabled && (
+                          <span
+                            className={cn(
+                              'absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full ring-2 ring-background',
+                              availability === 'online' ? 'bg-green-500' : 'bg-yellow-400'
+                            )}
+                            aria-hidden="true"
+                          />
+                        )}
                       </button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
@@ -255,6 +311,9 @@ export function AdminSidebar({ initialUserData, latestVersion }: AdminSidebarPro
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  {chatEnabled && (
+                    <AvailabilityMenuItems availability={availability} onSet={setAvail} />
+                  )}
                   <DropdownMenuItem asChild>
                     <Link to="/settings">
                       <Cog6ToothIcon className="mr-2 h-4 w-4" />
@@ -377,8 +436,17 @@ export function AdminSidebar({ initialUserData, latestVersion }: AdminSidebarPro
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="h-9 w-9 rounded-full flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <button className="relative h-9 w-9 rounded-full flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <Avatar className="h-8 w-8" src={avatarUrl} name={name} />
+                {chatEnabled && (
+                  <span
+                    className={cn(
+                      'absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-background',
+                      availability === 'online' ? 'bg-green-500' : 'bg-yellow-400'
+                    )}
+                    aria-hidden="true"
+                  />
+                )}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -389,6 +457,9 @@ export function AdminSidebar({ initialUserData, latestVersion }: AdminSidebarPro
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {chatEnabled && (
+                <AvailabilityMenuItems availability={availability} onSet={setAvail} />
+              )}
               <DropdownMenuItem asChild>
                 <Link to="/settings">
                   <Cog6ToothIcon className="mr-2 h-4 w-4" />

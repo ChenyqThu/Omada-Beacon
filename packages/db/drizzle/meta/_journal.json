@@ -694,6 +694,13 @@
       "when": 1781136000000,
       "tag": "0098_normalize_snoozed_conversations",
       "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1781222400000,
+      "tag": "0099_agent_availability",
+      "breakpoints": true
     }
   ]
 }

@@ -290,6 +290,11 @@ export type NewCommentReaction = InferInsertModel<typeof commentReactions>
 export const CONVERSATION_STATUSES = ['open', 'pending', 'closed'] as const
 export type ConversationStatus = (typeof CONVERSATION_STATUSES)[number]
 
+// Per-agent manual availability (principal.chat_availability). 'online' = route
+// chats to me when connected; 'away' = connected but opted out of routing.
+export const AGENT_AVAILABILITY_VALUES = ['online', 'away'] as const
+export type AgentAvailability = (typeof AGENT_AVAILABILITY_VALUES)[number]
+
 // The inbound channel a conversation arrived on — kept in sync with the
 // conversations.channel column enum. Existing live-chat threads default to
 // 'live_chat'; 'email' and 'web_form' are wired up in later phases. This turns

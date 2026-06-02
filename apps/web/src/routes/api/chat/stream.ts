@@ -108,6 +108,12 @@ export const Route = createFileRoute('/api/chat/stream')({
             return new Response('Forbidden', { status: 403 })
           }
           channels.push(CHAT_INBOX_CHANNEL)
+        } else if (scope === 'presence') {
+          // App-wide agent presence: any admin page keeps a team member marked
+          // online for routing. Heartbeat only — no channel subscription.
+          if (!isTeamMember(me.role)) {
+            return new Response('Forbidden', { status: 403 })
+          }
         } else if (conversationIdParam) {
           const conversationId = conversationIdParam as ConversationId
           // A cookie-authed (non-token) visitor bypassed the mint-time portal
@@ -138,7 +144,7 @@ export const Route = createFileRoute('/api/chat/stream')({
           return new Response('Too many streams', { status: 503 })
         }
 
-        const isAgentStream = scope === 'inbox'
+        const isAgentStream = scope === 'inbox' || scope === 'presence'
         // Unique per stream so presence is tracked per-connection in Redis
         // (cross-replica), not by a per-process count.
         const streamId = crypto.randomUUID()

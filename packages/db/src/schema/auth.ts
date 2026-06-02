@@ -415,6 +415,12 @@ export const principal = pgTable(
     // offline reply can reach them across conversations. Agent-only — the
     // principal stays anonymous; never exposed to the visitor.
     contactEmail: text('contact_email'),
+    // Manual agent availability override: 'online' (default — route chats to me)
+    // vs 'away' (connected but opted out of routing). The presence TTL handles
+    // auto-offline; this is the explicit opt-out, persisted across sessions.
+    chatAvailability: text('chat_availability', { enum: ['online', 'away'] })
+      .notNull()
+      .default('online'),
   },
   (table) => [
     // Ensure one principal record per human user (partial index excludes service principals)

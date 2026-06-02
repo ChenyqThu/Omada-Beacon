@@ -55,6 +55,7 @@ export function mockPrincipal(
     avatarKey: null,
     serviceMetadata: null,
     contactEmail: null,
+    chatAvailability: 'online',
     createdAt: new Date(),
     lastSsoSignInAt: null,
     ...overrides,

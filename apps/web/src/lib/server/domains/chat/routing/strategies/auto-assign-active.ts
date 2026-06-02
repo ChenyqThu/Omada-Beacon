@@ -41,7 +41,9 @@ export const autoAssignActiveStrategy: RoutingStrategy = {
     const rows = await db
       .select({ id: principal.id, role: principal.role })
       .from(principal)
-      .where(inArray(principal.id, onlineIds))
+      // Exclude agents who manually set themselves "away" — connected but opted
+      // out of routing.
+      .where(and(inArray(principal.id, onlineIds), eq(principal.chatAvailability, 'online')))
     const candidates = rows.filter((r) => isTeamMember(r.role)).map((r) => r.id)
     if (candidates.length === 0) {
       return { assignedPrincipalId: null, strategyId: AUTO_ASSIGN_ACTIVE }
