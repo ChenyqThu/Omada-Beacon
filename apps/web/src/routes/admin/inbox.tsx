@@ -79,7 +79,10 @@ export const Route = createFileRoute('/admin/inbox')({
   ): { c?: string; view?: InboxView; tag?: string } => ({
     c: typeof search.c === 'string' ? search.c : undefined,
     view:
-      search.view === 'mentions' || search.view === 'unattended' || search.view === 'all'
+      search.view === 'mine' ||
+      search.view === 'unassigned' ||
+      search.view === 'all' ||
+      search.view === 'mentions'
         ? search.view
         : undefined,
     // Only accept a well-formed chat-tag id — a malformed `?tag=` would reach a
@@ -111,28 +114,33 @@ function InboxRoute() {
   return <InboxPage />
 }
 
-type StatusFilter = ConversationStatus
+/** A real conversation status, or 'all' = no status filter. */
+type StatusFilter = ConversationStatus | 'all'
 
 /**
- * Map the active nav scope + header refinements to the list-query params.
- * Encodes the scope rules in one place: a Label scope refines by tag; Mentions
- * is a personal all-status feed; Unattended is open + unassigned; All applies
- * the header status/priority/assignee.
+ * Map the active nav scope + filter chips to the list-query params. The primary
+ * views ARE the assignee queue (Mine / Unassigned / All); Mentions is a personal
+ * feed; a Label scope refines by tag. Status + priority are optional chips
+ * ('all' = unset), applied within any non-Mentions scope.
  */
 function buildListParams(
   nav: InboxNavItem,
-  status: ConversationStatus,
+  status: StatusFilter,
   priorityFilter: ConversationPriority | 'all',
-  assignee: 'all' | 'mine' | 'unassigned',
   search: string
 ) {
   const priority = priorityFilter === 'all' ? undefined : priorityFilter
+  const statusParam = status === 'all' ? undefined : status
   const q = search || undefined
-  if (nav.kind === 'tag') return { tagIds: [nav.tagId], status, priority, assignee, search: q }
+  if (nav.kind === 'tag') return { tagIds: [nav.tagId], status: statusParam, priority, search: q }
   if (nav.view === 'mentions') return { view: 'mentions' as const, search: q }
-  if (nav.view === 'unattended')
-    return { status: 'open' as const, assignee: 'unassigned' as const, search: q }
-  return { status, priority, assignee, search: q }
+  const assignee =
+    nav.view === 'mine'
+      ? ('mine' as const)
+      : nav.view === 'unassigned'
+        ? ('unassigned' as const)
+        : ('all' as const)
+  return { status: statusParam, priority, assignee, search: q }
 }
 
 function InboxPage() {
@@ -145,11 +153,10 @@ function InboxPage() {
   const { c: deepLinkConversationId, view: urlView, tag: urlTag } = Route.useSearch()
   const [status, setStatus] = useState<StatusFilter>('open')
   const [priorityFilter, setPriorityFilter] = useState<ConversationPriority | 'all'>('all')
-  const [assignee, setAssignee] = useState<'all' | 'mine' | 'unassigned'>('all')
-  // Left-nav scope: a Conversations view (All / Mentions / Unattended) or a
-  // single Label. Assignee/status/priority refine WITHIN it; Mentions and
-  // Unattended are self-contained feeds so those refinements are hidden. The
-  // URL is the source of truth so the scope is shareable + survives a refresh.
+  // Left-nav scope: an assignee queue (Mine / Unassigned / All), the Mentions
+  // feed, or a single Label. Status/priority chips refine WITHIN it; Mentions is
+  // a self-contained feed so those chips are hidden. The URL is the source of
+  // truth so the scope is shareable + survives a refresh.
   const nav = useMemo<InboxNavItem>(
     () =>
       urlTag
@@ -171,8 +178,8 @@ function InboxPage() {
     },
     [navigate]
   )
-  // Assignee/status/priority only make sense for the open-ended scopes.
-  const showRefinements = nav.kind === 'tag' || nav.view === 'all'
+  // The status/priority chips apply to every scope except the Mentions feed.
+  const showRefinements = nav.kind === 'tag' || nav.view !== 'mentions'
   const { data: navTags } = useChatTagsWithCounts()
   const scopeLabel = scopeLabelFor(nav, navTags)
   const [selectedId, setSelectedId] = useState<ConversationId | null>(
@@ -191,17 +198,16 @@ function InboxPage() {
         inboxNavKey(nav),
         status,
         priorityFilter,
-        assignee,
         search,
       ] as const,
-    [nav, status, priorityFilter, assignee, search]
+    [nav, status, priorityFilter, search]
   )
 
   const { data: listData, isLoading: listLoading } = useQuery({
     queryKey: listKey,
     queryFn: () =>
       listConversationsFn({
-        data: buildListParams(nav, status, priorityFilter, assignee, search),
+        data: buildListParams(nav, status, priorityFilter, search),
       }),
     refetchInterval: 30_000, // polling fallback if the stream drops
   })
@@ -308,7 +314,7 @@ function InboxPage() {
 
   return (
     <div className="flex h-full">
-      <InboxNavSidebar nav={nav} onSelect={setNav} />
+      <InboxNavSidebar nav={nav} onSelect={setNav} search={searchInput} onSearch={setSearchInput} />
       <ConversationListColumn
         nav={nav}
         onSelectNav={setNav}
@@ -316,8 +322,6 @@ function InboxPage() {
         showRefinements={showRefinements}
         searchInput={searchInput}
         onSearchInput={setSearchInput}
-        assignee={assignee}
-        onAssignee={setAssignee}
         status={status}
         onStatus={setStatus}
         priorityFilter={priorityFilter}

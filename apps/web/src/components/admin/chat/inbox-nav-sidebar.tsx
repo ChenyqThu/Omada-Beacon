@@ -5,6 +5,8 @@ import {
   AtSymbolIcon,
   InboxArrowDownIcon,
   ChevronDownIcon,
+  UserIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/solid'
 import type { ChatTagId } from '@quackback/ids'
 import { fetchChatTagsWithCountsFn } from '@/lib/server/functions/chat-tags'
@@ -26,7 +28,7 @@ import { cn } from '@/lib/shared/utils'
  * header refine WITHIN the selected scope. Carries only ids so it round-trips
  * through the URL; the label is resolved from the fetched tag list.
  */
-export type InboxView = 'all' | 'mentions' | 'unattended'
+export type InboxView = 'mine' | 'unassigned' | 'all' | 'mentions'
 export type InboxNavItem = { kind: 'view'; view: InboxView } | { kind: 'tag'; tagId: ChatTagId }
 
 /** Stable identity for query keys + active-state comparison. */
@@ -34,10 +36,13 @@ export function inboxNavKey(nav: InboxNavItem): string {
   return nav.kind === 'tag' ? `tag:${nav.tagId}` : `view:${nav.view}`
 }
 
+// Primary views are assignee-based queues — Mine / Unassigned / All — with the
+// @-mentions feed below them. Status is no longer a view; it's a list filter.
 export const CONVERSATION_VIEWS = [
+  { view: 'mine', label: 'Mine', Icon: UserIcon },
+  { view: 'unassigned', label: 'Unassigned', Icon: InboxArrowDownIcon },
   { view: 'all', label: 'All', Icon: InboxIcon },
   { view: 'mentions', label: 'Mentions', Icon: AtSymbolIcon },
-  { view: 'unattended', label: 'Unattended', Icon: InboxArrowDownIcon },
 ] as const
 
 export type ChatTagWithCount = { id: ChatTagId; name: string; color: string; count: number }
@@ -58,9 +63,11 @@ export function scopeLabelFor(nav: InboxNavItem, tags?: ChatTagWithCount[]): str
   if (nav.kind === 'tag') return tags?.find((t) => t.id === nav.tagId)?.name ?? 'Label'
   return nav.view === 'mentions'
     ? 'Mentions'
-    : nav.view === 'unattended'
-      ? 'Unattended'
-      : 'All conversations'
+    : nav.view === 'mine'
+      ? 'Mine'
+      : nav.view === 'unassigned'
+        ? 'Unassigned'
+        : 'All conversations'
 }
 
 // Mirrors the settings secondary-nav item aesthetic (settings-nav.tsx) so the
@@ -81,9 +88,13 @@ const itemClass = (active: boolean) =>
 export function InboxNavSidebar({
   nav,
   onSelect,
+  search,
+  onSearch,
 }: {
   nav: InboxNavItem
   onSelect: (item: InboxNavItem) => void
+  search: string
+  onSearch: (value: string) => void
 }) {
   const { data: tags } = useChatTagsWithCounts()
   const activeKey = inboxNavKey(nav)
@@ -92,6 +103,19 @@ export function InboxNavSidebar({
     <nav className="hidden w-64 shrink-0 flex-col border-r border-border/50 bg-card/30 lg:flex xl:w-72">
       <div className="px-4 py-3.5">
         <PageHeader icon={ChatBubbleLeftRightIcon} title="Conversations" />
+      </div>
+      {/* Search sits at the top of the pane, directly under the header. */}
+      <div className="px-4 pb-3">
+        <div className="relative">
+          <MagnifyingGlassIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+            placeholder="Search conversations…"
+            className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-2.5 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+          />
+        </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
         <FilterSection title="Conversations">

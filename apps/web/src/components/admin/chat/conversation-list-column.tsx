@@ -4,6 +4,7 @@ import type {
   ConversationPriority,
   ConversationStatus,
 } from '@/lib/shared/chat/types'
+import { ChevronDownIcon } from '@heroicons/react/24/solid'
 import { priorityMeta } from '@/lib/shared/chat/priority-meta'
 import { PriorityDot, PriorityMenuItems } from '@/components/admin/chat/priority-control'
 import { ChannelBadge } from '@/components/admin/chat/channel-badge'
@@ -20,7 +21,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/shared/utils'
 
-type AssigneeFilter = 'all' | 'mine' | 'unassigned'
+/** Status filter: a real status, or 'all' (no status filter applied). */
+type StatusFilter = ConversationStatus | 'all'
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -32,33 +34,28 @@ function relativeTime(iso: string): string {
   return `${Math.floor(h / 24)}d`
 }
 
-/** The empty-list message for the active scope + refinements. */
-function emptyStateMessage(
-  nav: InboxNavItem,
-  assignee: AssigneeFilter,
-  status: ConversationStatus,
-  scopeLabel: string
-): string {
+/** The empty-list message for the active scope + status filter. */
+function emptyStateMessage(nav: InboxNavItem, status: StatusFilter, scopeLabel: string): string {
   if (nav.kind === 'tag') return `No conversations labelled ${scopeLabel}`
   if (nav.view === 'mentions') return 'No conversations mention you yet'
-  if (nav.view === 'unattended') return 'Nothing unattended — every open chat has an owner'
-  if (assignee === 'mine') return `No ${status} conversations assigned to you`
-  if (assignee === 'unassigned') return `No unassigned ${status} conversations`
-  return `No ${status} conversations`
+  const statusPart = status === 'all' ? '' : `${status} `
+  if (nav.view === 'mine') return `No ${statusPart}conversations assigned to you`
+  if (nav.view === 'unassigned') return `No ${statusPart}unassigned conversations`
+  return `No ${statusPart}conversations`
 }
 
 interface ConversationListColumnProps {
   nav: InboxNavItem
   onSelectNav: (item: InboxNavItem) => void
   scopeLabel: string
-  /** Whether to show the assignee/status/priority refinements (open-ended scopes only). */
+  /** Whether to show the status/priority filter chips (hidden for the Mentions feed). */
   showRefinements: boolean
+  /** Search input, mirrored from the nav sidebar (the list keeps a copy for the
+   *  sub-lg layout where the nav pane is hidden). */
   searchInput: string
   onSearchInput: (value: string) => void
-  assignee: AssigneeFilter
-  onAssignee: (value: AssigneeFilter) => void
-  status: ConversationStatus
-  onStatus: (value: ConversationStatus) => void
+  status: StatusFilter
+  onStatus: (value: StatusFilter) => void
   priorityFilter: ConversationPriority | 'all'
   onPriorityFilter: (value: ConversationPriority | 'all') => void
   loading: boolean
@@ -79,8 +76,6 @@ export function ConversationListColumn({
   showRefinements,
   searchInput,
   onSearchInput,
-  assignee,
-  onAssignee,
   status,
   onStatus,
   priorityFilter,
@@ -109,7 +104,9 @@ export function ConversationListColumn({
           <InboxScopeMenu nav={nav} onSelect={onSelectNav} />
         </div>
       </div>
-      <div className="px-3 pt-2">
+      {/* Search is owned by the nav pane at lg+; the list keeps a copy for the
+          sub-lg layout where that pane is hidden. */}
+      <div className="px-3 pt-2 lg:hidden">
         <input
           type="search"
           value={searchInput}
@@ -119,70 +116,67 @@ export function ConversationListColumn({
         />
       </div>
       {showRefinements && (
-        <>
-          <div className="px-3 pt-2">
-            <div className="inline-flex rounded-md border border-border p-0.5 text-xs">
-              {(['all', 'mine', 'unassigned'] as const).map((a) => (
-                <button
-                  key={a}
-                  type="button"
-                  onClick={() => onAssignee(a)}
-                  className={cn(
-                    'rounded px-2.5 py-1 font-medium capitalize transition-colors',
-                    assignee === a
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-muted'
-                  )}
-                >
-                  {a}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none px-3 py-2">
-            {(['open', 'pending', 'closed'] as const).map((s) => (
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none px-3 py-2">
+          {/* Status is a removable filter chip (mirrors the feedback inbox) — not
+              a primary view. 'all' = no status filter. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <button
-                key={s}
                 type="button"
-                onClick={() => onStatus(s)}
                 className={cn(
-                  'shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors',
-                  status === s
+                  'inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium transition-colors',
+                  status !== 'all'
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:bg-muted'
                 )}
               >
-                {s}
+                <span className="capitalize">{status === 'all' ? 'Status' : status}</span>
+                <ChevronDownIcon className="h-3 w-3" />
               </button>
-            ))}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Filter by priority"
-                  className={cn(
-                    'ml-auto inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium transition-colors',
-                    priorityFilter !== 'all'
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-muted'
-                  )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => onStatus('all')} className="text-xs">
+                All statuses
+              </DropdownMenuItem>
+              {(['open', 'pending', 'closed'] as const).map((s) => (
+                <DropdownMenuItem
+                  key={s}
+                  onClick={() => onStatus(s)}
+                  className="text-xs capitalize"
                 >
-                  <PriorityDot priority={priorityFilter === 'all' ? 'none' : priorityFilter} />
-                  {priorityFilter === 'all' ? 'Priority' : priorityMeta(priorityFilter).label}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onPriorityFilter('all')} className="text-xs">
-                  All priorities
+                  {s}
                 </DropdownMenuItem>
-                <PriorityMenuItems
-                  selected={priorityFilter === 'all' ? undefined : priorityFilter}
-                  onSelect={onPriorityFilter}
-                />
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Filter by priority"
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium transition-colors',
+                  priorityFilter !== 'all'
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted'
+                )}
+              >
+                <PriorityDot priority={priorityFilter === 'all' ? 'none' : priorityFilter} />
+                {priorityFilter === 'all' ? 'Priority' : priorityMeta(priorityFilter).label}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onPriorityFilter('all')} className="text-xs">
+                All priorities
+              </DropdownMenuItem>
+              <PriorityMenuItems
+                selected={priorityFilter === 'all' ? undefined : priorityFilter}
+                onSelect={onPriorityFilter}
+              />
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       )}
       <ScrollArea className="min-h-0 flex-1">
         {loading ? (
@@ -191,7 +185,7 @@ export function ConversationListColumn({
           </div>
         ) : conversations.length === 0 ? (
           <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-            {emptyStateMessage(nav, assignee, status, scopeLabel)}
+            {emptyStateMessage(nav, status, scopeLabel)}
           </div>
         ) : (
           conversations.map((c) => (
