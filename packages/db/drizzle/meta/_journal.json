@@ -708,6 +708,13 @@
       "when": 1781308800000,
       "tag": "0100_chat_tags_and_message_mentions",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1781395200000,
+      "tag": "0101_chat_message_content_json",
+      "breakpoints": true
     }
   ]
 }

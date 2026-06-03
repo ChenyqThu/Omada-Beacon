@@ -17,7 +17,7 @@ import {
   CHANNELS,
   CONVERSATION_PRIORITIES,
 } from '../types'
-import type { ChatAttachment, ChatMessageMetadata } from '../types'
+import type { ChatAttachment, ChatMessageMetadata, TiptapContent } from '../types'
 
 /**
  * Support-inbox conversations — one thread between a visitor (anonymous or
@@ -98,6 +98,10 @@ export const chatMessages = pgTable(
     // principal's current role (a team member could also be a visitor).
     senderType: text('sender_type', { enum: CHAT_SENDER_TYPES }).notNull(),
     content: text('content').notNull(),
+    // Rich TipTap doc for messages that carry structured content (agent notes
+    // with @-mentions). Null for plain live-chat/email messages, which render
+    // from `content`. Mirrors comments/posts `content_json`.
+    contentJson: jsonb('content_json').$type<TiptapContent>(),
     // Agent-only internal note — never sent to or visible to the visitor.
     isInternal: boolean('is_internal').notNull().default(false),
     // Image/file attachments (client-safe refs); null/empty for text-only messages.

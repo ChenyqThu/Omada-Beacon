@@ -106,6 +106,13 @@ describe('chat_messages schema', () => {
     expect(cols.principalId.notNull).toBe(false)
   })
 
+  it('contentJson is a nullable jsonb (rich note bodies; null for plain messages)', () => {
+    const cols = getTableColumns(chatMessages)
+    expect(cols.contentJson).toBeDefined()
+    expect(cols.contentJson.notNull).toBe(false)
+    expect(cols.contentJson.columnType).toBe('PgJsonb')
+  })
+
   it('senderType enum matches CHAT_SENDER_TYPES', () => {
     const cols = getTableColumns(chatMessages)
     expect(cols.senderType.enumValues).toEqual([...CHAT_SENDER_TYPES])
