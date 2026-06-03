@@ -31,6 +31,7 @@ import {
 } from '@/lib/server/db'
 import type { ConversationId, PrincipalId, PostId, ChatTagId, ChatMessageId } from '@quackback/ids'
 import { aggregateReactions } from '@/lib/shared'
+import { getPublicUrlOrNull } from '@/lib/server/storage/s3'
 import type {
   ChatAuthorDTO,
   ChatMessageDTO,
@@ -52,16 +53,18 @@ export async function loadAuthors(
   const unique = [...new Set(ids.filter((id): id is PrincipalId => !!id))]
   const map = new Map<PrincipalId, ChatAuthorDTO>()
   if (unique.length === 0) return map
-  // Prefer the linked user's avatar (the canonical source, like the team-member
-  // list) and fall back to the principal's synced copy — principal.avatarUrl is
-  // not reliably kept in sync, so agents whose avatar lives only on the user row
-  // would otherwise show initials.
+  // Resolve the avatar from the linked user (the canonical source, like the
+  // team-member list): an external image URL, or the public URL of an uploaded
+  // avatar (stored only as an S3 key), falling back to the principal's synced
+  // copy. principal.avatarUrl alone is not reliably kept in sync, so agents
+  // whose avatar lives only on the user row would otherwise show initials.
   const rows = await db
     .select({
       id: principal.id,
       displayName: principal.displayName,
       avatarUrl: principal.avatarUrl,
       userImage: user.image,
+      userImageKey: user.imageKey,
     })
     .from(principal)
     .leftJoin(user, eq(user.id, principal.userId))
@@ -70,7 +73,7 @@ export async function loadAuthors(
     map.set(row.id, {
       principalId: row.id,
       displayName: row.displayName ?? null,
-      avatarUrl: row.userImage ?? row.avatarUrl ?? null,
+      avatarUrl: row.userImage ?? getPublicUrlOrNull(row.userImageKey) ?? row.avatarUrl ?? null,
     })
   }
   return map
