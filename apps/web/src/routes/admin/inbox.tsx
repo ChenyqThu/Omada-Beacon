@@ -117,6 +117,28 @@ function InboxRoute() {
 
 type StatusFilter = ConversationStatus
 
+/**
+ * Map the active nav scope + header refinements to the list-query params.
+ * Encodes the scope rules in one place: a Label scope refines by tag; Mentions
+ * is a personal all-status feed; Unattended is open + unassigned; All applies
+ * the header status/priority/assignee.
+ */
+function buildListParams(
+  nav: InboxNavItem,
+  status: ConversationStatus,
+  priorityFilter: ConversationPriority | 'all',
+  assignee: 'all' | 'mine' | 'unassigned',
+  search: string
+) {
+  const priority = priorityFilter === 'all' ? undefined : priorityFilter
+  const q = search || undefined
+  if (nav.kind === 'tag') return { tagIds: [nav.tagId], status, priority, assignee, search: q }
+  if (nav.view === 'mentions') return { view: 'mentions' as const, search: q }
+  if (nav.view === 'unattended')
+    return { status: 'open' as const, assignee: 'unassigned' as const, search: q }
+  return { status, priority, assignee, search: q }
+}
+
 function InboxPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -179,28 +201,7 @@ function InboxPage() {
     queryKey: listKey,
     queryFn: () =>
       listConversationsFn({
-        data:
-          nav.kind === 'tag'
-            ? {
-                tagIds: [nav.tagId],
-                status,
-                priority: priorityFilter === 'all' ? undefined : priorityFilter,
-                assignee,
-                search: search || undefined,
-              }
-            : nav.view === 'mentions'
-              ? // A personal feed: every conversation mentioning me, regardless
-                // of status/assignee. The principal is resolved server-side.
-                { view: 'mentions', search: search || undefined }
-              : nav.view === 'unattended'
-                ? // Open + unassigned, i.e. nothing has picked it up yet.
-                  { status: 'open', assignee: 'unassigned', search: search || undefined }
-                : {
-                    status,
-                    priority: priorityFilter === 'all' ? undefined : priorityFilter,
-                    assignee,
-                    search: search || undefined,
-                  },
+        data: buildListParams(nav, status, priorityFilter, assignee, search),
       }),
     refetchInterval: 30_000, // polling fallback if the stream drops
   })

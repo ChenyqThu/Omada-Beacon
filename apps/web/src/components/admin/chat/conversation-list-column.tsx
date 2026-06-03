@@ -32,6 +32,21 @@ function relativeTime(iso: string): string {
   return `${Math.floor(h / 24)}d`
 }
 
+/** The empty-list message for the active scope + refinements. */
+function emptyStateMessage(
+  nav: InboxNavItem,
+  assignee: AssigneeFilter,
+  status: ConversationStatus,
+  scopeLabel: string
+): string {
+  if (nav.kind === 'tag') return `No conversations labelled ${scopeLabel}`
+  if (nav.view === 'mentions') return 'No conversations mention you yet'
+  if (nav.view === 'unattended') return 'Nothing unattended — every open chat has an owner'
+  if (assignee === 'mine') return `No ${status} conversations assigned to you`
+  if (assignee === 'unassigned') return `No unassigned ${status} conversations`
+  return `No ${status} conversations`
+}
+
 interface ConversationListColumnProps {
   nav: InboxNavItem
   onSelectNav: (item: InboxNavItem) => void
@@ -176,17 +191,7 @@ export function ConversationListColumn({
           </div>
         ) : conversations.length === 0 ? (
           <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-            {nav.kind === 'tag'
-              ? `No conversations labelled ${scopeLabel}`
-              : nav.view === 'mentions'
-                ? 'No conversations mention you yet'
-                : nav.view === 'unattended'
-                  ? 'Nothing unattended — every open chat has an owner'
-                  : assignee === 'mine'
-                    ? `No ${status} conversations assigned to you`
-                    : assignee === 'unassigned'
-                      ? `No unassigned ${status} conversations`
-                      : `No ${status} conversations`}
+            {emptyStateMessage(nav, assignee, status, scopeLabel)}
           </div>
         ) : (
           conversations.map((c) => (
