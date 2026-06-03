@@ -125,10 +125,9 @@ export function WidgetShell({
 
   return (
     <div className="flex flex-col h-full bg-background text-foreground overflow-x-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 shrink-0">
-        {/* Left zone: back button on detail views (empty on root tabs so the
-            flanking flex-1 zones keep the centered title dead-center). */}
-        <div className="flex flex-1 items-center gap-1 min-w-0">
+      <div className="relative flex items-center justify-between gap-2 px-4 py-3 shrink-0">
+        {/* Left: back button on detail views. */}
+        <div className="flex items-center gap-1">
           {onBack && (
             <button
               type="button"
@@ -144,29 +143,28 @@ export function WidgetShell({
           )}
         </div>
 
-        {/* Center: the tab title gets its own flex-1 zone so it stays
-            dead-center no matter how much sits in the right zone (CTA / avatar /
-            close). Detail views (with a back button) render their own heading in
-            the body, so the title is suppressed there. */}
-        <div className="flex flex-1 min-w-0 items-center justify-center">
-          {!onBack && activeTab !== 'home' && (
-            <h2 className="min-w-0 truncate text-center text-base font-semibold text-foreground">
-              {activeTab === 'feedback' ? (
-                <FormattedMessage
-                  id="widget.shell.heading.feedback"
-                  defaultMessage="Share your ideas"
-                />
-              ) : activeTab === 'help' ? (
-                <FormattedMessage id="widget.shell.heading.help" defaultMessage="Help & Support" />
-              ) : (
-                <FormattedMessage id="widget.shell.heading.changelog" defaultMessage="What's new" />
-              )}
-            </h2>
-          )}
-        </div>
+        {/* Center: the title is absolutely centered on the header midpoint so it
+            keeps its natural width (never squeezed by the right-zone controls),
+            and only truncates via max-w if a long localized title would actually
+            reach them. Detail views (with a back button) render their own heading
+            in the body, so the title is suppressed there. */}
+        {!onBack && activeTab !== 'home' && (
+          <h2 className="pointer-events-none absolute left-1/2 max-w-[55%] -translate-x-1/2 truncate text-center text-base font-semibold text-foreground">
+            {activeTab === 'feedback' ? (
+              <FormattedMessage
+                id="widget.shell.heading.feedback"
+                defaultMessage="Share your ideas"
+              />
+            ) : activeTab === 'help' ? (
+              <FormattedMessage id="widget.shell.heading.help" defaultMessage="Help & Support" />
+            ) : (
+              <FormattedMessage id="widget.shell.heading.changelog" defaultMessage="What's new" />
+            )}
+          </h2>
+        )}
 
-        {/* Right zone: portal CTA, user menu, and the always-present close. */}
-        <div className="flex flex-1 items-center justify-end gap-1 min-w-0">
+        {/* Right: portal CTA, user menu, and the always-present close. */}
+        <div className="flex items-center gap-1">
           {showPortalCta && (
             <button
               type="button"
