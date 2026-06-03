@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { PlusIcon } from '@heroicons/react/24/solid'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -49,10 +50,12 @@ export function ConversationTagsEditor({
     mutationFn: (v: { tagId?: ChatTagId; name?: string }) =>
       addConversationTagFn({ data: { conversationId, ...v } }),
     onSuccess: invalidate,
+    onError: () => toast.error('Failed to add tag'),
   })
   const removeMut = useMutation({
     mutationFn: (tagId: ChatTagId) => removeConversationTagFn({ data: { conversationId, tagId } }),
     onSuccess: invalidate,
+    onError: () => toast.error('Failed to remove tag'),
   })
 
   const taggedIds = new Set(tags.map((t) => t.id))
@@ -60,6 +63,12 @@ export function ConversationTagsEditor({
   const available = (allTags ?? []).filter((t) => !taggedIds.has(t.id))
   const filtered = q ? available.filter((t) => t.name.toLowerCase().includes(q)) : available
   const exactExists = (allTags ?? []).some((t) => t.name.toLowerCase() === q)
+  // Offer "Create" as soon as the agent types a name with no exact match — even
+  // before the tag list resolves. Creation is find-or-create (idempotent), so
+  // it's safe to show while loading or if the list fetch failed, which is what
+  // makes inline tagging reliably work from an empty taxonomy.
+  const showCreate = q.length > 0 && !exactExists
+  const loadingTags = open && allTags === undefined
 
   return (
     <div className="flex flex-wrap items-center gap-1">
@@ -109,7 +118,7 @@ export function ConversationTagsEditor({
                   <span className="truncate text-xs">{t.name}</span>
                 </button>
               ))}
-              {q && allTags !== undefined && !exactExists && (
+              {showCreate && (
                 <button
                   type="button"
                   onClick={() => {
@@ -124,9 +133,12 @@ export function ConversationTagsEditor({
                   </span>
                 </button>
               )}
-              {allTags !== undefined && filtered.length === 0 && (!q || exactExists) && (
+              {loadingTags && filtered.length === 0 && (
+                <p className="px-1.5 py-1 text-xs text-muted-foreground/70">Loading tags…</p>
+              )}
+              {!loadingTags && filtered.length === 0 && !showCreate && (
                 <p className="px-1.5 py-1 text-xs text-muted-foreground">
-                  {q ? 'Already added' : 'No labels yet'}
+                  {q ? 'Already added' : 'No tags yet — type to create one'}
                 </p>
               )}
             </div>

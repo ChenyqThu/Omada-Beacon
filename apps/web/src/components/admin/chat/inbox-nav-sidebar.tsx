@@ -81,8 +81,9 @@ const itemClass = (active: boolean) =>
   )
 
 /**
- * Grouped inbox navigation: a Conversations group (All / Mentions / Unattended)
- * and a Labels group with per-tag conversation counts. Desktop-only (md+); the
+ * Grouped inbox navigation: a Conversations group (Mine / Unassigned / All /
+ * Mentions) and a Tags group with per-tag conversation counts. Desktop-only
+ * (md+); the
  * mobile equivalent is InboxScopeMenu in the list header.
  */
 export function InboxNavSidebar({
@@ -139,7 +140,7 @@ export function InboxNavSidebar({
         </FilterSection>
 
         {tags && tags.length > 0 && (
-          <FilterSection title="Labels">
+          <FilterSection title="Tags">
             <div className="space-y-1">
               {tags.map((t) => {
                 const item: InboxNavItem = { kind: 'tag', tagId: t.id }
@@ -214,7 +215,7 @@ export function InboxScopeMenu({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
-              Labels
+              Tags
             </DropdownMenuLabel>
             {tags.map((t) => {
               const item: InboxNavItem = { kind: 'tag', tagId: t.id }

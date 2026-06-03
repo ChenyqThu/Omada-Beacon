@@ -97,17 +97,11 @@ export function AdminBubble({
             : 'hover:bg-muted/40'
       )}
     >
-      {/* Left gutter: avatar + (when flagged) a solid flag marker beneath it. */}
-      <div className="flex shrink-0 flex-col items-center gap-1">
-        <Avatar
-          src={message.author?.avatarUrl ?? null}
-          name={authorName}
-          className="mt-0.5 size-9 text-xs"
-        />
-        {isFlagged && (
-          <FlagSolidIcon className="size-3.5 text-amber-500" aria-label="Flagged" title="Flagged" />
-        )}
-      </div>
+      <Avatar
+        src={message.author?.avatarUrl ?? null}
+        name={authorName}
+        className="mt-0.5 size-9 shrink-0 text-xs"
+      />
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -127,6 +121,14 @@ export function AdminBubble({
             )}
             {timeLabel(message.createdAt)}
           </span>
+          {/* Flag marker sits right after the time. */}
+          {isFlagged && (
+            <FlagSolidIcon
+              className="h-3.5 w-3.5 shrink-0 text-amber-500"
+              aria-label="Flagged"
+              title="Flagged"
+            />
+          )}
         </div>
         {isNote ? (
           <NoteContent
