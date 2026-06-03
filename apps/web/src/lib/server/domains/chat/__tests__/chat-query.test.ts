@@ -34,6 +34,7 @@ vi.mock('@/lib/server/db', () => {
       return chain
     }
     chain.innerJoin = passthrough
+    chain.leftJoin = passthrough
     chain.where = passthrough
     chain.orderBy = passthrough
     chain.limit = passthrough
@@ -49,6 +50,7 @@ vi.mock('@/lib/server/db', () => {
     },
     // Tables — only __name matters for routing the chain.
     principal: { __name: 'principal' },
+    user: { __name: 'user', id: 'id', image: 'image' },
     conversations: { __name: 'conversations' },
     chatMessages: { __name: 'chat_messages' },
     chatMessageMentions: { __name: 'chat_message_mentions' },

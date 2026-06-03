@@ -7,6 +7,7 @@ import {
   conversations,
   chatMessages,
   principal,
+  user,
   eq,
   and,
   or,
@@ -51,19 +52,25 @@ export async function loadAuthors(
   const unique = [...new Set(ids.filter((id): id is PrincipalId => !!id))]
   const map = new Map<PrincipalId, ChatAuthorDTO>()
   if (unique.length === 0) return map
+  // Prefer the linked user's avatar (the canonical source, like the team-member
+  // list) and fall back to the principal's synced copy — principal.avatarUrl is
+  // not reliably kept in sync, so agents whose avatar lives only on the user row
+  // would otherwise show initials.
   const rows = await db
     .select({
       id: principal.id,
       displayName: principal.displayName,
       avatarUrl: principal.avatarUrl,
+      userImage: user.image,
     })
     .from(principal)
+    .leftJoin(user, eq(user.id, principal.userId))
     .where(inArray(principal.id, unique))
   for (const row of rows) {
     map.set(row.id, {
       principalId: row.id,
       displayName: row.displayName ?? null,
-      avatarUrl: row.avatarUrl ?? null,
+      avatarUrl: row.userImage ?? row.avatarUrl ?? null,
     })
   }
   return map
