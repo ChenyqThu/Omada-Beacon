@@ -112,6 +112,7 @@ export function ConversationListColumn({
           value={searchInput}
           onChange={(e) => onSearchInput(e.target.value)}
           placeholder="Search conversations…"
+          aria-label="Search conversations"
           className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/20"
         />
       </div>

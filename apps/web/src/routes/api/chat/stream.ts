@@ -71,6 +71,25 @@ function sse(event: string, data: unknown, id?: string): string {
   return lines.join('\n') + '\n\n'
 }
 
+/** Frame a raw pub/sub payload as a named SSE event (id carried for message
+ *  events so reconnect backfill can resume). Pure — hoisted so it isn't
+ *  re-created per connection. */
+function formatFrame(message: string): { id?: string; frame: string } {
+  let id: string | undefined
+  let eventName = 'message'
+  try {
+    const parsed = JSON.parse(message) as { kind?: string; message?: { id?: string } }
+    eventName = parsed.kind ?? 'message'
+    if (parsed.kind === 'message') id = parsed.message?.id
+  } catch {
+    // pass through as-is if unparseable
+  }
+  return {
+    id,
+    frame: `${id ? `id: ${id}\n` : ''}event: ${eventName}\ndata: ${message}\n\n`,
+  }
+}
+
 export const Route = createFileRoute('/api/chat/stream')({
   server: {
     handlers: {
@@ -237,25 +256,6 @@ export const Route = createFileRoute('/api/chat/stream')({
               const sentMessageIds = new Set<string>()
               let backfilling = Boolean(backfillConversationId && lastEventId)
               const liveBuffer: Array<{ id?: string; frame: string }> = []
-
-              const formatFrame = (message: string): { id?: string; frame: string } => {
-                let id: string | undefined
-                let eventName = 'message'
-                try {
-                  const parsed = JSON.parse(message) as {
-                    kind?: string
-                    message?: { id?: string }
-                  }
-                  eventName = parsed.kind ?? 'message'
-                  if (parsed.kind === 'message') id = parsed.message?.id
-                } catch {
-                  // pass through as-is if unparseable
-                }
-                return {
-                  id,
-                  frame: `${id ? `id: ${id}\n` : ''}event: ${eventName}\ndata: ${message}\n\n`,
-                }
-              }
 
               const unsub = await subscribe(channels, (_channel, message) => {
                 // Don't echo an agent's own typing back to them — so the client

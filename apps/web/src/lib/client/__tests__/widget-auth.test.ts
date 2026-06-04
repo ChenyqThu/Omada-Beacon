@@ -1,3 +1,6 @@
+// @vitest-environment happy-dom
+// widget-auth reads window.localStorage / window.location, so this suite needs a
+// DOM env even under the root (node-environment) vitest config.
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   setWidgetToken,

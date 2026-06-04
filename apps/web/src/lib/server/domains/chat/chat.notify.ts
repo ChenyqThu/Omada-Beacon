@@ -58,7 +58,7 @@ export async function notifyVisitorMessage(opts: {
     if (!agentsOnline) {
       const ctx = await buildHookContext()
       if (!ctx) return
-      const ctaUrl = `${ctx.portalBaseUrl}/admin/inbox?c=${opts.conversation.id}`
+      const ctaUrl = `${ctx.portalBaseUrl.replace(/\/$/, '')}/admin/inbox?c=${opts.conversation.id}`
       const { sendChatMessageEmail } = await import('@quackback/email')
       await Promise.allSettled(
         team

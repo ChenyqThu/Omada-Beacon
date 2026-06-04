@@ -129,6 +129,7 @@ export function InboxNavSidebar({
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             placeholder="Search conversations…"
+            aria-label="Search conversations"
             className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-2.5 text-xs outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
