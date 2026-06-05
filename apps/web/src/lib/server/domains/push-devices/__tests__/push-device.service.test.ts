@@ -3,9 +3,9 @@ import type { PrincipalId } from '@quackback/ids'
 
 const onConflictDoUpdate = vi.fn()
 const values = vi.fn(() => ({ onConflictDoUpdate }))
-const insert = vi.fn(() => ({ values }))
+const insert = vi.fn((..._a: unknown[]) => ({ values }))
 const where = vi.fn()
-const del = vi.fn(() => ({ where }))
+const del = vi.fn((..._a: unknown[]) => ({ where }))
 
 vi.mock('@/lib/server/db', () => ({
   db: {
