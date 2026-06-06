@@ -10,10 +10,30 @@ import { ValidationError } from '@/lib/shared/errors'
 const insertedConversations: Record<string, unknown>[] = []
 const insertedMessages: Record<string, unknown>[] = []
 
+// vi.mock factories are hoisted above imports, so build the spy bag via
+// vi.hoisted so the factory below can close over it.
+const emit = vi.hoisted(() => ({
+  emitConversationCreated: vi.fn(),
+  emitMessageCreated: vi.fn(),
+  emitMessageNoteCreated: vi.fn(),
+  emitMessageDeleted: vi.fn(),
+  emitConversationStatusChanged: vi.fn(),
+  emitConversationAssigned: vi.fn(),
+  emitConversationPriorityChanged: vi.fn(),
+  emitConversationCsatSubmitted: vi.fn(),
+}))
+vi.mock('../chat.webhooks', () => emit)
+
 vi.mock('@/lib/server/realtime/chat-channels', () => ({
   publishChatEvent: vi.fn(),
   publishAgentChatEvent: vi.fn(),
   publishConversationUpdate: vi.fn(),
+}))
+
+// Auto-routing dynamically imports ./routing. Make it always hand back an agent
+// so a new conversation gets claimed and the assigned webhook can fire.
+vi.mock('../routing', () => ({
+  routeConversation: vi.fn(async () => ({ assignedPrincipalId: 'principal_agent' })),
 }))
 
 // config getters validate the full env (absent in tests); provide just what the
@@ -106,8 +126,11 @@ vi.mock('@/lib/server/db', () => {
       update: vi.fn((table: { __name?: string }) => chain(table?.__name ?? 'unknown')),
     },
     eq: vi.fn(),
+    and: vi.fn(),
+    isNull: vi.fn(),
     conversations: { __name: 'conversations', id: 'id' },
     chatMessages: { __name: 'chat_messages', id: 'id' },
+    principal: { __name: 'principal', id: 'id', displayName: 'display_name' },
   }
 })
 
@@ -165,6 +188,23 @@ describe('sendVisitorMessage first-message conversation creation', () => {
       principalId: visitor,
       content: 'Hello there',
     })
+  })
+
+  it('emits conversation.created + message.created webhooks for a first message', async () => {
+    await sendVisitorMessage({ content: 'Hello there' }, { principalId: visitor }, visitorActor)
+    // Fire-and-forget after the commit: a created conversation gets both events.
+    expect(emit.emitConversationCreated).toHaveBeenCalledTimes(1)
+    expect(emit.emitMessageCreated).toHaveBeenCalledTimes(1)
+  })
+
+  it('emits conversation.assigned when a new conversation is auto-routed', async () => {
+    await sendVisitorMessage({ content: 'Hello there' }, { principalId: visitor }, visitorActor)
+    // Auto-routing claims the unassigned conversation, so the assigned webhook
+    // fires with a system actor and no previous assignee.
+    expect(emit.emitConversationAssigned).toHaveBeenCalledTimes(1)
+    const [actor, , previousAgentPrincipalId] = emit.emitConversationAssigned.mock.calls[0]
+    expect(actor).toMatchObject({ principalId: null, principalType: 'service' })
+    expect(previousAgentPrincipalId).toBeNull()
   })
 })
 

@@ -22,7 +22,7 @@ import {
 } from '@/lib/server/db'
 import { isTeamMember } from '@/lib/shared/roles'
 import type { ChatAttachment } from '@/lib/server/db'
-import type { ConversationId, ChatMessageId, PrincipalId } from '@quackback/ids'
+import type { ConversationId, ChatMessageId, PrincipalId, SegmentId } from '@quackback/ids'
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/shared/errors'
 import { config } from '@/lib/server/config'
 import {
@@ -56,6 +56,16 @@ import {
 import { truncate } from '@/lib/shared/utils/string'
 import { notifyVisitorMessage, notifyAgentReply } from './chat.notify'
 import { conversationToDTO, toMessageDTO, authorFromInput, resolveAuthor } from './chat.query'
+import {
+  emitConversationCreated,
+  emitMessageCreated,
+  emitMessageNoteCreated,
+  emitMessageDeleted,
+  emitConversationStatusChanged,
+  emitConversationAssigned,
+  emitConversationPriorityChanged,
+  emitConversationCsatSubmitted,
+} from './chat.webhooks'
 import { extractMentions } from '@/lib/server/domains/posts/extract-mentions'
 import { syncChatMessageMentions } from './sync-chat-mentions'
 import { sanitizeTiptapContent } from '@/lib/server/sanitize-tiptap'
@@ -66,6 +76,16 @@ import type {
   SendVisitorMessageResult,
   SendAgentMessageResult,
 } from './chat.types'
+
+/** Actor for system-initiated events (auto-routing): no principal, service type. */
+function systemActor(): Actor {
+  return {
+    principalId: null,
+    role: null,
+    principalType: 'service',
+    segmentIds: new Set<SegmentId>(),
+  }
+}
 
 const PREVIEW_LENGTH = 120
 // Matches the 5 MB cap enforced by the upload endpoints.
@@ -298,6 +318,11 @@ export async function sendVisitorMessage(
     isFirstMessage: created,
   })
 
+  if (created) {
+    void emitConversationCreated(actor, author, txResult.conversation)
+  }
+  void emitMessageCreated(actor, author, txResult.message, txResult.conversation)
+
   // Return a VISITOR-side DTO to the caller — never leak the agent-only
   // visitorEmail back to the visitor in the send response.
   const conversationDTO = await conversationToDTO(txResult.conversation, 'visitor')
@@ -356,7 +381,11 @@ export async function sendAgentMessage(
       .where(eq(conversations.id, conversationId))
       .returning()
 
-    return { message, conversation: updated }
+    return {
+      message,
+      conversation: updated,
+      previousAgentPrincipalId: existing.assignedAgentPrincipalId,
+    }
   })
 
   const messageDTO = toMessageDTO(txResult.message, await resolveAuthor(agent))
@@ -378,6 +407,14 @@ export async function sendAgentMessage(
     agentName: agent.displayName ?? 'Support',
     capturedEmail: txResult.conversation.visitorEmail,
   })
+
+  void emitMessageCreated(actor, agent, txResult.message, txResult.conversation)
+  if (
+    txResult.previousAgentPrincipalId === null &&
+    txResult.conversation.assignedAgentPrincipalId !== null
+  ) {
+    void emitConversationAssigned(actor, txResult.conversation, txResult.previousAgentPrincipalId)
+  }
 
   return { conversation: conversationDTO, message: messageDTO }
 }
@@ -459,10 +496,9 @@ export async function addAgentNote(
   // Reload so the published DTO reflects current status/assignment rather
   // than the pre-write snapshot (the admin client replaces its cached
   // conversation with this payload).
-  const conversationDTO = await conversationToDTO(
-    await loadConversationOr404(conversationId),
-    'agent'
-  )
+  const noteConversation = await loadConversationOr404(conversationId)
+  const conversationDTO = await conversationToDTO(noteConversation, 'agent')
+  void emitMessageNoteCreated(actor, agent, message, noteConversation)
   return { conversation: conversationDTO, message: messageDTO }
 }
 
@@ -493,6 +529,9 @@ export async function setConversationStatus(
   }
   const dto = await conversationToDTO(updated, 'agent')
   publishConversationUpdate(conversationId, dto)
+  if (updated.status !== previous) {
+    void emitConversationStatusChanged(actor, updated, previous)
+  }
   return updated
 }
 
@@ -575,6 +614,7 @@ async function assignRoutedConversation(conversation: Conversation): Promise<Pri
   if (!assigned) return null
   await emitAssignmentSystemMessage(assigned.id, assignedPrincipalId)
   publishConversationUpdate(assigned.id, await conversationToDTO(assigned, 'agent'))
+  void emitConversationAssigned(systemActor(), assigned, null)
   return assignedPrincipalId
 }
 
@@ -586,7 +626,7 @@ export async function assignConversation(
 ): Promise<Conversation> {
   const decision = canActAsAgent(actor)
   if (!decision.allowed) throw new ForbiddenError('FORBIDDEN', decision.reason)
-  await loadConversationOr404(conversationId)
+  const existing = await loadConversationOr404(conversationId)
   // Only a team member can be the assignee (any agent, not just the caller).
   if (agentPrincipalId) {
     const [target] = await db
@@ -607,6 +647,9 @@ export async function assignConversation(
   publishConversationUpdate(conversationId, dto)
   if (agentPrincipalId) {
     await emitAssignmentSystemMessage(conversationId, agentPrincipalId)
+  }
+  if (updated.assignedAgentPrincipalId !== existing.assignedAgentPrincipalId) {
+    void emitConversationAssigned(actor, updated, existing.assignedAgentPrincipalId)
   }
   return updated
 }
@@ -696,7 +739,7 @@ export async function setConversationPriority(
 ): Promise<Conversation> {
   const decision = canActAsAgent(actor)
   if (!decision.allowed) throw new ForbiddenError('FORBIDDEN', decision.reason)
-  await loadConversationOr404(conversationId)
+  const existing = await loadConversationOr404(conversationId)
   const [updated] = await db
     .update(conversations)
     .set({ priority, updatedAt: new Date() })
@@ -704,6 +747,9 @@ export async function setConversationPriority(
     .returning()
   const dto = await conversationToDTO(updated, 'agent')
   publishConversationUpdate(conversationId, dto)
+  if (updated.priority !== existing.priority) {
+    void emitConversationPriorityChanged(actor, updated, existing.priority)
+  }
   return updated
 }
 
@@ -756,6 +802,12 @@ export async function deleteChatMessage(messageId: ChatMessageId, actor: Actor):
   } else {
     publishChatEvent(message.conversationId, deletedEvent)
   }
+
+  // Internal-note deletion stays internal (no public webhook); mirror the
+  // publishChatEvent vs publishAgentChatEvent split above.
+  if (!message.isInternal) {
+    void emitMessageDeleted(actor, message, conversation)
+  }
 }
 
 /** Record a visitor CSAT rating (1-5) on their conversation. */
@@ -792,6 +844,7 @@ export async function recordCsat(
   // the visitor).
   const dto = await conversationToDTO(updated, 'agent')
   publishConversationUpdate(conversationId, dto)
+  void emitConversationCsatSubmitted(actor, updated)
 }
 
 /** Broadcast an ephemeral typing signal (never persisted). */
