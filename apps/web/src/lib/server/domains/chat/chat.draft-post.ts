@@ -8,14 +8,20 @@
  * but stash the card under metadata.card so it flows through to the DTO.
  */
 import { db, conversations, chatMessages, eq } from '@/lib/server/db'
-import type { ConversationId, PostId, BoardId, PrincipalId } from '@quackback/ids'
+import type { ConversationId, PostId, BoardId, PrincipalId, ChatMessageId } from '@quackback/ids'
 import type { ChatCard } from '@/lib/shared/db-types'
 import type { Actor } from '@/lib/server/policy/types'
 import { canActAsAgent } from '@/lib/server/policy/chat'
+import { config } from '@/lib/server/config'
 import { ForbiddenError, NotFoundError } from '@/lib/shared/errors'
 import { toMessageDTO, resolveAuthor, conversationToDTO } from './chat.query'
-import { publishChatEvent, publishConversationUpdate } from '@/lib/server/realtime/chat-channels'
+import {
+  publishChatEvent,
+  publishConversationUpdate,
+  publishCardUpdated,
+} from '@/lib/server/realtime/chat-channels'
 import { emitMessageCreated } from './chat.webhooks'
+import { addVoteOnBehalf } from '@/lib/server/domains/posts/post.voting'
 import type { ChatAuthorInput, SendAgentMessageResult } from './chat.types'
 
 export interface DraftPostAgentCtx {
@@ -113,4 +119,68 @@ export function sharePost(
 ): Promise<SendAgentMessageResult> {
   const card: ChatCard = { type: 'post_ref', postId: input.postId }
   return insertCardMessage(input.conversationId, `🔼 Shared a related idea`, card, ctx)
+}
+
+/**
+ * Load a card-carrying message and assert the caller owns the conversation it
+ * belongs to. The visitor-owns-conversation check is the security boundary for
+ * the visitor-initiated card actions below — never relax it.
+ */
+async function loadOwnedCardMessage(messageId: ChatMessageId, visitorActor: Actor) {
+  const [message] = await db
+    .select()
+    .from(chatMessages)
+    .where(eq(chatMessages.id, messageId))
+    .limit(1)
+  if (!message) throw new NotFoundError('MESSAGE_NOT_FOUND', 'Message not found')
+
+  const [conversation] = await db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.id, message.conversationId))
+    .limit(1)
+  if (!conversation || conversation.visitorPrincipalId !== visitorActor.principalId) {
+    throw new ForbiddenError('FORBIDDEN', 'Not your conversation')
+  }
+  return { message, conversation }
+}
+
+/**
+ * Visitor declines a proposed draft post: flip the card to 'dismissed' and
+ * broadcast. Idempotent — a no-op unless the card is a still-proposed draft.
+ */
+export async function dismissProposedPost(
+  input: { messageId: ChatMessageId },
+  visitorActor: Actor
+): Promise<void> {
+  const { message } = await loadOwnedCardMessage(input.messageId, visitorActor)
+  const card = message.metadata?.card
+  if (!card || card.type !== 'draft_post' || card.status !== 'proposed') return
+  const next: ChatCard = { ...card, status: 'dismissed' }
+  await db
+    .update(chatMessages)
+    .set({ metadata: { ...message.metadata, card: next } })
+    .where(eq(chatMessages.id, message.id))
+  publishCardUpdated(message.conversationId, message.id, next)
+}
+
+/**
+ * Visitor upvotes an embedded post from chat. Reuses addVoteOnBehalf to vote as
+ * the conversation's visitor (idempotent insert), attributed to the live-chat
+ * source so the post links back to the inbox conversation.
+ */
+export async function upvotePostFromChat(
+  input: { messageId: ChatMessageId; postId: PostId },
+  visitorActor: Actor
+): Promise<{ voteCount: number }> {
+  const { conversation } = await loadOwnedCardMessage(input.messageId, visitorActor)
+  const externalUrl = `${config.baseUrl.replace(/\/$/, '')}/admin/inbox?c=${conversation.id}`
+  const res = await addVoteOnBehalf(
+    input.postId,
+    conversation.visitorPrincipalId,
+    { type: 'live_chat', externalUrl },
+    null,
+    visitorActor.principalId ?? undefined
+  )
+  return { voteCount: res.voteCount }
 }

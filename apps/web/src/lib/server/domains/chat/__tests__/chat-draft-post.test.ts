@@ -5,13 +5,16 @@
  * broadcast) but stash the card under metadata.card so it flows to the DTO.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PrincipalId, ConversationId, BoardId, PostId } from '@quackback/ids'
+import type { PrincipalId, ConversationId, BoardId, PostId, ChatMessageId } from '@quackback/ids'
 import type { Actor } from '@/lib/server/policy/types'
 import { ForbiddenError } from '@/lib/shared/errors'
 
 const insertedMessages: Record<string, unknown>[] = []
+// Metadata patches passed to db.update(chatMessages).set(...) — dismiss flips the card.
+const updatedMessageSets: Record<string, unknown>[] = []
 const publishChatEvent = vi.fn()
 const publishConversationUpdate = vi.fn()
+const publishCardUpdated = vi.fn()
 
 // Hoisted so the (also-hoisted) vi.mock factory can reference the spy bag.
 const emit = vi.hoisted(() => ({
@@ -30,6 +33,11 @@ vi.mock('@/lib/server/realtime/chat-channels', () => ({
   publishChatEvent: (...args: unknown[]) => publishChatEvent(...args),
   publishAgentChatEvent: vi.fn(),
   publishConversationUpdate: (...args: unknown[]) => publishConversationUpdate(...args),
+  publishCardUpdated: (...args: unknown[]) => publishCardUpdated(...args),
+}))
+
+vi.mock('@/lib/server/domains/posts/post.voting', () => ({
+  addVoteOnBehalf: vi.fn(async () => ({ voted: true, voteCount: 1 })),
 }))
 
 vi.mock('@/lib/server/config', () => ({
@@ -80,17 +88,44 @@ vi.mock('@/lib/server/db', () => {
     updatedAt: null,
   }
 
+  // A chat message carrying a proposed draft_post card, owned by the visitor.
+  const messageRow = {
+    id: 'chat_msg_card' as unknown as ChatMessageId,
+    conversationId: 'conversation_1' as unknown as ConversationId,
+    principalId: 'principal_agent',
+    senderType: 'agent' as const,
+    content: '📝 Draft feedback: Dark mode',
+    metadata: {
+      card: {
+        type: 'draft_post',
+        status: 'proposed',
+        boardId: 'board_1',
+        title: 'Dark mode',
+        content: 'A dark theme…',
+      },
+    },
+    createdAt: new Date(),
+  }
+
   function chain(label: string) {
     const c: Record<string, unknown> = {}
+    let fromTable: string | undefined
     c.values = vi.fn((row: Record<string, unknown>) => {
       if (label === 'chat_messages') insertedMessages.push(row)
       return c
     })
-    c.set = vi.fn(() => c)
-    c.from = vi.fn(() => c)
+    c.set = vi.fn((row: Record<string, unknown>) => {
+      if (label === 'chat_messages') updatedMessageSets.push(row)
+      return c
+    })
+    c.from = vi.fn((table?: { __name?: string }) => {
+      fromTable = table?.__name
+      return c
+    })
     c.where = vi.fn(() => c)
-    // The in-transaction conversation lookup resolves to an existing row.
-    c.limit = vi.fn(async () => [conversationRow])
+    // A direct select resolves to the table-appropriate row; the in-transaction
+    // conversation lookup still resolves to an existing conversation.
+    c.limit = vi.fn(async () => (fromTable === 'chat_messages' ? [messageRow] : [conversationRow]))
     c.orderBy = vi.fn(() => c)
     c.returning = vi.fn(async () => {
       if (label === 'chat_messages') {
@@ -124,7 +159,8 @@ vi.mock('@/lib/server/db', () => {
   }
 })
 
-import { proposePost, sharePost } from '../chat.draft-post'
+import { addVoteOnBehalf } from '@/lib/server/domains/posts/post.voting'
+import { dismissProposedPost, proposePost, sharePost, upvotePostFromChat } from '../chat.draft-post'
 
 const conversationId = 'conversation_1' as ConversationId
 const boardId = 'board_1' as BoardId
@@ -147,9 +183,18 @@ const visitorActor: Actor = {
   principalType: 'anonymous',
   segmentIds: new Set(),
 }
+// Owns a different conversation — fails the visitor-owns-conversation guard.
+const strangerActor: Actor = {
+  principalId: 'principal_stranger' as PrincipalId,
+  role: 'user',
+  principalType: 'anonymous',
+  segmentIds: new Set(),
+}
+const messageId = 'chat_msg_card' as ChatMessageId
 
 beforeEach(() => {
   insertedMessages.length = 0
+  updatedMessageSets.length = 0
   vi.clearAllMocks()
 })
 
@@ -202,5 +247,49 @@ describe('sharePost', () => {
       senderType: 'agent',
       metadata: { card: { type: 'post_ref', postId } },
     })
+  })
+})
+
+describe('dismissProposedPost', () => {
+  it('flips a proposed draft to dismissed (and is a no-op if not proposed)', async () => {
+    await dismissProposedPost({ messageId }, visitorActor)
+    // The card row is patched to dismissed and the change is broadcast.
+    expect(updatedMessageSets).toHaveLength(1)
+    expect(updatedMessageSets[0]).toMatchObject({
+      metadata: { card: { type: 'draft_post', status: 'dismissed' } },
+    })
+    expect(publishCardUpdated).toHaveBeenCalledTimes(1)
+    const [, , card] = publishCardUpdated.mock.calls[0]
+    expect(card).toMatchObject({ type: 'draft_post', status: 'dismissed' })
+  })
+
+  it('rejects a caller who does not own the conversation', async () => {
+    await expect(dismissProposedPost({ messageId }, strangerActor)).rejects.toBeInstanceOf(
+      ForbiddenError
+    )
+    expect(updatedMessageSets).toHaveLength(0)
+    expect(publishCardUpdated).not.toHaveBeenCalled()
+  })
+})
+
+describe('upvotePostFromChat', () => {
+  it('adds a vote on the visitor’s behalf and returns the vote count', async () => {
+    const res = await upvotePostFromChat({ messageId, postId }, visitorActor)
+    expect(res.voteCount).toBeGreaterThanOrEqual(1)
+    // Votes for the conversation's visitor, attributed to the live-chat source.
+    expect(addVoteOnBehalf).toHaveBeenCalledWith(
+      postId,
+      'principal_visitor',
+      { type: 'live_chat', externalUrl: 'http://localhost:3000/admin/inbox?c=conversation_1' },
+      null,
+      visitorActor.principalId
+    )
+  })
+
+  it('rejects a caller who does not own the conversation', async () => {
+    await expect(upvotePostFromChat({ messageId, postId }, strangerActor)).rejects.toBeInstanceOf(
+      ForbiddenError
+    )
+    expect(addVoteOnBehalf).not.toHaveBeenCalled()
   })
 })
