@@ -65,6 +65,7 @@ import {
 import { chatInboxQueries } from '@/lib/client/queries/chat-inbox'
 import { adminQueries } from '@/lib/client/queries/admin'
 import { draftFromMessage } from '@/lib/client/chat/suggest-from-message'
+import { realEmail } from '@/lib/shared/anonymous-email'
 import type { JSONContent } from '@tiptap/core'
 import { useChatStream } from '@/lib/client/hooks/use-chat-stream'
 import { useChatTyping } from '@/lib/client/hooks/use-chat-typing'
@@ -651,6 +652,10 @@ function ChatThread({
   const conversation = data?.conversation
   const hasMoreOlder = data?.hasMore ?? false
 
+  // Whether the visitor is reachable by email — gates the manual "Nudge by
+  // email" button on a proposed draft-post card (synthetic anon addresses don't count).
+  const hasVisitorEmail = realEmail(conversation?.visitorEmail ?? null) != null
+
   // The unread divider sits immediately above the first message newer than the
   // agent's read watermark — i.e. the first message that "mark unread" or new
   // arrivals resurfaced. Null (no divider) when the thread is fully read.
@@ -1123,6 +1128,7 @@ function ChatThread({
                   }}
                   onSharePost={() => setShareMsg(m)}
                   onSuggestWithOptions={() => setSuggestMsg(m)}
+                  hasVisitorEmail={hasVisitorEmail}
                 />
               </div>
             ))}

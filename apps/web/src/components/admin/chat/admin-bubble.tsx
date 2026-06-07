@@ -60,6 +60,9 @@ interface AdminBubbleProps {
   onSharePost?: () => void
   /** Visitor-only: open the full dialog prefilled from this message. */
   onSuggestWithOptions?: () => void
+  /** Whether the conversation's visitor has a deliverable email (gates the
+   *  manual draft-nudge button on a proposed draft card). */
+  hasVisitorEmail?: boolean
   /** Briefly flash this row (deep-link / "Saved for later" jump target). */
   highlighted?: boolean
 }
@@ -73,6 +76,7 @@ export function AdminBubble({
   onSendAsDraft,
   onSharePost,
   onSuggestWithOptions,
+  hasVisitorEmail,
   highlighted = false,
 }: AdminBubbleProps) {
   // Keep the hover toolbar visible while its emoji popover or overflow menu is
@@ -86,7 +90,13 @@ export function AdminBubble({
   if (message.card) {
     return (
       <div className="py-1">
-        <DraftPostCardAdmin card={message.card} cardView={message.cardView} />
+        <DraftPostCardAdmin
+          card={message.card}
+          cardView={message.cardView}
+          createdAt={message.createdAt}
+          messageId={message.id}
+          hasVisitorEmail={!!hasVisitorEmail}
+        />
       </div>
     )
   }

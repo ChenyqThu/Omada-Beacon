@@ -770,6 +770,25 @@ export const proposePostFn = createServerFn({ method: 'POST' })
     }
   })
 
+const nudgeDraftPostSchema = z.object({
+  messageId: z.string(),
+})
+
+/** Agent action: manually email the visitor a reminder about a still-pending draft post. */
+export const nudgeDraftPostFn = createServerFn({ method: 'POST' })
+  .inputValidator(nudgeDraftPostSchema)
+  .handler(async ({ data }) => {
+    try {
+      await requireAuth({ roles: ['admin', 'member'] })
+      const { nudgeDraftPost } = await import('@/lib/server/domains/chat/chat.nudge')
+      await nudgeDraftPost(data.messageId as ChatMessageId, { force: true })
+      return { ok: true }
+    } catch (error) {
+      console.error('[fn:chat] nudgeDraftPostFn failed:', error)
+      throw error
+    }
+  })
+
 const sharePostSchema = z.object({
   conversationId: z.string(),
   postId: z.string(),

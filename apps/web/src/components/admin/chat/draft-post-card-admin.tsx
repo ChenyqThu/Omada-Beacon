@@ -1,10 +1,17 @@
 import { Link } from '@tanstack/react-router'
+import { useMutation } from '@tanstack/react-query'
+import { formatDistanceToNow } from 'date-fns'
+import { toast } from 'sonner'
 import {
   ArrowTopRightOnSquareIcon,
   CheckCircleIcon,
+  EnvelopeIcon,
   LightBulbIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline'
+import type { ChatMessageId } from '@quackback/ids'
+import { Button } from '@/components/ui/button'
+import { nudgeDraftPostFn } from '@/lib/server/functions/chat'
 import type { ChatCard } from '@/lib/shared/db-types'
 import type { ChatCardView } from '@/lib/shared/chat/types'
 
@@ -30,9 +37,15 @@ type DraftStatus = Extract<ChatCard, { type: 'draft_post' }>['status']
 export function DraftPostCardAdmin({
   card,
   cardView,
+  createdAt,
+  messageId,
+  hasVisitorEmail,
 }: {
   card: ChatCard
   cardView: ChatCardView | null
+  createdAt: string
+  messageId: ChatMessageId
+  hasVisitorEmail: boolean
 }) {
   // No enrichment (referenced board/post is gone, or an SSE-delivered message
   // hasn't been enriched yet) — fall back to the raw-id rendering.
@@ -80,6 +93,13 @@ export function DraftPostCardAdmin({
             <ArrowTopRightOnSquareIcon className="size-3" />
           </Link>
         )}
+        {card.status === 'proposed' && (
+          <DraftNudgeFooter
+            createdAt={createdAt}
+            messageId={messageId}
+            hasVisitorEmail={hasVisitorEmail}
+          />
+        )}
       </div>
     )
   }
@@ -123,6 +143,47 @@ function DraftStatusChip({ status }: { status: DraftStatus }) {
     )
   }
   return <span className={`${pillCls} ms-auto bg-muted text-muted-foreground`}>Proposed</span>
+}
+
+/**
+ * Footer shown only while a draft is still proposed: the draft's age plus a
+ * manual "Nudge by email" button. Disabled when the visitor has no deliverable
+ * address (an automatic reminder also fires a day after the agent proposes).
+ */
+function DraftNudgeFooter({
+  createdAt,
+  messageId,
+  hasVisitorEmail,
+}: {
+  createdAt: string
+  messageId: ChatMessageId
+  hasVisitorEmail: boolean
+}) {
+  const nudge = useMutation({
+    mutationFn: () => nudgeDraftPostFn({ data: { messageId } }),
+    onSuccess: () => toast.success('Reminder sent'),
+    onError: () => toast.error('Could not send reminder'),
+  })
+
+  return (
+    <div className="mt-1.5 flex items-center justify-between gap-2">
+      <span className="text-[11px] text-muted-foreground">
+        Awaiting visitor · {formatDistanceToNow(new Date(createdAt), { addSuffix: true })}
+      </span>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="h-6 gap-1 px-2 text-[11px]"
+        disabled={!hasVisitorEmail || nudge.isPending}
+        onClick={() => nudge.mutate()}
+        title={hasVisitorEmail ? undefined : 'Visitor has no email on file'}
+      >
+        <EnvelopeIcon className="size-3" />
+        Nudge by email
+      </Button>
+    </div>
+  )
 }
 
 /** Pre-enrichment fallback: prints the raw card ids (no board/post lookup). */
