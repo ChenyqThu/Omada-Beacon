@@ -1,7 +1,7 @@
 /**
  * MCP Tools for Quackback
  *
- * 31 tools calling domain services directly (no HTTP self-loop):
+ * 33 tools calling domain services directly (no HTTP self-loop):
  * - search: Unified search across posts, changelogs, and articles
  * - get_details: Get full details for any entity by TypeID
  * - triage_post: Update post status, tags, and owner
@@ -32,6 +32,8 @@
  * - list_conversations: List support-inbox conversations
  * - get_conversation: Get a conversation and its messages
  * - reply_to_conversation: Send an agent reply in a conversation
+ * - propose_post: Suggest a draft feedback post as an editable card in the chat
+ * - share_post: Embed an existing post as a card in the chat
  * - set_conversation_status: Change a conversation's status
  */
 
@@ -2164,6 +2166,91 @@ Example: reply_to_conversation({ conversationId: "conversation_01abc...", conten
           status: result.conversation.status,
           createdAt: result.message.createdAt,
         })
+      } catch (err) {
+        return errorResult(err)
+      }
+    }
+  )
+
+  // propose_post
+  server.tool(
+    'propose_post',
+    `Suggest a NEW feedback post to the visitor as an editable card in the chat. The visitor reviews,
+edits, publishes, or ignores it — nothing is posted until they act. Use when the visitor describes a
+feature request or bug worth tracking.
+
+Example: propose_post({ conversationId: "conversation_01...", boardId: "board_01...", title: "Add dark mode", content: "A dark theme would reduce eye strain." })`,
+    {
+      conversationId: z.string().describe('Conversation TypeID'),
+      boardId: z.string().describe('Board TypeID to file the post under'),
+      title: z.string().min(3).max(200),
+      content: z.string().max(10000).default(''),
+    },
+    WRITE,
+    async (args: {
+      conversationId: string
+      boardId: string
+      title: string
+      content: string
+    }): Promise<CallToolResult> => {
+      const denied = requireScope(auth, 'write:chat') ?? requireTeamRole(auth)
+      if (denied) return denied
+      try {
+        const { proposePost } = await import('@/lib/server/domains/chat/chat.draft-post')
+        // team-role API key: canActAsAgent short-circuits on role; segments unused
+        const actor = {
+          principalId: auth.principalId,
+          role: auth.role,
+          principalType: auth.userId ? ('user' as const) : ('service' as const),
+          segmentIds: new Set<SegmentId>(),
+        }
+        const agent = { principalId: auth.principalId, displayName: auth.name, email: auth.email }
+        const r = await proposePost(
+          {
+            conversationId: args.conversationId as ConversationId,
+            boardId: args.boardId as BoardId,
+            title: args.title,
+            content: args.content,
+          },
+          { agentActor: actor, agentPrincipalId: auth.principalId, agent }
+        )
+        return jsonResult({ messageId: r.message.id, conversationId: r.message.conversationId })
+      } catch (err) {
+        return errorResult(err)
+      }
+    }
+  )
+
+  // share_post
+  server.tool(
+    'share_post',
+    `Embed an EXISTING feedback post as a card in the chat so the visitor can view and upvote it. Find
+candidates first with the search tool. Use to surface related ideas / avoid duplicates.
+
+Example: share_post({ conversationId: "conversation_01...", postId: "post_01..." })`,
+    {
+      conversationId: z.string().describe('Conversation TypeID'),
+      postId: z.string().describe('Post TypeID'),
+    },
+    WRITE,
+    async (args: { conversationId: string; postId: string }): Promise<CallToolResult> => {
+      const denied = requireScope(auth, 'write:chat') ?? requireTeamRole(auth)
+      if (denied) return denied
+      try {
+        const { sharePost } = await import('@/lib/server/domains/chat/chat.draft-post')
+        // team-role API key: canActAsAgent short-circuits on role; segments unused
+        const actor = {
+          principalId: auth.principalId,
+          role: auth.role,
+          principalType: auth.userId ? ('user' as const) : ('service' as const),
+          segmentIds: new Set<SegmentId>(),
+        }
+        const agent = { principalId: auth.principalId, displayName: auth.name, email: auth.email }
+        const r = await sharePost(
+          { conversationId: args.conversationId as ConversationId, postId: args.postId as PostId },
+          { agentActor: actor, agentPrincipalId: auth.principalId, agent }
+        )
+        return jsonResult({ messageId: r.message.id })
       } catch (err) {
         return errorResult(err)
       }

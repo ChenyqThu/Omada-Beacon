@@ -292,6 +292,10 @@ vi.mock('@/lib/server/domains/chat/chat.service', () => ({
   sendAgentMessage: vi.fn(),
   setConversationStatus: vi.fn(),
 }))
+vi.mock('@/lib/server/domains/chat/chat.draft-post', () => ({
+  proposePost: vi.fn(),
+  sharePost: vi.fn(),
+}))
 
 // ── Test Constants ─────────────────────────────────────────────────────────────
 
@@ -649,8 +653,10 @@ describe('MCP HTTP Handler', () => {
       expect(toolNames).toContain('list_conversations')
       expect(toolNames).toContain('get_conversation')
       expect(toolNames).toContain('reply_to_conversation')
+      expect(toolNames).toContain('propose_post')
+      expect(toolNames).toContain('share_post')
       expect(toolNames).toContain('set_conversation_status')
-      expect(toolNames).toHaveLength(31)
+      expect(toolNames).toHaveLength(33)
     })
 
     it('should handle resources/list request', async () => {
@@ -2386,6 +2392,142 @@ describe('MCP HTTP Handler', () => {
         'closed',
         expect.any(Object)
       )
+    })
+
+    it('propose_post calls proposePost with the caller as agent', async () => {
+      const handle = await initializeSession()
+      const { proposePost } = await import('@/lib/server/domains/chat/chat.draft-post')
+      vi.mocked(proposePost).mockResolvedValue({
+        message: { id: 'chat_msg_2', conversationId: 'conversation_1' },
+        conversation: { id: 'conversation_1', status: 'open' },
+      } as never)
+
+      await handle(
+        mcpRequest(
+          jsonRpcRequest('tools/call', {
+            name: 'propose_post',
+            arguments: {
+              conversationId: 'conversation_1',
+              boardId: 'board_test',
+              title: 'Add dark mode',
+              content: 'A dark theme would reduce eye strain.',
+            },
+          })
+        )
+      )
+      expect(vi.mocked(proposePost)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          conversationId: 'conversation_1',
+          boardId: 'board_test',
+          title: 'Add dark mode',
+          content: 'A dark theme would reduce eye strain.',
+        }),
+        expect.objectContaining({
+          agent: expect.objectContaining({ principalId: expect.any(String) }),
+          agentActor: expect.objectContaining({ role: 'admin' }),
+        })
+      )
+    })
+
+    it('share_post calls sharePost with the caller as agent', async () => {
+      const handle = await initializeSession()
+      const { sharePost } = await import('@/lib/server/domains/chat/chat.draft-post')
+      vi.mocked(sharePost).mockResolvedValue({
+        message: { id: 'chat_msg_3', conversationId: 'conversation_1' },
+        conversation: { id: 'conversation_1', status: 'open' },
+      } as never)
+
+      await handle(
+        mcpRequest(
+          jsonRpcRequest('tools/call', {
+            name: 'share_post',
+            arguments: { conversationId: 'conversation_1', postId: 'post_test' },
+          })
+        )
+      )
+      expect(vi.mocked(sharePost)).toHaveBeenCalledWith(
+        expect.objectContaining({ conversationId: 'conversation_1', postId: 'post_test' }),
+        expect.objectContaining({
+          agent: expect.objectContaining({ principalId: expect.any(String) }),
+          agentActor: expect.objectContaining({ role: 'admin' }),
+        })
+      )
+    })
+
+    it('should deny propose_post when write:chat scope missing', async () => {
+      async function initializeOAuthSession(scopes: string[]) {
+        await setupValidOAuth({ scopes })
+        const { handleMcpRequest } = await import('../handler')
+        await handleMcpRequest(
+          oauthRequest(
+            jsonRpcRequest('initialize', {
+              protocolVersion: '2025-03-26',
+              capabilities: {},
+              clientInfo: { name: 'test', version: '1.0' },
+            })
+          )
+        )
+        await setupValidOAuth({ scopes })
+        return handleMcpRequest
+      }
+
+      const handleMcpRequest = await initializeOAuthSession(['read:chat'])
+
+      const response = await handleMcpRequest(
+        oauthRequest(
+          jsonRpcRequest('tools/call', {
+            name: 'propose_post',
+            arguments: {
+              conversationId: 'conversation_1',
+              boardId: 'board_test',
+              title: 'Add dark mode',
+            },
+          })
+        )
+      )
+
+      expect(response.status).toBe(200)
+      const body = (await response.json()) as {
+        result: { isError: boolean; content: Array<{ text: string }> }
+      }
+      expect(body.result.isError).toBe(true)
+      expect(body.result.content[0].text).toContain('write:chat')
+    })
+
+    it('should deny share_post when write:chat scope missing', async () => {
+      async function initializeOAuthSession(scopes: string[]) {
+        await setupValidOAuth({ scopes })
+        const { handleMcpRequest } = await import('../handler')
+        await handleMcpRequest(
+          oauthRequest(
+            jsonRpcRequest('initialize', {
+              protocolVersion: '2025-03-26',
+              capabilities: {},
+              clientInfo: { name: 'test', version: '1.0' },
+            })
+          )
+        )
+        await setupValidOAuth({ scopes })
+        return handleMcpRequest
+      }
+
+      const handleMcpRequest = await initializeOAuthSession(['read:chat'])
+
+      const response = await handleMcpRequest(
+        oauthRequest(
+          jsonRpcRequest('tools/call', {
+            name: 'share_post',
+            arguments: { conversationId: 'conversation_1', postId: 'post_test' },
+          })
+        )
+      )
+
+      expect(response.status).toBe(200)
+      const body = (await response.json()) as {
+        result: { isError: boolean; content: Array<{ text: string }> }
+      }
+      expect(body.result.isError).toBe(true)
+      expect(body.result.content[0].text).toContain('write:chat')
     })
 
     it('should deny reply_to_conversation when write:chat scope missing', async () => {
