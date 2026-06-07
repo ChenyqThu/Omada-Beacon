@@ -25,6 +25,7 @@ import {
   removeMessageReactionFn,
   setMessageFlagFn,
   markConversationUnreadFromMessageFn,
+  proposePostFn,
 } from '@/lib/server/functions/chat'
 import type {
   ChatAttachment,
@@ -42,6 +43,7 @@ import { ConversationTagsEditor } from '@/components/admin/chat/conversation-tag
 import { StatusControl } from '@/components/admin/chat/status-control'
 import { ConversationDetailPanel } from '@/components/admin/chat/conversation-detail-panel'
 import { ConvertToPostDialog } from '@/components/admin/chat/convert-to-post-dialog'
+import { SharePostDialog } from '@/components/admin/chat/share-post-dialog'
 import { ConversationListColumn } from '@/components/admin/chat/conversation-list-column'
 import { SavedMessagesColumn } from '@/components/admin/chat/saved-messages-column'
 import { ChatNoteEditor, type ChatNoteEditorHandle } from '@/components/admin/chat/chat-note-editor'
@@ -61,6 +63,8 @@ import {
   type StatusFilter,
 } from '@/lib/client/chat/inbox-scope'
 import { chatInboxQueries } from '@/lib/client/queries/chat-inbox'
+import { adminQueries } from '@/lib/client/queries/admin'
+import { draftFromMessage } from '@/lib/client/chat/suggest-from-message'
 import type { JSONContent } from '@tiptap/core'
 import { useChatStream } from '@/lib/client/hooks/use-chat-stream'
 import { useChatTyping } from '@/lib/client/hooks/use-chat-typing'
@@ -605,6 +609,12 @@ function ChatThread({
   const [noteResetSignal, setNoteResetSignal] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  // Per-message "Suggest as post" quick actions: the message driving the
+  // (controlled) suggest dialog and the share-post picker, respectively.
+  const [suggestMsg, setSuggestMsg] = useState<AgentChatMessageDTO | null>(null)
+  const [shareMsg, setShareMsg] = useState<AgentChatMessageDTO | null>(null)
+  const { data: boards = [] } = useQuery(adminQueries.boards())
+
   // "Jump to message" deep-link state. pendingTarget is the message we still
   // need to scroll to (null once resolved); highlightId is the one currently
   // flashing. pendingTargetRef mirrors pendingTarget so the auto-scroll-to-
@@ -807,6 +817,20 @@ function ChatThread({
     void queryClient.invalidateQueries({ queryKey: ['admin', 'inbox', 'user-conversations'] })
     onChanged()
   }, [queryClient, conversationId, onChanged])
+
+  // One-click "Send as draft" from a visitor message (no dialog): the SSE
+  // card stream patches in the new draft-post card, so just refresh metadata.
+  const proposeFromMsg = useMutation({
+    mutationFn: (v: { conversationId: ConversationId; boardId: string; title: string }) =>
+      proposePostFn({
+        data: { conversationId: v.conversationId, boardId: v.boardId, title: v.title, content: '' },
+      }),
+    onSuccess: () => {
+      toast.success('Draft sent to the visitor')
+      refreshThread()
+    },
+    onError: () => toast.error('Failed to send draft'),
+  })
 
   const deleteMutation = useMutation({
     mutationFn: (messageId: ChatMessageId) => deleteChatMessageFn({ data: { messageId } }),
@@ -1014,6 +1038,26 @@ function ChatThread({
               />
             </div>
           )}
+          {/* Per-message "Suggest as post" quick actions: separate controlled
+              dialogs driven by the message the agent picked from the thread. */}
+          <ConvertToPostDialog
+            open={!!suggestMsg}
+            onOpenChange={(o) => {
+              if (!o) setSuggestMsg(null)
+            }}
+            conversationId={conversationId}
+            defaultTitle={suggestMsg?.content.slice(0, 200) ?? ''}
+            defaultContent={suggestMsg?.content ?? ''}
+            onConverted={refreshThread}
+          />
+          <SharePostDialog
+            open={!!shareMsg}
+            onOpenChange={(o) => {
+              if (!o) setShareMsg(null)
+            }}
+            conversationId={conversationId}
+            onShared={refreshThread}
+          />
           {/* Triage controls live in the detail panel at xl+; below that
               (panel hidden) they stay in the header. */}
           {conversation && (
@@ -1069,6 +1113,16 @@ function ChatThread({
                   }
                   onToggleFlag={(next) => flagMutation.mutate({ messageId: m.id, flagged: next })}
                   onMarkUnread={() => markUnreadMutation.mutate(m.id)}
+                  onSendAsDraft={() => {
+                    const d = draftFromMessage(m.content, boards[0]?.id as string | undefined)
+                    if (d.ok) {
+                      proposeFromMsg.mutate({ conversationId, boardId: d.boardId, title: d.title })
+                    } else {
+                      setSuggestMsg(m)
+                    }
+                  }}
+                  onSharePost={() => setShareMsg(m)}
+                  onSuggestWithOptions={() => setSuggestMsg(m)}
                 />
               </div>
             ))}

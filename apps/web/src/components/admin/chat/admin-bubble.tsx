@@ -6,6 +6,9 @@ import {
   EnvelopeIcon,
   FaceSmileIcon,
   FlagIcon as FlagSolidIcon,
+  ArrowTopRightOnSquareIcon,
+  ChatBubbleLeftRightIcon,
+  AdjustmentsHorizontalIcon,
 } from '@heroicons/react/24/solid'
 import { FlagIcon } from '@heroicons/react/24/outline'
 import { Avatar } from '@/components/ui/avatar'
@@ -18,6 +21,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { REACTION_EMOJIS } from '@/lib/shared/db-types'
@@ -50,6 +54,12 @@ interface AdminBubbleProps {
   onToggleFlag: (next: boolean) => void
   /** Mark the conversation unread from this message. */
   onMarkUnread: () => void
+  /** Visitor-only: one-click draft a post suggestion from this message. */
+  onSendAsDraft?: () => void
+  /** Visitor-only: open the picker to share an existing post in the chat. */
+  onSharePost?: () => void
+  /** Visitor-only: open the full dialog prefilled from this message. */
+  onSuggestWithOptions?: () => void
   /** Briefly flash this row (deep-link / "Saved for later" jump target). */
   highlighted?: boolean
 }
@@ -60,6 +70,9 @@ export function AdminBubble({
   onToggleReaction,
   onToggleFlag,
   onMarkUnread,
+  onSendAsDraft,
+  onSharePost,
+  onSuggestWithOptions,
   highlighted = false,
 }: AdminBubbleProps) {
   // Keep the hover toolbar visible while its emoji popover or overflow menu is
@@ -101,6 +114,12 @@ export function AdminBubble({
   const authorName = message.author?.displayName ?? (isAgent ? 'Agent' : 'Visitor')
   const isFlagged = message.flaggedAt !== null
   const toolbarPinned = emojiOpen || menuOpen
+  // "Suggest as post" quick actions only apply to a visitor's own message (not
+  // agent replies or internal notes) and only when the host wired them up.
+  const showSuggestActions =
+    message.senderType === 'visitor' &&
+    !isNote &&
+    !!(onSendAsDraft || onSharePost || onSuggestWithOptions)
 
   return (
     <div
@@ -256,6 +275,20 @@ export function AdminBubble({
             <DropdownMenuItem variant="destructive" onClick={onDelete}>
               <TrashIcon className="h-4 w-4" /> Delete
             </DropdownMenuItem>
+            {showSuggestActions && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onSendAsDraft}>
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4" /> Send as draft
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onSharePost}>
+                  <ChatBubbleLeftRightIcon className="h-4 w-4" /> Share a post…
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onSuggestWithOptions}>
+                  <AdjustmentsHorizontalIcon className="h-4 w-4" /> Suggest with options…
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
