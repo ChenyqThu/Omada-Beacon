@@ -28,7 +28,15 @@ function StaticVoteBox({ voteCount }: { voteCount: number }) {
  * and `handleVote` stops propagation so the click never triggers the card's
  * link navigation. Mounted only on live display surfaces (never in the editor).
  */
-function InteractiveVoteBox({ postId, voteCount }: { postId: string; voteCount: number }) {
+function InteractiveVoteBox({
+  postId,
+  voteCount,
+  getAuthHeaders,
+}: {
+  postId: string
+  voteCount: number
+  getAuthHeaders?: () => Record<string, string>
+}) {
   const {
     voteCount: vc,
     hasVoted,
@@ -37,6 +45,7 @@ function InteractiveVoteBox({ postId, voteCount }: { postId: string; voteCount: 
   } = usePostVote({
     postId: postId as PostId,
     voteCount,
+    getAuthHeaders,
   })
   return (
     <button
@@ -141,6 +150,7 @@ export function QuackbackEmbedCard({
   interactive = true,
   openMode = 'navigate',
   onOpenInModal,
+  getAuthHeaders,
 }: {
   kind: 'post' | 'changelog'
   id: string
@@ -153,10 +163,21 @@ export function QuackbackEmbedCard({
   openMode?: EmbedOpenMode
   /** Required for `modal` mode: opens the referenced post in place. */
   onOpenInModal?: (postId: string) => void
+  /**
+   * Called at request time to supply auth headers. Surfaces where cookie-based
+   * session is unavailable (e.g. the widget iframe) pass this so the preview
+   * fetch and the vote mutation both carry the correct credentials. Portal and
+   * admin callers omit it; cookie auth continues to work unchanged.
+   */
+  getAuthHeaders?: () => Record<string, string>
 }) {
   const { data, isLoading } = useQuery({
     queryKey: ['embed', kind, id],
-    queryFn: () => getEmbedPreviewFn({ data: { kind, id } }),
+    queryFn: () =>
+      getEmbedPreviewFn({
+        data: { kind, id },
+        ...(getAuthHeaders ? { headers: getAuthHeaders() } : {}),
+      }),
     staleTime: 60_000,
   })
 
@@ -186,7 +207,11 @@ export function QuackbackEmbedCard({
     const inner = (
       <div className="flex items-start gap-3 p-3">
         {interactive ? (
-          <InteractiveVoteBox postId={data.postId} voteCount={data.voteCount} />
+          <InteractiveVoteBox
+            postId={data.postId}
+            voteCount={data.voteCount}
+            getAuthHeaders={getAuthHeaders}
+          />
         ) : (
           <StaticVoteBox voteCount={data.voteCount} />
         )}

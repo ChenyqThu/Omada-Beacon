@@ -25,6 +25,7 @@ export function EmbedHydration({
   className,
   openMode,
   onOpenInModal,
+  getAuthHeaders,
 }: {
   children: ReactNode
   className?: string
@@ -34,6 +35,13 @@ export function EmbedHydration({
   openMode?: EmbedOpenMode
   /** Opens a post in place; required when `openMode` is `modal`. */
   onOpenInModal?: (postId: string) => void
+  /**
+   * Called at request time to supply auth headers. The widget passes
+   * `getWidgetAuthHeaders` here so the embed preview fetch and vote mutation
+   * both carry the visitor's Bearer token. Portal and admin surfaces omit
+   * this; cookie-based auth continues to work unchanged.
+   */
+  getAuthHeaders?: () => Record<string, string>
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [targets, setTargets] = useState<EmbedTarget[]>([])
@@ -69,6 +77,7 @@ export function EmbedHydration({
             id={t.id}
             openMode={openMode}
             onOpenInModal={onOpenInModal}
+            getAuthHeaders={getAuthHeaders}
           />,
           t.el,
           `${t.kind}:${t.id}:${i}`
