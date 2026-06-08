@@ -6,7 +6,6 @@ import {
   EnvelopeIcon,
   FaceSmileIcon,
   FlagIcon as FlagSolidIcon,
-  ArrowTopRightOnSquareIcon,
   ChatBubbleLeftRightIcon,
   AdjustmentsHorizontalIcon,
 } from '@heroicons/react/24/solid'
@@ -56,12 +55,10 @@ interface AdminBubbleProps {
   onToggleFlag: (next: boolean) => void
   /** Mark the conversation unread from this message. */
   onMarkUnread: () => void
-  /** Visitor-only: one-click draft a post suggestion from this message. */
-  onSendAsDraft?: () => void
   /** Visitor-only: open the picker to share an existing post in the chat. */
   onSharePost?: () => void
   /** Visitor-only: open the full dialog prefilled from this message. */
-  onSuggestWithOptions?: () => void
+  onTrackAsPost?: () => void
   /** Open an embedded post in the inbox's in-place `?post=` modal (the host owns
    *  the route-bound navigation so the agent never leaves the conversation). */
   onOpenPost?: (postId: string) => void
@@ -75,9 +72,8 @@ export function AdminBubble({
   onToggleReaction,
   onToggleFlag,
   onMarkUnread,
-  onSendAsDraft,
   onSharePost,
-  onSuggestWithOptions,
+  onTrackAsPost,
   onOpenPost,
   highlighted = false,
 }: AdminBubbleProps) {
@@ -125,12 +121,10 @@ export function AdminBubble({
   const authorName = message.author?.displayName ?? (isAgent ? 'Agent' : 'Visitor')
   const isFlagged = message.flaggedAt !== null
   const toolbarPinned = emojiOpen || menuOpen
-  // "Suggest as post" quick actions only apply to a visitor's own message (not
+  // "Track as post" quick actions only apply to a visitor's own message (not
   // agent replies or internal notes) and only when the host wired them up.
-  const showSuggestActions =
-    message.senderType === 'visitor' &&
-    !isNote &&
-    !!(onSendAsDraft || onSharePost || onSuggestWithOptions)
+  const showTrackActions =
+    message.senderType === 'visitor' && !isNote && !!(onTrackAsPost || onSharePost)
 
   return (
     <div
@@ -296,22 +290,17 @@ export function AdminBubble({
             <DropdownMenuItem variant="destructive" onClick={onDelete}>
               <TrashIcon className="h-4 w-4" /> Delete
             </DropdownMenuItem>
-            {showSuggestActions && (
+            {showTrackActions && (
               <>
                 <DropdownMenuSeparator />
-                {onSendAsDraft && (
-                  <DropdownMenuItem onClick={onSendAsDraft}>
-                    <ArrowTopRightOnSquareIcon className="h-4 w-4" /> Send as draft
-                  </DropdownMenuItem>
-                )}
                 {onSharePost && (
                   <DropdownMenuItem onClick={onSharePost}>
                     <ChatBubbleLeftRightIcon className="h-4 w-4" /> Share a post…
                   </DropdownMenuItem>
                 )}
-                {onSuggestWithOptions && (
-                  <DropdownMenuItem onClick={onSuggestWithOptions}>
-                    <AdjustmentsHorizontalIcon className="h-4 w-4" /> Suggest with options…
+                {onTrackAsPost && (
+                  <DropdownMenuItem onClick={onTrackAsPost}>
+                    <AdjustmentsHorizontalIcon className="h-4 w-4" /> Track as post…
                   </DropdownMenuItem>
                 )}
               </>

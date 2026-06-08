@@ -7,11 +7,7 @@ import {
   ChevronUpIcon,
 } from '@heroicons/react/24/solid'
 import type { BoardId, ConversationId, PostId } from '@quackback/ids'
-import {
-  createPostFromConversationFn,
-  proposePostFn,
-  sharePostFn,
-} from '@/lib/server/functions/chat'
+import { createPostFromConversationFn, sharePostFn } from '@/lib/server/functions/chat'
 import { findSimilarPostsFn } from '@/lib/server/functions/public-posts'
 import { adminQueries } from '@/lib/client/queries/admin'
 import { useDebouncedValue } from '@/lib/client/hooks/use-debounced-value'
@@ -104,24 +100,6 @@ export function ConvertToPostDialog({
     onError: () => toast.error('Failed to convert conversation'),
   })
 
-  const propose = useMutation({
-    mutationFn: () =>
-      proposePostFn({
-        data: {
-          conversationId,
-          boardId: boardId as BoardId,
-          title: title.trim(),
-          content: content.trim(),
-        },
-      }),
-    onSuccess: () => {
-      toast.success('Draft sent to the visitor')
-      setOpen(false)
-      onConverted?.()
-    },
-    onError: () => toast.error('Failed to send draft'),
-  })
-
   const share = useMutation({
     mutationFn: (postId: PostId) => sharePostFn({ data: { conversationId, postId } }),
     onSuccess: () => {
@@ -132,10 +110,8 @@ export function ConvertToPostDialog({
     onError: () => toast.error('Failed to share post'),
   })
 
-  const busy = convert.isPending || propose.isPending || share.isPending
-  // Min length matches proposePostSchema's title.min(3) so "Send as draft" never
-  // enables for input the server will reject. >= 3 is a sensible floor for "Create
-  // post" too.
+  const busy = convert.isPending || share.isPending
+  // Title must be at least 3 characters before the action enables.
   const canCreate = useMemo(() => title.trim().length >= 3 && boardId, [title, boardId])
 
   return (
@@ -146,15 +122,16 @@ export function ConvertToPostDialog({
             type="button"
             className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
           >
-            <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" /> Create post
+            <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" /> Track as post
           </button>
         </DialogTrigger>
       )}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create feedback post</DialogTitle>
+          <DialogTitle>Track as a feedback post</DialogTitle>
           <DialogDescription>
-            Turn this conversation into a post, attributed to the visitor.
+            Create a post from this conversation, attributed to the customer — they'll see it in the
+            chat and get status updates.
           </DialogDescription>
         </DialogHeader>
 
@@ -240,16 +217,8 @@ export function ConvertToPostDialog({
           <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!canCreate || busy}
-            onClick={() => propose.mutate()}
-          >
-            Send as draft
-          </Button>
           <Button type="button" disabled={!canCreate || busy} onClick={() => convert.mutate({})}>
-            Create post
+            Track as post
           </Button>
         </DialogFooter>
       </DialogContent>
