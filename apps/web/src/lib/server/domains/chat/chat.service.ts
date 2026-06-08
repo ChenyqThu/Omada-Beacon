@@ -200,10 +200,20 @@ export async function assertConversationViewable(
 export async function sendVisitorMessage(
   input: SendVisitorMessageInput,
   author: ChatAuthorInput,
-  actor: Actor
+  actor: Actor,
+  contentJson?: TiptapContent | null
 ): Promise<SendVisitorMessageResult> {
   const attachments = validateAttachments(input.attachments)
-  const content = validateContent(input.content, attachments.length > 0)
+  // Rich-composer doc (inline embeds/images): sanitized on write, like the agent
+  // path — but no mention extraction (a visitor carries no team @-mentions).
+  const safeContentJson = contentJson ? sanitizeTiptapContent(contentJson) : null
+  // A text-less rich message is valid only when it carries an inline image or a
+  // shared post; this label also backs the list preview + notification body. A
+  // doc with neither (an empty doc) yields '' → treated as no content below.
+  const fallbackLabel = richMessageFallbackLabel(safeContentJson)
+  // Empty content is valid when there are attachments OR a doc with a real
+  // content node (image/embed-only message).
+  const content = validateContent(input.content, attachments.length > 0 || !!fallbackLabel)
 
   let created = false
   const txResult = await db.transaction(async (tx) => {
@@ -234,7 +244,7 @@ export async function sendVisitorMessage(
         .values({
           visitorPrincipalId: author.principalId,
           status: 'open',
-          subject: preview(content, attachments),
+          subject: preview(content || fallbackLabel, attachments),
         })
         .returning()
       conversation = createdConv
@@ -248,6 +258,7 @@ export async function sendVisitorMessage(
         principalId: author.principalId,
         senderType: 'visitor',
         content,
+        contentJson: safeContentJson,
         attachments: attachments.length > 0 ? attachments : null,
         metadata: input.metadata ?? null,
       })
@@ -265,7 +276,7 @@ export async function sendVisitorMessage(
       .update(conversations)
       .set({
         lastMessageAt: message.createdAt,
-        lastMessagePreview: preview(content, attachments),
+        lastMessagePreview: preview(content || fallbackLabel, attachments),
         // Visitor is active, so their side is read; a reply surfaces the thread.
         visitorLastReadAt: message.createdAt,
         status: visitorNextStatus,
@@ -313,7 +324,7 @@ export async function sendVisitorMessage(
 
   void notifyVisitorMessage({
     conversation: txResult.conversation,
-    content: preview(content, attachments),
+    content: preview(content || fallbackLabel, attachments),
     authorName: author.displayName ?? 'A visitor',
     isFirstMessage: created,
   })
