@@ -515,6 +515,7 @@ function asAgentMessage(m: ChatMessageDTO | AgentChatMessageDTO): AgentChatMessa
     reactions: 'reactions' in m ? m.reactions : [],
     flaggedAt: 'flaggedAt' in m ? m.flaggedAt : null,
     cardView: 'cardView' in m ? m.cardView : null,
+    postSuggestion: 'postSuggestion' in m ? m.postSuggestion : null,
   }
 }
 

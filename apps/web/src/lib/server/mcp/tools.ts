@@ -32,7 +32,7 @@
  * - list_conversations: List support-inbox conversations
  * - get_conversation: Get a conversation and its messages
  * - reply_to_conversation: Send an agent reply in a conversation
- * - propose_post: Suggest a draft feedback post as an editable card in the chat
+ * - suggest_post: Nudge the team (agent-only) to track a resolved conversation as a post
  * - share_post: Embed an existing post as a card in the chat
  * - set_conversation_status: Change a conversation's status
  */
@@ -2172,17 +2172,16 @@ Example: reply_to_conversation({ conversationId: "conversation_01abc...", conten
     }
   )
 
-  // propose_post
+  // suggest_post — agent-only; nudges the team to track a RESOLVED conversation
+  // as a post. Never reaches the visitor. The agent confirms with one click.
   server.tool(
-    'propose_post',
-    `Suggest a NEW feedback post to the visitor as an editable card in the chat. The visitor reviews,
-edits, publishes, or ignores it — nothing is posted until they act. Use when the visitor describes a
-feature request or bug worth tracking.
+    'suggest_post',
+    `Suggest to the SUPPORT TEAM (not the visitor) that a RESOLVED conversation be tracked as a feedback post. Appears only in the agent inbox as an internal note; a team member confirms with one click. Rejected unless the conversation is resolved.
 
-Example: propose_post({ conversationId: "conversation_01...", boardId: "board_01...", title: "Add dark mode", content: "A dark theme would reduce eye strain." })`,
+Example: suggest_post({ conversationId: "conversation_01...", boardId: "board_01...", title: "Add dark mode", content: "Customer asked for a night theme." })`,
     {
-      conversationId: z.string().describe('Conversation TypeID'),
-      boardId: z.string().describe('Board TypeID to file the post under'),
+      conversationId: z.string().describe('Conversation TypeID (must be resolved)'),
+      boardId: z.string().describe('Suggested board TypeID'),
       title: z.string().min(3).max(200),
       content: z.string().max(10000).default(''),
     },
@@ -2196,7 +2195,7 @@ Example: propose_post({ conversationId: "conversation_01...", boardId: "board_01
       const denied = requireScope(auth, 'write:chat') ?? requireTeamRole(auth)
       if (denied) return denied
       try {
-        const { proposePost } = await import('@/lib/server/domains/chat/chat.draft-post')
+        const { suggestPost } = await import('@/lib/server/domains/chat/chat.draft-post')
         // team-role API key: canActAsAgent short-circuits on role; segments unused
         const actor = {
           principalId: auth.principalId,
@@ -2205,7 +2204,7 @@ Example: propose_post({ conversationId: "conversation_01...", boardId: "board_01
           segmentIds: new Set<SegmentId>(),
         }
         const agent = { principalId: auth.principalId, displayName: auth.name, email: auth.email }
-        const r = await proposePost(
+        const r = await suggestPost(
           {
             conversationId: args.conversationId as ConversationId,
             boardId: args.boardId as BoardId,
@@ -2214,7 +2213,7 @@ Example: propose_post({ conversationId: "conversation_01...", boardId: "board_01
           },
           { agentActor: actor, agentPrincipalId: auth.principalId, agent }
         )
-        return jsonResult({ messageId: r.message.id, conversationId: r.message.conversationId })
+        return jsonResult({ messageId: r.messageId, conversationId: args.conversationId })
       } catch (err) {
         return errorResult(err)
       }

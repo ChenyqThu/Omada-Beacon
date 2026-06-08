@@ -6,19 +6,25 @@
  * Both mirror sendAgentMessage — server-decided 'agent' sender, conversation
  * touch + assignment claim, realtime broadcast, and the message.created webhook —
  * but stash the card under metadata.card so it flows through to the DTO.
+ *
+ * suggestPost is the agent-only sibling: instead of a visitor-facing card, it
+ * leaves an INTERNAL note nudging the team to track a resolved conversation as a
+ * post — never broadcast to the visitor.
  */
 import { db, conversations, chatMessages, principal, posts, eq } from '@/lib/server/db'
 import type { ConversationId, PostId, BoardId, PrincipalId, ChatMessageId } from '@quackback/ids'
 import type { ChatCard } from '@/lib/shared/db-types'
+import type { AgentChatMessageDTO } from '@/lib/shared/chat/types'
 import type { Actor, Role } from '@/lib/server/policy/types'
 import { canActAsAgent } from '@/lib/server/policy/chat'
 import { config } from '@/lib/server/config'
-import { ForbiddenError, NotFoundError } from '@/lib/shared/errors'
+import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/shared/errors'
 import { toMessageDTO, resolveAuthor, conversationToDTO } from './chat.query'
 import {
   publishChatEvent,
   publishConversationUpdate,
   publishCardUpdated,
+  publishAgentChatEvent,
 } from '@/lib/server/realtime/chat-channels'
 import { emitMessageCreated } from './chat.webhooks'
 import { createPostFromConversation } from './chat.convert'
@@ -150,6 +156,83 @@ export function sharePost(
   ctx: DraftPostAgentCtx
 ): Promise<SendAgentMessageResult> {
   return dropPostRefCard(input.conversationId, input.postId, `🔼 Shared a related idea`, ctx)
+}
+
+/**
+ * Agent-only nudge: suggest the SUPPORT TEAM track a RESOLVED conversation as a
+ * feedback post. Persisted as an INTERNAL note (isInternal=true) carrying the
+ * suggestion under metadata.postSuggestion, and broadcast on the inbox channel
+ * ONLY (publishAgentChatEvent) — so it NEVER reaches the visitor and never bumps
+ * the visitor-facing last-message preview. Rejected unless the conversation is
+ * resolved (closed); a team member confirms the suggestion with one click.
+ */
+export async function suggestPost(
+  input: { conversationId: ConversationId; boardId: BoardId; title: string; content: string },
+  ctx: DraftPostAgentCtx
+): Promise<{ messageId: ChatMessageId }> {
+  const decision = canActAsAgent(ctx.agentActor)
+  if (!decision.allowed) throw new ForbiddenError('FORBIDDEN', decision.reason)
+
+  const title = input.title.trim()
+  const postSuggestion = { boardId: input.boardId, title, content: input.content }
+
+  const message = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(conversations)
+      .where(eq(conversations.id, input.conversationId))
+      .limit(1)
+    if (!existing) {
+      throw new NotFoundError('CONVERSATION_NOT_FOUND', 'Conversation not found')
+    }
+    // Only nudge the team once the conversation has actually been resolved.
+    if (existing.status !== 'closed') {
+      throw new ValidationError(
+        'VALIDATION_ERROR',
+        'Conversation must be resolved before suggesting a post'
+      )
+    }
+
+    const [inserted] = await tx
+      .insert(chatMessages)
+      .values({
+        conversationId: input.conversationId,
+        principalId: ctx.agent.principalId,
+        senderType: 'agent',
+        isInternal: true,
+        content: `💡 Suggested: track this as a feedback post — "${title}"`,
+        metadata: { postSuggestion },
+      })
+      .returning()
+
+    // Internal notes only touch updatedAt — they never change the visitor-facing
+    // last-message preview/time.
+    await tx
+      .update(conversations)
+      .set({ updatedAt: inserted.createdAt })
+      .where(eq(conversations.id, input.conversationId))
+
+    return inserted
+  })
+
+  // Hand-build the agent DTO (a fresh note has no reactions/flags/card) so the
+  // realtime payload carries the agent-only suggestion. Inbox channel ONLY — the
+  // visitor's conversation channel never receives it.
+  const base = toMessageDTO(message, await resolveAuthor(ctx.agent))
+  const messageDTO: AgentChatMessageDTO = {
+    ...base,
+    reactions: [],
+    flaggedAt: null,
+    cardView: null,
+    postSuggestion,
+  }
+  publishAgentChatEvent({
+    kind: 'message',
+    conversationId: input.conversationId,
+    message: messageDTO,
+  })
+
+  return { messageId: message.id }
 }
 
 /**

@@ -210,6 +210,27 @@ async function loadFlagsForMessages(
   return map
 }
 
+/** Batch-load the agent-only post-tracking suggestion carried on internal notes,
+ *  keyed by message id. The suggestion is deliberately kept OFF the base DTO (so
+ *  it can never reach the visitor), so it's re-read here from the note's metadata
+ *  on the agent path only. Callers pass internal-note ids exclusively, so the
+ *  query is empty (no-op) for any page without notes. */
+async function loadPostSuggestionsForMessages(
+  messageIds: ChatMessageId[]
+): Promise<Map<ChatMessageId, { boardId: string; title: string; content: string }>> {
+  const map = new Map<ChatMessageId, { boardId: string; title: string; content: string }>()
+  if (messageIds.length === 0) return map
+  const rows = await db
+    .select({ id: chatMessages.id, metadata: chatMessages.metadata })
+    .from(chatMessages)
+    .where(inArray(chatMessages.id, messageIds))
+  for (const r of rows) {
+    const s = r.metadata?.postSuggestion
+    if (s) map.set(r.id, { boardId: s.boardId, title: s.title, content: s.content })
+  }
+  return map
+}
+
 /** Batch-load the boards referenced by draft-post cards, keyed by id. Empty
  *  input → empty map with no query (drizzle `inArray` rejects an empty list). */
 async function loadBoardsForCards(boardIds: string[]): Promise<Map<string, BoardRow>> {
@@ -276,17 +297,21 @@ export async function enrichMessagesForAgent(
   // cards issues no extra queries.
   const cards = messages.map((m) => m.card).filter((c): c is ChatCard => c !== null)
   const { boardIds, postIds } = collectCardRefs(cards)
-  const [reactions, flags, boardMap, postMap] = await Promise.all([
+  // Only internal notes can carry a post suggestion, so we re-read just those.
+  const noteIds = messages.filter((m) => m.isInternal).map((m) => m.id)
+  const [reactions, flags, boardMap, postMap, postSuggestions] = await Promise.all([
     loadReactionsForMessages(ids, viewerPrincipalId),
     loadFlagsForMessages(ids, viewerPrincipalId),
     loadBoardsForCards([...boardIds]),
     loadPostsForCards([...postIds]),
+    loadPostSuggestionsForMessages(noteIds),
   ])
   return messages.map((m) => ({
     ...m,
     reactions: reactions.get(m.id) ?? [],
     flaggedAt: flags.get(m.id) ?? null,
     cardView: m.card ? buildCardView(m.card, boardMap, postMap) : null,
+    postSuggestion: postSuggestions.get(m.id) ?? null,
   }))
 }
 

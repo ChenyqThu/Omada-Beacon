@@ -151,6 +151,9 @@ export interface AgentChatMessageDTO extends ChatMessageDTO {
   /** Display-ready enrichment of `card` (board/post names, vote count, status);
    *  null when the message carries no card or the referenced entity is gone. */
   cardView: ChatCardView | null
+  /** Agent-only AI suggestion to track this conversation as a post; null
+   *  otherwise. Never on the base DTO, so it never reaches the visitor. */
+  postSuggestion: { boardId: string; title: string; content: string } | null
 }
 
 /** A flagged ("Saved for later") message for the per-agent saved feed: enough
