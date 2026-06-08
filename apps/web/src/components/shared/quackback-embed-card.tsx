@@ -152,7 +152,7 @@ export function QuackbackEmbedCard({
   onOpenInModal,
   getAuthHeaders,
 }: {
-  kind: 'post' | 'changelog'
+  kind: 'post' | 'changelog' | 'article'
   id: string
   /** Live surfaces (default) get a working vote button + a clickable card; the
    *  in-editor preview passes `false` for an inert, non-navigating card. */
@@ -196,9 +196,10 @@ export function QuackbackEmbedCard({
   }
 
   if ('unavailable' in data) {
+    const label = kind === 'post' ? 'post' : kind === 'article' ? 'article' : 'update'
     return (
       <div className={`${shellCls} px-3 py-2.5 text-xs text-muted-foreground`}>
-        This {kind === 'post' ? 'post' : 'update'} is unavailable
+        This {label} is unavailable
       </div>
     )
   }
@@ -276,6 +277,31 @@ export function QuackbackEmbedCard({
         onOpenInModal={onOpenInModal}
       >
         {inner}
+      </EmbedShell>
+    )
+  }
+
+  if (data.kind === 'article') {
+    const articleInner = (
+      <div className="p-3">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
+          Help article
+        </p>
+        <h3 className="mt-0.5 line-clamp-1 text-sm font-semibold text-foreground">{data.title}</h3>
+        {data.excerpt && (
+          <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{data.excerpt}</p>
+        )}
+      </div>
+    )
+    if (!interactive) return <div className={shellCls}>{articleInner}</div>
+    // Help-center articles have no "open in modal" concept — modal surfaces
+    // open them in a new tab rather than navigating away from the inbox.
+    const arOpenMode = openMode === 'modal' ? 'newTab' : openMode
+    const arHref =
+      arOpenMode === 'newTab' ? data.url : `/hc/articles/${data.categorySlug}/${data.articleId}`
+    return (
+      <EmbedShell href={arHref} openMode={arOpenMode}>
+        {articleInner}
       </EmbedShell>
     )
   }

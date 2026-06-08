@@ -12,7 +12,12 @@ vi.mock('@tanstack/react-start', () => ({
   },
 }))
 
-import { projectPostPreview, projectChangelogPreview, resolveEmbed } from '../embeds'
+import {
+  projectPostPreview,
+  projectChangelogPreview,
+  projectArticlePreview,
+  resolveEmbed,
+} from '../embeds'
 import type { EmbedResolverDeps } from '../embeds'
 
 const sid = (s: string) => s as StatusId
@@ -112,6 +117,7 @@ describe('resolveEmbed', () => {
       title: 'v2 is here',
       publishedAt: new Date('2026-01-02T03:04:05.000Z'),
     }),
+    getArticle: async () => null,
   }
   const actor = {} as never
 
@@ -175,6 +181,101 @@ describe('resolveEmbed', () => {
         ...baseDeps,
         getChangelog: async () => {
           throw new Error('not found')
+        },
+      },
+      BASE
+    )
+    expect(r).toEqual({ unavailable: true })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Article embed
+// ---------------------------------------------------------------------------
+
+const ARTICLE_INPUT = {
+  slug: 'how-to-reset-password',
+  title: 'How to reset your password',
+  content: 'To reset your password, click Forgot password on the login page.',
+  description: null as string | null,
+  category: { slug: 'getting-started' },
+}
+
+describe('projectArticlePreview', () => {
+  it('projects an article with title, excerpt, and absolute url', () => {
+    expect(projectArticlePreview(ARTICLE_INPUT, BASE)).toEqual({
+      kind: 'article',
+      articleId: 'how-to-reset-password',
+      categorySlug: 'getting-started',
+      title: 'How to reset your password',
+      excerpt: 'To reset your password, click Forgot password on the login page.',
+      url: 'https://feedback.example.com/hc/articles/getting-started/how-to-reset-password',
+    })
+  })
+
+  it('uses description as excerpt when content is absent', () => {
+    const r = projectArticlePreview(
+      { ...ARTICLE_INPUT, content: '', description: 'A short summary.' },
+      BASE
+    )
+    expect(r.excerpt).toBe('A short summary.')
+  })
+
+  it('nulls excerpt when both content and description are absent', () => {
+    const r = projectArticlePreview({ ...ARTICLE_INPUT, content: '', description: null }, BASE)
+    expect(r.excerpt).toBeNull()
+  })
+
+  it('joins the article url cleanly when the base has a trailing slash', () => {
+    const r = projectArticlePreview(ARTICLE_INPUT, 'https://feedback.example.com/')
+    expect(r.url).toBe(
+      'https://feedback.example.com/hc/articles/getting-started/how-to-reset-password'
+    )
+  })
+})
+
+describe('resolveEmbed — article', () => {
+  const actor = {} as never
+  const articleDeps: EmbedResolverDeps = {
+    getPostDetail: async () => POST_DETAIL,
+    listStatuses: async () => STATUSES,
+    getChangelog: async () => ({
+      id: 'changelog_01ktjwt5tyf6br9mwcz1vskk44',
+      title: 'v2 is here',
+      publishedAt: new Date('2026-01-02T03:04:05.000Z'),
+    }),
+    getArticle: async () => ARTICLE_INPUT,
+  }
+
+  it('resolves an article happy path through the injected resolver', async () => {
+    const r = await resolveEmbed('article', 'how-to-reset-password', actor, articleDeps, BASE)
+    expect(r).toMatchObject({
+      kind: 'article',
+      title: 'How to reset your password',
+      url: 'https://feedback.example.com/hc/articles/getting-started/how-to-reset-password',
+    })
+  })
+
+  it('returns unavailable when the article resolver yields null', async () => {
+    const r = await resolveEmbed(
+      'article',
+      'unknown-slug',
+      actor,
+      { ...articleDeps, getArticle: async () => null },
+      BASE
+    )
+    expect(r).toEqual({ unavailable: true })
+  })
+
+  it('returns unavailable (no exception escapes) when the article resolver throws', async () => {
+    const r = await resolveEmbed(
+      'article',
+      'slug',
+      actor,
+      {
+        ...articleDeps,
+        getArticle: async () => {
+          throw new Error('private')
         },
       },
       BASE

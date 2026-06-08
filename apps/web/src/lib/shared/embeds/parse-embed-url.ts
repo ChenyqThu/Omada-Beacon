@@ -2,19 +2,22 @@ import { isValidTypeId } from '@quackback/ids'
 
 /**
  * A parsed reference to an embeddable Quackback entity. Produced by
- * {@link parseEmbedUrl} when a pasted/typed URL points at a feedback post
- * or a published changelog entry; consumed by the embed resolver/card.
+ * {@link parseEmbedUrl} when a pasted/typed URL points at a feedback post,
+ * a published changelog entry, or a help-center article; consumed by the
+ * embed resolver/card.
  */
-export type EmbedRef = { kind: 'post' | 'changelog'; id: string }
+export type EmbedRef = { kind: 'post' | 'changelog' | 'article'; id: string }
 
-// Path shapes we recognise. The captured segment is the candidate TypeID,
-// which `isValidTypeId` then verifies for real (charset + round-trip), so a
-// structurally-bogus id on a matching path is rejected, not embedded.
-//   - post:      /b/<board-slug>/posts/<post-id>
-//   - changelog: /changelog/<changelog-id>
-// Note the changelog prefix is `changelog_` (per @quackback/ids), not `clog_`.
+// Path shapes we recognise. The captured segment is the candidate identifier.
+//   - post:      /b/<board-slug>/posts/<post-id>               → TypeID (validated)
+//   - changelog: /changelog/<changelog-id>                     → TypeID (validated)
+//   - article:   /hc/articles/<category-slug>/<article-slug>   → slug (pattern-checked)
+// Note the changelog prefix is `changelog_` (per @quackback/ids ID_PREFIXES), not `clog_`.
+// Article public URLs are slug-based, not TypeID-based, so the captured group is
+// the article slug; validity is checked against the slug charset below.
 const POST_PATH = /^\/b\/[^/]+\/posts\/(post_[0-9a-z]+)$/i
 const CHANGELOG_PATH = /^\/changelog\/(changelog_[0-9a-z]+)$/i
+const ARTICLE_PATH = /^\/hc\/articles\/[^/]+\/([a-z0-9][a-z0-9-]*)$/i
 
 // Full-URL matchers for paste rules (TipTap's `nodePasteRule` runs these against
 // the whole pasted text, not just a pathname). They mirror the same `post_` /
@@ -24,6 +27,11 @@ const CHANGELOG_PATH = /^\/changelog\/(changelog_[0-9a-z]+)$/i
 // is enforced downstream, so these stay deliberately permissive.
 export const POST_URL_PASTE_RE = /https?:\/\/[^\s]+\/b\/[^/\s]+\/posts\/(post_[0-9a-z]+)\b/gi
 export const CHANGELOG_URL_PASTE_RE = /https?:\/\/[^\s]+\/changelog\/(changelog_[0-9a-z]+)\b/gi
+// Article paste rule captures the article slug (second segment after /hc/articles/).
+// The path /hc/articles/{categorySlug}/{articleSlug} is unambiguous — no other
+// entity lives under that two-segment prefix.
+export const ARTICLE_URL_PASTE_RE =
+  /https?:\/\/[^\s]+\/hc\/articles\/[^/\s]+\/([a-z0-9][a-z0-9-]*)\b/gi
 
 /**
  * Parse a Quackback URL into a typed embed reference, or `null` when the URL
@@ -46,6 +54,11 @@ export function parseEmbedUrl(raw: string): EmbedRef | null {
   const changelogMatch = url.pathname.match(CHANGELOG_PATH)
   if (changelogMatch && isValidTypeId(changelogMatch[1], 'changelog')) {
     return { kind: 'changelog', id: changelogMatch[1] }
+  }
+
+  const articleMatch = url.pathname.match(ARTICLE_PATH)
+  if (articleMatch) {
+    return { kind: 'article', id: articleMatch[1] }
   }
 
   return null

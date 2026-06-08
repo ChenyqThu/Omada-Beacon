@@ -19,6 +19,10 @@ import type { TiptapContent } from '@/lib/shared/schemas/posts'
 // doc-bomb thousands of sibling nodes — generous enough for any real document.
 const MAX_NODES = 5000
 
+// Help-center article slugs: lowercase alphanumeric, hyphens only, max 300 chars.
+// Mirrors what `slugify()` in shared/utils/string produces.
+const ARTICLE_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,299}$/
+
 // Node types that match the TipTap editor extensions
 const ALLOWED_NODE_TYPES = new Set([
   'doc',
@@ -183,12 +187,19 @@ function sanitizeAttrs(
 
     case 'quackbackEmbed': {
       // A Quackback link embed carries only `{ kind, id }`. `kind` must be one
-      // of the two embeddable entity types and `id` must be a real TypeID of
-      // that kind (charset + round-trip verified). Anything else strips the
-      // attrs → the atom node survives but the serializer renders nothing, so a
-      // malformed or foreign embed can never display.
+      // of the embeddable entity types, and `id` must be valid for that kind:
+      //   - post / changelog: a real TypeID (charset + round-trip verified)
+      //   - article:          a help-center article slug (lowercase alphanumeric + hyphens)
+      // Anything else strips attrs → the atom node survives but the serializer
+      // renders nothing, so a malformed embed can never display.
       const kind = attrs.kind
       const id = typeof attrs.id === 'string' ? attrs.id : ''
+      if (kind === 'article') {
+        // Article public URLs are slug-based; validate the slug charset rather
+        // than a TypeID, since no TypeID appears in the public help-center URL.
+        if (!ARTICLE_SLUG_RE.test(id)) return undefined
+        return { kind, id }
+      }
       if ((kind !== 'post' && kind !== 'changelog') || !isValidTypeId(id, kind)) {
         return undefined
       }

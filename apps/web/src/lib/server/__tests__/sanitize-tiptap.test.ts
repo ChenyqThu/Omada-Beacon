@@ -640,6 +640,44 @@ describe('sanitizeTiptapContent', () => {
     expect(node?.attrs).toBeUndefined()
   })
 
+  it('preserves a valid article embed node (slug as id)', () => {
+    const input = {
+      type: 'doc',
+      content: [
+        { type: 'quackbackEmbed', attrs: { kind: 'article', id: 'how-to-reset-password' } },
+      ],
+    }
+    const result = sanitizeTiptapContent(input)
+    const node = result.content!.find((n) => n.type === 'quackbackEmbed')
+    expect(node).toBeDefined()
+    expect(node!.attrs).toEqual({ kind: 'article', id: 'how-to-reset-password' })
+  })
+
+  it('neutralizes an article embed with an invalid slug (XSS attempt)', () => {
+    const input = {
+      type: 'doc',
+      content: [
+        {
+          type: 'quackbackEmbed',
+          attrs: { kind: 'article', id: '"><script>alert(1)</script>' },
+        },
+      ],
+    }
+    const result = sanitizeTiptapContent(input)
+    const node = result.content?.find((n) => n.type === 'quackbackEmbed')
+    expect(node?.attrs).toBeUndefined()
+  })
+
+  it('neutralizes an article embed with an empty slug', () => {
+    const input = {
+      type: 'doc',
+      content: [{ type: 'quackbackEmbed', attrs: { kind: 'article', id: '' } }],
+    }
+    const result = sanitizeTiptapContent(input)
+    const node = result.content?.find((n) => n.type === 'quackbackEmbed')
+    expect(node?.attrs).toBeUndefined()
+  })
+
   // ============================================
   // Inline chat image sanitization
   // ============================================

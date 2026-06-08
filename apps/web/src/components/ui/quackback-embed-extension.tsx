@@ -1,7 +1,11 @@
 import { Node, nodePasteRule } from '@tiptap/core'
 import { ReactNodeViewRenderer, NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react'
 import { XMarkIcon } from '@heroicons/react/24/solid'
-import { POST_URL_PASTE_RE, CHANGELOG_URL_PASTE_RE } from '@/lib/shared/embeds/parse-embed-url'
+import {
+  POST_URL_PASTE_RE,
+  CHANGELOG_URL_PASTE_RE,
+  ARTICLE_URL_PASTE_RE,
+} from '@/lib/shared/embeds/parse-embed-url'
 import { QuackbackEmbedCard } from '@/components/shared/quackback-embed-card'
 import { cn } from '@/lib/shared/utils'
 
@@ -19,7 +23,7 @@ export interface QuackbackEmbedOptions {
  * non-editable; an empty node simply renders nothing inside it.
  */
 function QuackbackEmbedNodeView({ node, selected, deleteNode }: ReactNodeViewProps) {
-  const kind = node.attrs.kind as 'post' | 'changelog' | null
+  const kind = node.attrs.kind as 'post' | 'changelog' | 'article' | null
   const id = node.attrs.id as string | null
   return (
     <NodeViewWrapper
@@ -113,6 +117,11 @@ export const QuackbackEmbed = Node.create<QuackbackEmbedOptions>({
         find: CHANGELOG_URL_PASTE_RE,
         type: this.type,
         getAttributes: (match) => ({ kind: 'changelog', id: match[1] }),
+      }),
+      nodePasteRule({
+        find: ARTICLE_URL_PASTE_RE,
+        type: this.type,
+        getAttributes: (match) => ({ kind: 'article', id: match[1] }),
       }),
     ]
   },

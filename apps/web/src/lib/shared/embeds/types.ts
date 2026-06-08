@@ -47,9 +47,27 @@ export interface EmbedChangelogPreview {
   url: string
 }
 
+/** A resolved (published) help-center article embed. */
+export interface EmbedArticlePreview {
+  kind: 'article'
+  /** Article slug — used as the embed identity and to build the relative navigation path. */
+  articleId: string
+  /** Category slug — needed for the two-segment help-center URL (`/hc/articles/{cat}/{slug}`). */
+  categorySlug: string
+  title: string
+  /** Short plain-text preview of the article body (already truncated server-side). */
+  excerpt: string | null
+  /** Absolute portal URL for the article — see {@link EmbedPostPreview.url}. */
+  url: string
+}
+
 /** A broken, deleted, or unauthorized embed — renders as a muted placeholder. */
 export interface EmbedUnavailable {
   unavailable: true
 }
 
-export type EmbedPreview = EmbedPostPreview | EmbedChangelogPreview | EmbedUnavailable
+export type EmbedPreview =
+  | EmbedPostPreview
+  | EmbedChangelogPreview
+  | EmbedArticlePreview
+  | EmbedUnavailable

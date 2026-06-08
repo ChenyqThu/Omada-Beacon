@@ -18,6 +18,7 @@ import type {
   EmbedPreview,
   EmbedPostPreview,
   EmbedChangelogPreview,
+  EmbedArticlePreview,
 } from '@/lib/shared/embeds/types'
 import { toIsoStringOrNull } from '@/lib/shared/utils/date'
 import { contentPreview } from '@/lib/shared/utils/string'
@@ -46,6 +47,15 @@ type StatusInput = { id: StatusId; name: string; color: string }
 /** Minimal slice of a published changelog entry the changelog card needs. */
 type ChangelogInput = { id: string; title: string; publishedAt: Date | string | null }
 
+/** Minimal slice of a published help-center article the article card needs. */
+type ArticleInput = {
+  slug: string
+  title: string
+  content: string
+  description: string | null
+  category: { slug: string }
+}
+
 /**
  * Viewer-scoped resolvers injected into {@link resolveEmbed}. Wired to the real
  * public read paths in the server fn below; replaced with fakes in tests.
@@ -54,6 +64,8 @@ export interface EmbedResolverDeps {
   getPostDetail: (id: PostId, actor: Actor) => Promise<PostDetailInput | null>
   listStatuses: () => Promise<readonly StatusInput[]>
   getChangelog: (id: ChangelogId) => Promise<ChangelogInput | null>
+  /** Resolve a published, viewer-accessible help-center article by slug. */
+  getArticle: (slug: string) => Promise<ArticleInput | null>
 }
 
 /**
@@ -100,6 +112,25 @@ export function projectChangelogPreview(
   }
 }
 
+/**
+ * Project a published help-center article into the viewer-safe article card
+ * shape. The excerpt uses the article body text first, falling back to the
+ * optional description field; both are trimmed to 160 chars.
+ * `baseUrl` is the canonical portal base, used to build the absolute `url`.
+ */
+export function projectArticlePreview(article: ArticleInput, baseUrl: string): EmbedArticlePreview {
+  const rawText = article.content || article.description || ''
+  const excerpt = rawText ? contentPreview(rawText, 160) || null : null
+  return {
+    kind: 'article',
+    articleId: article.slug,
+    categorySlug: article.category.slug,
+    title: article.title,
+    excerpt,
+    url: joinBase(baseUrl, `/hc/articles/${article.category.slug}/${article.slug}`),
+  }
+}
+
 /** Join a base URL and an absolute path, collapsing any trailing slash on the
  *  base so `${base}/path` never doubles up (`config.baseUrl` may or may not
  *  carry one). */
@@ -114,7 +145,7 @@ function joinBase(base: string, path: string): string {
  * exception ever escapes and no gated data leaks.
  */
 export async function resolveEmbed(
-  kind: 'post' | 'changelog',
+  kind: 'post' | 'changelog' | 'article',
   id: string,
   actor: Actor,
   deps: EmbedResolverDeps,
@@ -126,6 +157,11 @@ export async function resolveEmbed(
       if (!detail) return { unavailable: true }
       const statuses = await deps.listStatuses()
       return projectPostPreview(detail, statuses, baseUrl)
+    }
+    if (kind === 'article') {
+      const article = await deps.getArticle(id)
+      if (!article) return { unavailable: true }
+      return projectArticlePreview(article, baseUrl)
     }
     const entry = await deps.getChangelog(id as ChangelogId)
     if (!entry) return { unavailable: true }
@@ -140,7 +176,7 @@ export async function resolveEmbed(
 // ---------------------------------------------------------------------------
 
 export const getEmbedPreviewFn = createServerFn({ method: 'GET' })
-  .inputValidator(z.object({ kind: z.enum(['post', 'changelog']), id: z.string() }))
+  .inputValidator(z.object({ kind: z.enum(['post', 'changelog', 'article']), id: z.string() }))
   .handler(async ({ data }): Promise<EmbedPreview> => {
     try {
       // Outer gate: a private portal serves no embed preview to a denied caller
@@ -154,19 +190,25 @@ export const getEmbedPreviewFn = createServerFn({ method: 'GET' })
       const { getOptionalAuth, policyActorFromAuth } = await import('./auth-helpers')
       const actor = await policyActorFromAuth(await getOptionalAuth())
 
-      const [{ getPublicPostDetail }, { listPublicStatuses }, { getPublicChangelogMetaById }] =
-        await Promise.all([
-          import('@/lib/server/domains/posts/post.public.detail'),
-          import('@/lib/server/domains/statuses/status.service'),
-          import('@/lib/server/domains/changelog/changelog.public'),
-        ])
+      const [
+        { getPublicPostDetail },
+        { listPublicStatuses },
+        { getPublicChangelogMetaById },
+        { getPublicArticleBySlug },
+      ] = await Promise.all([
+        import('@/lib/server/domains/posts/post.public.detail'),
+        import('@/lib/server/domains/statuses/status.service'),
+        import('@/lib/server/domains/changelog/changelog.public'),
+        import('@/lib/server/domains/help-center/help-center.article.service'),
+      ])
 
       // Canonical portal base for the absolute embed `url` (opened in a new tab
       // by surfaces like the widget). Imported lazily alongside the read paths.
       const { config } = await import('@/lib/server/config')
 
-      // Slim, null-returning changelog getter: no view-count increment (an embed
-      // renders on every page view) and an honest null contract for resolveEmbed.
+      // Article resolver: `getPublicArticleBySlug` throws NotFoundError when the
+      // article is absent, private, or unpublished — the catch in `resolveEmbed`
+      // collapses that to `{ unavailable: true }` without leaking the error.
       return await resolveEmbed(
         data.kind,
         data.id,
@@ -175,6 +217,13 @@ export const getEmbedPreviewFn = createServerFn({ method: 'GET' })
           getPostDetail: getPublicPostDetail,
           listStatuses: listPublicStatuses,
           getChangelog: getPublicChangelogMetaById,
+          getArticle: async (slug: string) => {
+            try {
+              return await getPublicArticleBySlug(slug)
+            } catch {
+              return null
+            }
+          },
         },
         config.baseUrl
       )

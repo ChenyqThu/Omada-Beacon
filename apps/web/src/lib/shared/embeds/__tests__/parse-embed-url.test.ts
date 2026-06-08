@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { parseEmbedUrl, POST_URL_PASTE_RE, CHANGELOG_URL_PASTE_RE } from '../parse-embed-url'
+import {
+  parseEmbedUrl,
+  POST_URL_PASTE_RE,
+  CHANGELOG_URL_PASTE_RE,
+  ARTICLE_URL_PASTE_RE,
+} from '../parse-embed-url'
 
 // Real, round-trip-valid TypeIDs. The changelog prefix is `changelog_`
 // (per @quackback/ids ID_PREFIXES), not `clog_`, and isValidTypeId rejects
@@ -54,5 +59,46 @@ describe('paste regexes', () => {
     const foreign = 'https://youtube.com/watch?v=abc'
     expect(new RegExp(POST_URL_PASTE_RE).test(foreign)).toBe(false)
     expect(new RegExp(CHANGELOG_URL_PASTE_RE).test(foreign)).toBe(false)
+  })
+})
+
+describe('parseEmbedUrl — article', () => {
+  it('parses a help-center article url', () => {
+    expect(
+      parseEmbedUrl(
+        'https://acme.example.com/hc/articles/getting-started/how-to-reset-your-password'
+      )
+    ).toEqual({ kind: 'article', id: 'how-to-reset-your-password' })
+  })
+  it('ignores the category segment — only the article slug is captured', () => {
+    expect(parseEmbedUrl('https://acme.example.com/hc/articles/cat/my-article')).toEqual({
+      kind: 'article',
+      id: 'my-article',
+    })
+  })
+  it('rejects a help-center article url with a trailing slash (empty slug)', () => {
+    expect(parseEmbedUrl('https://acme.example.com/hc/articles/getting-started/')).toBeNull()
+  })
+  it('ignores unrelated hc paths', () => {
+    expect(parseEmbedUrl('https://acme.example.com/hc/categories/getting-started')).toBeNull()
+    expect(parseEmbedUrl('https://acme.example.com/hc/articles')).toBeNull()
+  })
+})
+
+describe('paste regexes — article', () => {
+  it('ARTICLE_URL_PASTE_RE captures the article slug from a full url', () => {
+    const m = new RegExp(ARTICLE_URL_PASTE_RE).exec(
+      'https://acme.example.com/hc/articles/getting-started/how-to-reset'
+    )
+    expect(m?.[1]).toBe('how-to-reset')
+  })
+  it('ARTICLE_URL_PASTE_RE does not match foreign urls', () => {
+    expect(new RegExp(ARTICLE_URL_PASTE_RE).test('https://example.com/other')).toBe(false)
+  })
+  it('ARTICLE_URL_PASTE_RE does not match post or changelog urls', () => {
+    const postUrl = `https://acme.example.com/b/features/posts/${POST_ID}`
+    const clUrl = `https://acme.example.com/changelog/${CHANGELOG_ID}`
+    expect(new RegExp(ARTICLE_URL_PASTE_RE).test(postUrl)).toBe(false)
+    expect(new RegExp(ARTICLE_URL_PASTE_RE).test(clUrl)).toBe(false)
   })
 })
