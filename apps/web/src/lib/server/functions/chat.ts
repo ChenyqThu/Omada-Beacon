@@ -715,6 +715,7 @@ const convertSchema = z.object({
   title: z.string().max(200).optional(),
   content: z.string().max(10000).optional(),
   asUpvoteOfPostId: z.string().optional(),
+  sourceMessageContent: z.string().max(10000).optional(),
 })
 
 /** Create a feedback post from a conversation (create new, or upvote existing). */
@@ -738,6 +739,7 @@ export const createPostFromConversationFn = createServerFn({ method: 'POST' })
           title: data.title,
           content: data.content,
           asUpvoteOfPostId: data.asUpvoteOfPostId as PostId | undefined,
+          sourceMessageContent: data.sourceMessageContent,
         },
         { agentActor: actor, agentPrincipalId: ctx.principal.id, agent }
       )

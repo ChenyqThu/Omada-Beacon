@@ -16,6 +16,7 @@ const assertConversationViewable = vi.fn()
 const addVoteOnBehalf = vi.fn()
 const createPost = vi.fn()
 const dropPostRefCard = vi.fn()
+const createComment = vi.fn()
 const insertedLinks: Record<string, unknown>[] = []
 let onConflictHit = false
 
@@ -44,6 +45,10 @@ vi.mock('@/lib/server/domains/posts/post.service', () => ({
 // without loading the real module (which carries its own heavy deps).
 vi.mock('../chat.draft-post', () => ({
   dropPostRefCard: (...args: unknown[]) => dropPostRefCard(...args),
+}))
+
+vi.mock('@/lib/server/domains/comments/comment.service', () => ({
+  createComment: (...args: unknown[]) => createComment(...args),
 }))
 
 vi.mock('@/lib/server/db', () => {
@@ -107,6 +112,7 @@ beforeEach(() => {
   createPost.mockResolvedValue({ id: 'post_new' as PostId, boardSlug: 'feature-requests' })
   addVoteOnBehalf.mockResolvedValue(undefined)
   dropPostRefCard.mockResolvedValue(undefined)
+  createComment.mockResolvedValue(undefined)
 })
 
 describe('createPostFromConversation authorization guard', () => {
@@ -254,6 +260,40 @@ describe('createPostFromConversation upvote-existing path', () => {
       integrationType: 'live_chat',
       externalId: conversationId,
     })
+  })
+
+  it('posts a private comment on the upvoted post when sourceMessageContent is provided', async () => {
+    const sourceMessageContent = 'I really need this feature for my workflow.'
+    await createPostFromConversation(
+      { conversationId, boardId, asUpvoteOfPostId: existingPostId, sourceMessageContent },
+      ctx
+    )
+
+    expect(createComment).toHaveBeenCalledTimes(1)
+    const [commentInput, author, actor] = createComment.mock.calls[0]
+    expect(commentInput).toMatchObject({
+      postId: existingPostId,
+      isPrivate: true,
+    })
+    expect(commentInput.content).toContain(sourceMessageContent)
+    expect(author.role).toMatch(/^(admin|member)$/)
+    expect(actor).toBe(agentActor)
+  })
+
+  it('skips the private comment when sourceMessageContent is absent', async () => {
+    await createPostFromConversation(
+      { conversationId, boardId, asUpvoteOfPostId: existingPostId },
+      ctx
+    )
+    expect(createComment).not.toHaveBeenCalled()
+  })
+
+  it('skips the private comment when sourceMessageContent is whitespace-only', async () => {
+    await createPostFromConversation(
+      { conversationId, boardId, asUpvoteOfPostId: existingPostId, sourceMessageContent: '   ' },
+      ctx
+    )
+    expect(createComment).not.toHaveBeenCalled()
   })
 })
 

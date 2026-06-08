@@ -85,7 +85,7 @@ export function ConvertToPostDialog({
   })
 
   const convert = useMutation({
-    mutationFn: (vars: { asUpvoteOfPostId?: PostId }) =>
+    mutationFn: (vars: { asUpvoteOfPostId?: PostId; sourceMessageContent?: string }) =>
       createPostFromConversationFn({
         data: {
           conversationId,
@@ -93,6 +93,7 @@ export function ConvertToPostDialog({
           title: title.trim(),
           content: content.trim() || undefined,
           asUpvoteOfPostId: vars.asUpvoteOfPostId,
+          sourceMessageContent: vars.sourceMessageContent,
         },
       }),
     onSuccess: (res) => {
@@ -210,7 +211,12 @@ export function ConvertToPostDialog({
                       size="sm"
                       variant="outline"
                       disabled={busy}
-                      onClick={() => convert.mutate({ asUpvoteOfPostId: p.id as PostId })}
+                      onClick={() =>
+                        convert.mutate({
+                          asUpvoteOfPostId: p.id as PostId,
+                          sourceMessageContent: defaultContent,
+                        })
+                      }
                     >
                       <ChevronUpIcon className="h-3.5 w-3.5" /> Upvote
                     </Button>

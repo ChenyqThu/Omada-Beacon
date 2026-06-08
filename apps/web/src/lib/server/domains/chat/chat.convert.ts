@@ -21,6 +21,9 @@ export interface ConvertChatToPostInput {
   content?: string
   /** When set, upvote this existing post on the visitor's behalf instead of creating one. */
   asUpvoteOfPostId?: PostId
+  /** Verbatim message text from the visitor — attached as a private team-only comment on the
+   *  upvoted post so the original context is never lost. Only used on the upvote path. */
+  sourceMessageContent?: string
 }
 
 export interface ConvertChatToPostResult {
@@ -53,6 +56,23 @@ export async function createPostFromConversation(
       null,
       ctx.agentPrincipalId
     )
+    if (input.sourceMessageContent?.trim()) {
+      const { createComment } = await import('@/lib/server/domains/comments/comment.service')
+      await createComment(
+        {
+          postId: input.asUpvoteOfPostId,
+          content: `Tracked from a support conversation:\n\n${input.sourceMessageContent.trim()}`,
+          isPrivate: true,
+        },
+        {
+          principalId: ctx.agentPrincipalId,
+          role: ctx.agentActor.role as 'admin' | 'member',
+          name: ctx.agent.displayName ?? undefined,
+          email: ctx.agent.email ?? undefined,
+        },
+        ctx.agentActor
+      )
+    }
     postId = input.asUpvoteOfPostId
     created = false
   } else {
