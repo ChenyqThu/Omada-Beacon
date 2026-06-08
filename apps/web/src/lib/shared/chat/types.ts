@@ -88,7 +88,7 @@ export interface ChatMessageDTO {
   /** Structured event for a 'system' message, so clients can localize it; null
    *  for ordinary messages (and legacy system rows, which fall back to content). */
   systemEvent: ChatSystemEvent | null
-  /** A draft-post or embedded-post card carried on this message; null otherwise. */
+  /** An embedded-post card shared into this message; null otherwise. */
   card: ChatCard | null
 }
 
@@ -101,19 +101,6 @@ export interface MessageReactionCount {
   /** Display names of who reacted (capped), for the hover tooltip. May be empty
    *  on optimistic updates until the server reconciles. */
   reactors?: string[]
-}
-
-/**
- * Server-resolved display data for a `draft_post` card: the human-readable
- * board name (the raw card only carries ids) plus the published post's title
- * once it exists, so the agent view never prints a bare `board_…`/`post_…` id.
- */
-export interface DraftPostCardView {
-  type: 'draft_post'
-  boardName: string
-  boardSlug: string
-  /** Present only once the draft has been published (card.status === 'published'). */
-  postTitle?: string
 }
 
 /**
@@ -132,7 +119,7 @@ export interface PostRefCardView {
 }
 
 /** The enriched, display-ready view of a `ChatCard`, built agent-side. */
-export type ChatCardView = DraftPostCardView | PostRefCardView
+export type ChatCardView = PostRefCardView
 
 /**
  * A chat message as surfaced to an AGENT, extending the base DTO with two

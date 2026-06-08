@@ -1,21 +1,23 @@
 /**
  * Card-in-chat sends. An agent can drop a rich "card" into a conversation:
- *   - proposePost: a draft feedback post the visitor can publish (draft_post card).
- *   - sharePost:   an embedded reference to an existing post (post_ref card).
+ *   - sharePost: an embedded reference to an existing post (post_ref card) the
+ *     visitor can view and upvote.
  *
- * Both mirror sendAgentMessage — server-decided 'agent' sender, conversation
+ * It mirrors sendAgentMessage — server-decided 'agent' sender, conversation
  * touch + assignment claim, realtime broadcast, and the message.created webhook —
- * but stash the card under metadata.card so it flows through to the DTO.
+ * but stashes the card under metadata.card so it flows through to the DTO.
  *
  * suggestPost is the agent-only sibling: instead of a visitor-facing card, it
  * leaves an INTERNAL note nudging the team to track a resolved conversation as a
  * post — never broadcast to the visitor.
+ *
+ * upvotePostFromChat is the visitor-side action on a shared post_ref card.
  */
-import { db, conversations, chatMessages, principal, posts, eq } from '@/lib/server/db'
+import { db, conversations, chatMessages, eq } from '@/lib/server/db'
 import type { ConversationId, PostId, BoardId, PrincipalId, ChatMessageId } from '@quackback/ids'
 import type { ChatCard } from '@/lib/shared/db-types'
 import type { AgentChatMessageDTO } from '@/lib/shared/chat/types'
-import type { Actor, Role } from '@/lib/server/policy/types'
+import type { Actor } from '@/lib/server/policy/types'
 import { canActAsAgent } from '@/lib/server/policy/chat'
 import { config } from '@/lib/server/config'
 import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/shared/errors'
@@ -23,15 +25,10 @@ import { toMessageDTO, resolveAuthor, conversationToDTO } from './chat.query'
 import {
   publishChatEvent,
   publishConversationUpdate,
-  publishCardUpdated,
   publishAgentChatEvent,
 } from '@/lib/server/realtime/chat-channels'
 import { emitMessageCreated } from './chat.webhooks'
-import { createPostFromConversation } from './chat.convert'
-import { findSimilarPostsByText } from '@/lib/server/domains/embeddings/embedding.service'
 import { addVoteOnBehalf } from '@/lib/server/domains/posts/post.voting'
-import { scheduleDispatch, cancelScheduledDispatch } from '@/lib/server/events/scheduler'
-import { DRAFT_NUDGE_DELAY_MS } from './chat.nudge'
 import type { ChatAuthorInput, SendAgentMessageResult } from './chat.types'
 
 export interface DraftPostAgentCtx {
@@ -104,39 +101,6 @@ async function insertCardMessage(
   void emitMessageCreated(ctx.agentActor, ctx.agent, txResult.message, txResult.conversation)
 
   return { conversation: conversationDTO, message: messageDTO }
-}
-
-/** Agent proposes a draft feedback post (visitor can publish it). */
-export async function proposePost(
-  input: { conversationId: ConversationId; boardId: BoardId; title: string; content: string },
-  ctx: DraftPostAgentCtx
-): Promise<SendAgentMessageResult> {
-  const title = input.title.trim()
-  const card: ChatCard = {
-    type: 'draft_post',
-    status: 'proposed',
-    boardId: input.boardId,
-    title,
-    content: input.content,
-  }
-  const result = await insertCardMessage(
-    input.conversationId,
-    `📝 Draft feedback: ${title}`,
-    card,
-    ctx
-  )
-
-  // Schedule a one-shot reminder: if the visitor hasn't published/dismissed the
-  // draft a day from now (and is reachable by email), nudge them. Cancelled when
-  // the card is acted on. Fire-and-forget — a scheduling hiccup must not fail the send.
-  void scheduleDispatch({
-    jobId: `draft-nudge--${result.message.id}`,
-    handler: '__draft_nudge__',
-    delayMs: DRAFT_NUDGE_DELAY_MS,
-    payload: { messageId: result.message.id, conversationId: input.conversationId },
-  }).catch((err) => console.error('[chat:draft-post] Failed to schedule nudge:', err))
-
-  return result
 }
 
 /** Drop a post_ref card (an embedded existing post) into the conversation. */
@@ -260,27 +224,6 @@ async function loadOwnedCardMessage(messageId: ChatMessageId, visitorActor: Acto
 }
 
 /**
- * Visitor declines a proposed draft post: flip the card to 'dismissed' and
- * broadcast. Idempotent — a no-op unless the card is a still-proposed draft.
- */
-export async function dismissProposedPost(
-  input: { messageId: ChatMessageId },
-  visitorActor: Actor
-): Promise<void> {
-  const { message } = await loadOwnedCardMessage(input.messageId, visitorActor)
-  const card = message.metadata?.card
-  if (!card || card.type !== 'draft_post' || card.status !== 'proposed') return
-  const next: ChatCard = { ...card, status: 'dismissed' }
-  await db
-    .update(chatMessages)
-    .set({ metadata: { ...message.metadata, card: next } })
-    .where(eq(chatMessages.id, message.id))
-  publishCardUpdated(message.conversationId, message.id, next)
-  // The draft is resolved — drop the pending stale-draft reminder.
-  void cancelScheduledDispatch(`draft-nudge--${input.messageId}`).catch(() => {})
-}
-
-/**
  * Visitor upvotes an embedded post from chat. Reuses addVoteOnBehalf to vote as
  * the conversation's visitor (idempotent insert), attributed to the live-chat
  * source so the post links back to the inbox conversation.
@@ -299,123 +242,4 @@ export async function upvotePostFromChat(
     visitorActor.principalId ?? undefined
   )
   return { voteCount: res.voteCount }
-}
-
-/**
- * Build a policy Actor from a bare principal id. The visitor publishing a draft
- * has no agent authority, but the post must be created with the PROPOSING
- * agent's authority — they're always a team/service principal, so the
- * reconstructed actor's role satisfies canActAsAgent.
- */
-async function actorForPrincipal(principalId: PrincipalId): Promise<Actor> {
-  const [row] = await db
-    .select({ id: principal.id, role: principal.role, type: principal.type })
-    .from(principal)
-    .where(eq(principal.id, principalId))
-    .limit(1)
-  if (!row) throw new NotFoundError('PRINCIPAL_NOT_FOUND', 'Principal not found')
-  return {
-    principalId: row.id,
-    role: row.role as Role,
-    principalType: row.type === 'service' ? 'service' : 'user',
-    segmentIds: new Set(),
-  }
-}
-
-// Only a STRONG semantic match blocks publishing: cosine ≥ 0.5 mirrors the
-// "strong" band in findSimilarPostsFn (getMatchStrength). The 0.35 default the
-// suggestion UI uses is "weak" and must NOT trigger publish-time dedupe.
-const STRONG_DUPLICATE_THRESHOLD = 0.5
-
-/**
- * Publish-time dedupe. Returns the single strongest existing post on the board
- * only when it's a STRONG match, mapped to the shape the UI needs to offer
- * vote-or-post-anyway. findSimilarPostsByText returns pure cosine similarity
- * without a vote count, so fetch that separately for the matched post.
- */
-async function findStrongDuplicate(
-  title: string,
-  boardId: BoardId
-): Promise<{ id: string; title: string; voteCount: number } | null> {
-  const [match] = await findSimilarPostsByText(title, boardId, 1, STRONG_DUPLICATE_THRESHOLD)
-  if (!match) return null
-  const [row] = await db
-    .select({ voteCount: posts.voteCount })
-    .from(posts)
-    .where(eq(posts.id, match.id))
-    .limit(1)
-  return { id: match.id, title: match.title, voteCount: row?.voteCount ?? 0 }
-}
-
-export interface PublishProposedPostResult {
-  postId?: PostId
-  created?: boolean
-  boardSlug?: string | null
-  /** A strong existing match the visitor should vote on instead of duplicating. */
-  duplicate?: { id: string; title: string; voteCount: number }
-}
-
-/**
- * Visitor publishes a proposed draft post. Idempotent — a no-op unless the card
- * is a still-proposed draft. Runs publish-time dedupe first: a strong match
- * short-circuits without creating a post (the UI then offers vote-or-post-
- * anyway). Otherwise the post is created attributed to the visitor but with the
- * proposing agent's authority, and the card flips to published.
- */
-export async function publishProposedPost(
-  input: {
-    messageId: ChatMessageId
-    title: string
-    content: string
-    boardId: BoardId
-    /** Bypass dedupe (the visitor chose "post anyway" after a duplicate prompt). */
-    skipDedupe?: boolean
-  },
-  visitorActor: Actor
-): Promise<PublishProposedPostResult> {
-  const { message, conversation } = await loadOwnedCardMessage(input.messageId, visitorActor)
-  const card = message.metadata?.card
-  if (!card || card.type !== 'draft_post' || card.status !== 'proposed') return {}
-
-  if (!input.skipDedupe) {
-    const duplicate = await findStrongDuplicate(input.title, input.boardId)
-    if (duplicate) return { duplicate }
-  }
-
-  // createPostFromConversation is agent-gated; run it with the proposing agent's
-  // authority (the card message's principal) while it attributes the post to the
-  // conversation's visitor. A draft_post card is always agent-authored, so a
-  // null principal here is a data-integrity violation.
-  const agentPrincipalId = message.principalId
-  if (!agentPrincipalId) {
-    throw new NotFoundError('PRINCIPAL_NOT_FOUND', 'Proposing agent not found')
-  }
-  const agentActor = await actorForPrincipal(agentPrincipalId)
-  const result = await createPostFromConversation(
-    {
-      conversationId: conversation.id,
-      boardId: input.boardId,
-      title: input.title,
-      content: input.content,
-    },
-    { agentActor, agentPrincipalId, agent: { principalId: agentPrincipalId } }
-  )
-
-  const next: ChatCard = {
-    type: 'draft_post',
-    status: 'published',
-    boardId: input.boardId,
-    title: input.title,
-    content: input.content,
-    postId: result.postId,
-  }
-  await db
-    .update(chatMessages)
-    .set({ metadata: { ...message.metadata, card: next } })
-    .where(eq(chatMessages.id, message.id))
-  publishCardUpdated(conversation.id, message.id, next)
-  // The draft is published — drop the pending stale-draft reminder.
-  void cancelScheduledDispatch(`draft-nudge--${input.messageId}`).catch(() => {})
-
-  return { postId: result.postId, created: result.created, boardSlug: result.boardSlug }
 }

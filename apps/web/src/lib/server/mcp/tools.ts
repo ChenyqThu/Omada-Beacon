@@ -2195,7 +2195,7 @@ Example: suggest_post({ conversationId: "conversation_01...", boardId: "board_01
       const denied = requireScope(auth, 'write:chat') ?? requireTeamRole(auth)
       if (denied) return denied
       try {
-        const { suggestPost } = await import('@/lib/server/domains/chat/chat.draft-post')
+        const { suggestPost } = await import('@/lib/server/domains/chat/chat.cards')
         // team-role API key: canActAsAgent short-circuits on role; segments unused
         const actor = {
           principalId: auth.principalId,
@@ -2236,7 +2236,7 @@ Example: share_post({ conversationId: "conversation_01...", postId: "post_01..."
       const denied = requireScope(auth, 'write:chat') ?? requireTeamRole(auth)
       if (denied) return denied
       try {
-        const { sharePost } = await import('@/lib/server/domains/chat/chat.draft-post')
+        const { sharePost } = await import('@/lib/server/domains/chat/chat.cards')
         // team-role API key: canActAsAgent short-circuits on role; segments unused
         const actor = {
           principalId: auth.principalId,

@@ -292,7 +292,7 @@ vi.mock('@/lib/server/domains/chat/chat.service', () => ({
   sendAgentMessage: vi.fn(),
   setConversationStatus: vi.fn(),
 }))
-vi.mock('@/lib/server/domains/chat/chat.draft-post', () => ({
+vi.mock('@/lib/server/domains/chat/chat.cards', () => ({
   suggestPost: vi.fn(),
   sharePost: vi.fn(),
 }))
@@ -2396,7 +2396,7 @@ describe('MCP HTTP Handler', () => {
 
     it('suggest_post calls suggestPost with the caller as agent', async () => {
       const handle = await initializeSession()
-      const { suggestPost } = await import('@/lib/server/domains/chat/chat.draft-post')
+      const { suggestPost } = await import('@/lib/server/domains/chat/chat.cards')
       vi.mocked(suggestPost).mockResolvedValue({ messageId: 'chat_msg_2' } as never)
 
       await handle(
@@ -2428,7 +2428,7 @@ describe('MCP HTTP Handler', () => {
 
     it('share_post calls sharePost with the caller as agent', async () => {
       const handle = await initializeSession()
-      const { sharePost } = await import('@/lib/server/domains/chat/chat.draft-post')
+      const { sharePost } = await import('@/lib/server/domains/chat/chat.cards')
       vi.mocked(sharePost).mockResolvedValue({
         message: { id: 'chat_msg_3', conversationId: 'conversation_1' },
         conversation: { id: 'conversation_1', status: 'open' },

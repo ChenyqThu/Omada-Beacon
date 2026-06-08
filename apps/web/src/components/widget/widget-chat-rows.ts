@@ -10,7 +10,6 @@ export type ChatRow =
   | { type: 'greeting'; key: 'greeting' }
   | { type: 'message'; key: string; message: ChatMessageDTO }
   | { type: 'system'; key: string; message: ChatMessageDTO }
-  | { type: 'draft-post'; key: string; message: ChatMessageDTO }
   | { type: 'post_ref'; key: string; message: ChatMessageDTO }
   | { type: 'empty'; key: 'empty' }
   | { type: 'seen'; key: 'seen' }
@@ -43,12 +42,12 @@ export function buildChatRows(input: ChatRowsInput): ChatRow[] {
   if (input.hasMoreOlder) rows.push({ type: 'load-older', key: 'load-older' })
   if (input.hasGreeting) rows.push({ type: 'greeting', key: 'greeting' })
   for (const message of input.messages) {
-    if (message.card?.type === 'draft_post') {
-      rows.push({ type: 'draft-post', key: message.id, message })
-      continue
-    }
-    if (message.card?.type === 'post_ref') {
-      rows.push({ type: 'post_ref', key: message.id, message })
+    if (message.card) {
+      // post_ref is the only renderable card; any other (legacy/unknown) card
+      // renders nothing rather than a stray bubble.
+      if (message.card.type === 'post_ref') {
+        rows.push({ type: 'post_ref', key: message.id, message })
+      }
       continue
     }
     // System events (e.g. "assigned to …") render as a centered notice, not a bubble.

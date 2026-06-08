@@ -18,27 +18,21 @@ function msg(overrides: any) {
 }
 
 describe('toMessageDTO card', () => {
-  it('surfaces a draft_post card from metadata', () => {
+  it('surfaces a post_ref card from metadata', () => {
     const dto = toMessageDTO(
       msg({
         metadata: {
           card: {
-            type: 'draft_post',
-            status: 'proposed',
-            boardId: 'board_1',
-            title: 'Dark mode',
-            content: 'x',
+            type: 'post_ref',
+            postId: 'post_1',
           },
         },
       }),
       null
     )
     expect(dto.card).toEqual({
-      type: 'draft_post',
-      status: 'proposed',
-      boardId: 'board_1',
-      title: 'Dark mode',
-      content: 'x',
+      type: 'post_ref',
+      postId: 'post_1',
     })
   })
   it('is null when there is no card', () => {

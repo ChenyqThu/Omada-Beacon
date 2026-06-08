@@ -9,11 +9,7 @@ describe('publishCardUpdated', () => {
   beforeEach(() => publishMock.mockClear())
   it('broadcasts a card_updated event to both the conversation and inbox channels', () => {
     const card = {
-      type: 'draft_post',
-      status: 'published',
-      boardId: 'board_1',
-      title: 'X',
-      content: 'y',
+      type: 'post_ref',
       postId: 'post_1',
     } as const
     publishCardUpdated('conversation_1' as any, 'chatmsg_1' as any, card as any)

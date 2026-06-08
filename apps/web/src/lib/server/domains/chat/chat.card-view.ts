@@ -30,34 +30,20 @@ export function collectCardRefs(cards: ChatCard[]): {
   const boardIds = new Set<string>()
   const postIds = new Set<string>()
   for (const card of cards) {
-    if (card.type === 'draft_post') {
-      boardIds.add(card.boardId)
-      if (card.status === 'published' && card.postId) postIds.add(card.postId)
-    } else {
-      postIds.add(card.postId)
-    }
+    if (card.type === 'post_ref') postIds.add(card.postId)
   }
   return { boardIds, postIds }
 }
 
 /** Build the display view for a single card from the pre-loaded lookup maps.
- *  Returns null when the referenced board/post is missing (e.g. deleted). */
+ *  Returns null when the referenced post is missing (e.g. deleted) or the card
+ *  is an unknown/legacy type, so an unrenderable card simply doesn't render. */
 export function buildCardView(
   card: ChatCard,
-  boards: Map<string, BoardRow>,
+  _boards: Map<string, BoardRow>,
   posts: Map<string, PostRow>
 ): ChatCardView | null {
-  if (card.type === 'draft_post') {
-    const board = boards.get(card.boardId)
-    if (!board) return null
-    const post = card.postId ? posts.get(card.postId) : undefined
-    return {
-      type: 'draft_post',
-      boardName: board.name,
-      boardSlug: board.slug,
-      ...(post ? { postTitle: post.title } : {}),
-    }
-  }
+  if (card.type !== 'post_ref') return null
   const post = posts.get(card.postId)
   if (!post) return null
   return {

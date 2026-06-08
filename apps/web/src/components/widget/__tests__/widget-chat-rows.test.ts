@@ -71,30 +71,20 @@ describe('buildChatRows', () => {
     expect(rows.map((r) => r.key)).toEqual(['greeting', 'typing'])
   })
 
-  it('emits a draft-post row when the message carries a draft_post card', () => {
-    const m = msg({
-      card: {
-        type: 'draft_post',
-        status: 'proposed',
-        boardId: 'board_1' as any,
-        title: 't',
-        content: 'c',
-      },
-    })
+  it('emits a post_ref row when the message carries a post_ref card', () => {
+    const m = msg({ card: { type: 'post_ref', postId: 'post_1' as any } })
     const rows = buildChatRows({ ...base, messages: [m] })
-    expect(rows.find((r) => r.type === 'draft-post')).toBeTruthy()
+    expect(rows.find((r) => r.type === 'post_ref')).toBeTruthy()
     // must not also emit a plain 'message' row for this card message
     expect(
       rows.filter((r) => 'message' in r && (r as any).message?.id === m.id).map((r) => r.type)
-    ).toEqual(['draft-post'])
+    ).toEqual(['post_ref'])
   })
 
-  it('emits a post_ref row when the message carries a post_ref card', () => {
-    const rows = buildChatRows({
-      ...base,
-      messages: [msg({ card: { type: 'post_ref', postId: 'post_1' as any } })],
-    })
-    expect(rows.find((r) => r.type === 'post_ref')).toBeTruthy()
+  it('renders nothing for a message carrying an unknown/legacy card', () => {
+    const m = msg({ card: { type: 'legacy_card' } as any })
+    const rows = buildChatRows({ ...base, messages: [m] })
+    expect(rows.filter((r) => 'message' in r && (r as any).message?.id === m.id)).toEqual([])
   })
 
   it('emits a normal message row when there is no card', () => {

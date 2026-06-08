@@ -341,21 +341,13 @@ export interface ChatSystemEvent {
   agentName?: string
 }
 
-// A rich card carried on a chat message. Discriminated union so more card
-// types can be added without new columns.
-export interface DraftPostCard {
-  type: 'draft_post'
-  status: 'proposed' | 'published' | 'dismissed'
-  boardId: string
-  title: string
-  content: string
-  postId?: string // set only once published
-}
+// A rich card carried on a chat message. Kept as a discriminated union so more
+// card types can be added without new columns.
 export interface PostRefCard {
   type: 'post_ref'
   postId: string
 }
-export type ChatCard = DraftPostCard | PostRefCard
+export type ChatCard = PostRefCard
 
 // An agent-only suggestion (carried on an internal note) to track a resolved
 // conversation as a feedback post. Surfaced exclusively via the agent DTO — it
@@ -374,12 +366,10 @@ export interface ChatMessageMetadata {
   /** For 'system' messages: the structured event, so clients can localize the
    *  notice instead of rendering the stored (English) content. */
   systemEvent?: ChatSystemEvent
-  card?: ChatCard // draft-post suggestion or embedded existing post
+  card?: ChatCard // an embedded existing post shared into the conversation
   /** Agent-only suggestion (on an internal note) to track this conversation as a
    *  feedback post. Surfaced only via the agent DTO, never to the visitor. */
   postSuggestion?: PostSuggestion
-  /** ISO timestamp a stale-draft nudge email was sent, so it fires at most once. */
-  nudgedAt?: string
 }
 
 // Support-inbox conversation row types

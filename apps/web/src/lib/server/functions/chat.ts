@@ -500,56 +500,6 @@ export const deleteChatMessageFn = createServerFn({ method: 'POST' })
     }
   })
 
-/** Visitor publishes a proposed draft post (may short-circuit on duplicate). */
-export const publishDraftPostFn = createServerFn({ method: 'POST' })
-  .inputValidator(
-    z.object({
-      messageId: z.string(),
-      title: z.string().min(1).max(200),
-      content: z.string().max(10000).default(''),
-      boardId: z.string(),
-      skipDedupe: z.boolean().optional(),
-    })
-  )
-  .handler(async ({ data }) => {
-    try {
-      const ctx = await requireAuth({ roles: ['admin', 'member', 'user'] })
-      await assertVisitorChatAccess(ctx.principal.role)
-      const actor = await policyActorFromAuth(ctx)
-      const { publishProposedPost } = await import('@/lib/server/domains/chat/chat.draft-post')
-      return await publishProposedPost(
-        {
-          messageId: data.messageId as ChatMessageId,
-          title: data.title,
-          content: data.content,
-          boardId: data.boardId as BoardId,
-          skipDedupe: data.skipDedupe,
-        },
-        actor
-      )
-    } catch (error) {
-      console.error('[fn:chat] publishDraftPostFn failed:', error)
-      throw error
-    }
-  })
-
-/** Visitor dismisses a proposed draft post. */
-export const dismissDraftPostFn = createServerFn({ method: 'POST' })
-  .inputValidator(z.object({ messageId: z.string() }))
-  .handler(async ({ data }) => {
-    try {
-      const ctx = await requireAuth({ roles: ['admin', 'member', 'user'] })
-      await assertVisitorChatAccess(ctx.principal.role)
-      const actor = await policyActorFromAuth(ctx)
-      const { dismissProposedPost } = await import('@/lib/server/domains/chat/chat.draft-post')
-      await dismissProposedPost({ messageId: data.messageId as ChatMessageId }, actor)
-      return { ok: true }
-    } catch (error) {
-      console.error('[fn:chat] dismissDraftPostFn failed:', error)
-      throw error
-    }
-  })
-
 /** Visitor upvotes a post shared into chat via a post_ref card. */
 export const upvotePostFromChatFn = createServerFn({ method: 'POST' })
   .inputValidator(z.object({ messageId: z.string(), postId: z.string() }))
@@ -558,7 +508,7 @@ export const upvotePostFromChatFn = createServerFn({ method: 'POST' })
       const ctx = await requireAuth({ roles: ['admin', 'member', 'user'] })
       await assertVisitorChatAccess(ctx.principal.role)
       const actor = await policyActorFromAuth(ctx)
-      const { upvotePostFromChat } = await import('@/lib/server/domains/chat/chat.draft-post')
+      const { upvotePostFromChat } = await import('@/lib/server/domains/chat/chat.cards')
       return await upvotePostFromChat(
         { messageId: data.messageId as ChatMessageId, postId: data.postId as PostId },
         actor
@@ -776,63 +726,6 @@ export const captureVisitorContactEmailFn = createServerFn({ method: 'POST' })
     }
   })
 
-const proposePostSchema = z.object({
-  conversationId: z.string(),
-  boardId: z.string(),
-  title: z.string().min(3).max(200),
-  content: z.string().max(10000).default(''),
-})
-
-/** Agent action: drop a draft feedback post card into the conversation (visitor can publish it). */
-export const proposePostFn = createServerFn({ method: 'POST' })
-  .inputValidator(proposePostSchema)
-  .handler(async ({ data }) => {
-    try {
-      const ctx = await requireAuth({ roles: ['admin', 'member'] })
-      const actor = await policyActorFromAuth(ctx)
-      const { proposePost } = await import('@/lib/server/domains/chat/chat.draft-post')
-      const agent = {
-        principalId: ctx.principal.id,
-        displayName: ctx.user.name,
-        avatarUrl: ctx.user.image,
-        email: ctx.user.email,
-      }
-      const r = await proposePost(
-        {
-          conversationId: data.conversationId as ConversationId,
-          boardId: data.boardId as BoardId,
-          title: data.title,
-          content: data.content,
-        },
-        { agentActor: actor, agentPrincipalId: ctx.principal.id, agent }
-      )
-      return { messageId: r.message.id }
-    } catch (error) {
-      console.error('[fn:chat] proposePostFn failed:', error)
-      throw error
-    }
-  })
-
-const nudgeDraftPostSchema = z.object({
-  messageId: z.string(),
-})
-
-/** Agent action: manually email the visitor a reminder about a still-pending draft post. */
-export const nudgeDraftPostFn = createServerFn({ method: 'POST' })
-  .inputValidator(nudgeDraftPostSchema)
-  .handler(async ({ data }) => {
-    try {
-      await requireAuth({ roles: ['admin', 'member'] })
-      const { nudgeDraftPost } = await import('@/lib/server/domains/chat/chat.nudge')
-      // `sent` is false when the visitor has no deliverable email — the agent
-      // can't know that client-side, so the server reports it back.
-      return await nudgeDraftPost(data.messageId as ChatMessageId, { force: true })
-    } catch (error) {
-      console.error('[fn:chat] nudgeDraftPostFn failed:', error)
-      throw error
-    }
-  })
-
 const sharePostSchema = z.object({
   conversationId: z.string(),
   postId: z.string(),
@@ -845,7 +738,7 @@ export const sharePostFn = createServerFn({ method: 'POST' })
     try {
       const ctx = await requireAuth({ roles: ['admin', 'member'] })
       const actor = await policyActorFromAuth(ctx)
-      const { sharePost } = await import('@/lib/server/domains/chat/chat.draft-post')
+      const { sharePost } = await import('@/lib/server/domains/chat/chat.cards')
       const agent = {
         principalId: ctx.principal.id,
         displayName: ctx.user.name,

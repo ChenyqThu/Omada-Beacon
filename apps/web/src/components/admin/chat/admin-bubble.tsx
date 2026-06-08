@@ -16,7 +16,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { ChatAttachmentList } from '@/components/shared/chat-attachments'
 import { ReactionChip } from '@/components/shared/reaction-chip'
 import { NoteContent } from './note-content'
-import { DraftPostCardAdmin } from './draft-post-card-admin'
+import { PostRefCardAdmin } from './post-ref-card-admin'
 import { RichTextContent } from '@/components/ui/rich-text-editor'
 import { EmbedHydration } from '@/components/shared/embed-hydration'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -88,18 +88,14 @@ export function AdminBubble({
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
 
-  // A draft-post / post_ref card the agent proposed or shared: render it
-  // read-only (the visitor is the one who acts) — no avatar/toolbar, just the
-  // content + its current state, which the card_updated stream keeps live.
-  if (message.card) {
+  // A post_ref card the agent shared: render it read-only (the visitor is the
+  // one who acts) — no avatar/toolbar, just the content + its current state,
+  // which the card_updated stream keeps live. Any other card type (e.g. a
+  // leftover legacy card) falls through to the normal message rendering.
+  if (message.card?.type === 'post_ref') {
     return (
       <div className="py-1">
-        <DraftPostCardAdmin
-          card={message.card}
-          cardView={message.cardView}
-          createdAt={message.createdAt}
-          messageId={message.id}
-        />
+        <PostRefCardAdmin card={message.card} cardView={message.cardView} />
       </div>
     )
   }

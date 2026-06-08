@@ -43,7 +43,7 @@ vi.mock('@/lib/server/domains/posts/post.service', () => ({
 
 // Mocked so the dynamic import inside createPostFromConversation is intercepted
 // without loading the real module (which carries its own heavy deps).
-vi.mock('../chat.draft-post', () => ({
+vi.mock('../chat.cards', () => ({
   dropPostRefCard: (...args: unknown[]) => dropPostRefCard(...args),
 }))
 

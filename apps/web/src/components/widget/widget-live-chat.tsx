@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { buildChatRows, type ChatRow } from './widget-chat-rows'
-import { DraftPostCard } from './draft-post-card'
 import { PostRefCard } from './post-ref-card'
 import { ChatPresenceBadge } from './chat-presence-badge'
 import { chatAvailable } from '@/lib/shared/chat/presence'
@@ -553,10 +552,6 @@ export function WidgetLiveChat({ helpEnabled, onArticleSelect }: WidgetLiveChatP
           </div>
         )
       }
-      case 'draft-post':
-        return row.message.card?.type === 'draft_post' ? (
-          <DraftPostCard messageId={row.message.id} card={row.message.card} />
-        ) : null
       case 'post_ref':
         return row.message.card?.type === 'post_ref' ? (
           <PostRefCard messageId={row.message.id} postId={row.message.card.postId} />

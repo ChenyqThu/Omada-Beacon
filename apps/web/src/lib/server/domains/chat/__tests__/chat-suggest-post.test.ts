@@ -150,7 +150,7 @@ vi.mock('@/lib/server/db', () => {
   }
 })
 
-import { suggestPost } from '../chat.draft-post'
+import { suggestPost } from '../chat.cards'
 
 const conversationId = 'conversation_1' as ConversationId
 const boardId = 'board_1' as BoardId
