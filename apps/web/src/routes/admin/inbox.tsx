@@ -734,6 +734,12 @@ function ChatThread({
   const convertDefaultTitle = conversation?.subject ?? ''
   const convertDefaultContent = lastVisitorMessage?.content ?? ''
 
+  // The conversation DTO carries no principal type, so treat "no captured
+  // contact email on file" as the anonymous-visitor signal — exactly when the
+  // convert dialog should offer the optional email-capture field.
+  const visitorContactEmail = conversation?.visitorEmail ?? null
+  const visitorIsAnonymous = conversation != null && visitorContactEmail == null
+
   // The agent's latest message is "Seen" once the visitor read watermark
   // reaches it.
   const lastAgentMessage = reversedMessages.find((m) => m.senderType === 'agent')
@@ -1059,6 +1065,8 @@ function ChatThread({
                 conversationId={conversationId}
                 defaultTitle={convertDefaultTitle}
                 defaultContent={convertDefaultContent}
+                visitorIsAnonymous={visitorIsAnonymous}
+                visitorContactEmail={visitorContactEmail}
                 onConverted={refreshThread}
               />
             </div>
@@ -1078,6 +1086,8 @@ function ChatThread({
             defaultTitle={suggestionSeed?.title ?? suggestMsg?.content.trim().slice(0, 200) ?? ''}
             defaultContent={suggestionSeed?.content ?? suggestMsg?.content ?? ''}
             defaultBoardId={suggestionSeed?.boardId}
+            visitorIsAnonymous={visitorIsAnonymous}
+            visitorContactEmail={visitorContactEmail}
             onConverted={refreshThread}
           />
           <SharePostDialog

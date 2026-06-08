@@ -749,6 +749,33 @@ export const createPostFromConversationFn = createServerFn({ method: 'POST' })
     }
   })
 
+// Loose on the email (max-length only, not `.email()`): a malformed value must
+// be ignored server-side rather than rejected, so capturing an email can never
+// block the track action it rides alongside.
+const captureContactEmailSchema = z.object({
+  conversationId: z.string(),
+  email: z.string().max(320),
+})
+
+/** Agent action: store a contact email for a conversation's anonymous visitor. */
+export const captureVisitorContactEmailFn = createServerFn({ method: 'POST' })
+  .inputValidator(captureContactEmailSchema)
+  .handler(async ({ data }) => {
+    try {
+      const ctx = await requireAuth({ roles: ['admin', 'member'] })
+      const actor = await policyActorFromAuth(ctx)
+      const { captureVisitorContactEmail } = await import('@/lib/server/domains/chat/chat.service')
+      return await captureVisitorContactEmail(
+        data.conversationId as ConversationId,
+        data.email,
+        actor
+      )
+    } catch (error) {
+      console.error('[fn:chat] captureVisitorContactEmailFn failed:', error)
+      throw error
+    }
+  })
+
 const proposePostSchema = z.object({
   conversationId: z.string(),
   boardId: z.string(),

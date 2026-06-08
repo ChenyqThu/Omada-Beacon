@@ -172,6 +172,39 @@ export async function assertConversationViewable(
   return conversation
 }
 
+/**
+ * Agent action: record a contact email for a conversation's (typically
+ * anonymous) visitor so status updates can reach them — e.g. captured inline
+ * when tracking the conversation as a post. Reuses the same reusable
+ * `principal.contact_email` slot as pre-chat capture and never overwrites an
+ * address already on file. A non-plausible email is a no-op (`captured: false`),
+ * so a stray value can't block the caller.
+ */
+export async function captureVisitorContactEmail(
+  conversationId: ConversationId,
+  rawEmail: string,
+  actor: Actor
+): Promise<{ captured: boolean }> {
+  const decision = canActAsAgent(actor)
+  if (!decision.allowed) throw new ForbiddenError('FORBIDDEN', decision.reason)
+  const email = normalizeEmail(rawEmail)
+  if (!email) return { captured: false }
+  const conversation = await assertConversationViewable(conversationId, actor)
+  await db.transaction(async (tx) => {
+    // Reusable contact on the visitor principal (survives across conversations).
+    await tx
+      .update(principal)
+      .set({ contactEmail: email })
+      .where(and(eq(principal.id, conversation.visitorPrincipalId), isNull(principal.contactEmail)))
+    // Mirror onto the conversation so the agent inbox surfaces the address too.
+    await tx
+      .update(conversations)
+      .set({ visitorEmail: email })
+      .where(and(eq(conversations.id, conversationId), isNull(conversations.visitorEmail)))
+  })
+  return { captured: true }
+}
+
 /** Visitor send. Starts a conversation when no conversationId is supplied. */
 export async function sendVisitorMessage(
   input: SendVisitorMessageInput,

@@ -7,7 +7,11 @@ import {
   ChevronUpIcon,
 } from '@heroicons/react/24/solid'
 import type { BoardId, ConversationId, PostId } from '@quackback/ids'
-import { createPostFromConversationFn, sharePostFn } from '@/lib/server/functions/chat'
+import {
+  captureVisitorContactEmailFn,
+  createPostFromConversationFn,
+  sharePostFn,
+} from '@/lib/server/functions/chat'
 import { findSimilarPostsFn } from '@/lib/server/functions/public-posts'
 import { adminQueries } from '@/lib/client/queries/admin'
 import { useDebouncedValue } from '@/lib/client/hooks/use-debounced-value'
@@ -39,6 +43,11 @@ interface ConvertToPostDialogProps {
   /** Pre-select this board when the dialog opens (e.g. an AI suggestion's
    *  board). Falls back to the first board when unset or not a real board. */
   defaultBoardId?: string
+  /** When the visitor is anonymous and has no contact email on file, offer an
+   *  optional inline email field so post status updates can reach them. */
+  visitorIsAnonymous?: boolean
+  /** The visitor's contact email if already known (hides the capture field). */
+  visitorContactEmail?: string | null
   onConverted?: () => void
   /** Controlled open state. Omit for an uncontrolled dialog with its own trigger. */
   open?: boolean
@@ -51,6 +60,8 @@ export function ConvertToPostDialog({
   defaultTitle,
   defaultContent,
   defaultBoardId,
+  visitorIsAnonymous,
+  visitorContactEmail,
   onConverted,
   open: controlledOpen,
   onOpenChange,
@@ -61,6 +72,10 @@ export function ConvertToPostDialog({
   const [title, setTitle] = useState(defaultTitle)
   const [content, setContent] = useState(defaultContent)
   const [boardId, setBoardId] = useState<string>('')
+  const [captureEmail, setCaptureEmail] = useState('')
+  // Offer the optional email field only for an anonymous visitor with no email
+  // on file — that's the only case a contact address is worth capturing.
+  const showEmailCapture = Boolean(visitorIsAnonymous) && !visitorContactEmail
 
   // Reset the draft to the conversation's content each time the dialog opens.
   // A supplied defaultBoardId seeds the board too (validated against the loaded
@@ -69,6 +84,7 @@ export function ConvertToPostDialog({
     if (open) {
       setTitle(defaultTitle)
       setContent(defaultContent)
+      setCaptureEmail('')
       if (defaultBoardId) setBoardId(defaultBoardId)
     }
   }, [open, defaultTitle, defaultContent, defaultBoardId])
@@ -121,6 +137,21 @@ export function ConvertToPostDialog({
     },
     onError: () => toast.error('Failed to share post'),
   })
+
+  // Best-effort contact-email capture: fired alongside a track action and never
+  // awaited or surfaced as an error, so a failed/ignored email can't block the
+  // post. The server normalizes + ignores anything that isn't plausibly one.
+  const captureContact = useMutation({
+    mutationFn: (email: string) =>
+      captureVisitorContactEmailFn({ data: { conversationId, email } }),
+  })
+
+  const emailLooksValid = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+  // Capture the typed email if it looks valid; a no-op otherwise (non-blocking).
+  const maybeCaptureEmail = () => {
+    const email = captureEmail.trim()
+    if (showEmailCapture && emailLooksValid(email)) captureContact.mutate(email)
+  }
 
   const busy = convert.isPending || share.isPending
   // Title must be at least 3 characters before the action enables.
@@ -185,6 +216,22 @@ export function ConvertToPostDialog({
             />
           </div>
 
+          {showEmailCapture && (
+            <div className="space-y-1.5">
+              <Label htmlFor="convert-contact-email">
+                Capture an email so the visitor gets status updates (optional)
+              </Label>
+              <Input
+                id="convert-contact-email"
+                type="email"
+                value={captureEmail}
+                maxLength={320}
+                placeholder="visitor@example.com"
+                onChange={(e) => setCaptureEmail(e.target.value)}
+              />
+            </div>
+          )}
+
           {similar.length > 0 && (
             <div className="rounded-lg border border-border/60 p-2.5">
               <p className="mb-1.5 text-xs font-medium text-muted-foreground">
@@ -200,12 +247,13 @@ export function ConvertToPostDialog({
                       size="sm"
                       variant="outline"
                       disabled={busy}
-                      onClick={() =>
+                      onClick={() => {
+                        maybeCaptureEmail()
                         convert.mutate({
                           asUpvoteOfPostId: p.id as PostId,
                           sourceMessageContent: defaultContent,
                         })
-                      }
+                      }}
                     >
                       <ChevronUpIcon className="h-3.5 w-3.5" /> Upvote
                     </Button>
@@ -229,7 +277,14 @@ export function ConvertToPostDialog({
           <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button type="button" disabled={!canCreate || busy} onClick={() => convert.mutate({})}>
+          <Button
+            type="button"
+            disabled={!canCreate || busy}
+            onClick={() => {
+              maybeCaptureEmail()
+              convert.mutate({})
+            }}
+          >
             Track as post
           </Button>
         </DialogFooter>
