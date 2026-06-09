@@ -491,6 +491,35 @@ export async function getActiveConversationForVisitor(
 }
 
 /**
+ * View result for a specific conversation a visitor asked for (history row /
+ * ?c= deep link). Returns no conversation when the row is missing or not owned
+ * by this visitor — existence is hidden, matching canViewConversation. A closed
+ * thread is surfaced read-only, exactly like the active-conversation path.
+ */
+export function resolveVisitorConversation(
+  row: Conversation | null,
+  visitorPrincipalId: PrincipalId
+): ActiveConversationResult {
+  if (!row || row.visitorPrincipalId !== visitorPrincipalId) {
+    return { conversation: null, isReadOnly: false }
+  }
+  return { conversation: row, isReadOnly: !RESUMABLE_STATUSES.has(row.status) }
+}
+
+/** Load one conversation by id, scoped to its owning visitor (see resolveVisitorConversation). */
+export async function getConversationForVisitor(
+  conversationId: ConversationId,
+  visitorPrincipalId: PrincipalId
+): Promise<ActiveConversationResult> {
+  const [row] = await db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .limit(1)
+  return resolveVisitorConversation(row ?? null, visitorPrincipalId)
+}
+
+/**
  * All of a visitor's conversations, newest-first. `side` controls the DTO
  * audience: 'agent' for the admin user profile (default), 'visitor' for the
  * visitor browsing their own history in the widget (drops agent-only fields).

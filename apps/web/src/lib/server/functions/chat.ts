@@ -238,101 +238,132 @@ export const getChatPresenceFn = createServerFn({ method: 'GET' }).handler(
   }
 )
 
+// getMyChat optionally targets a specific conversation:
+//  - omitted        → the visitor's active/most-recent thread (default)
+//  - a conversation → that thread, if the caller owns it (else greeting state)
+//  - null           → "new": config + greeting with no thread
+const myChatSchema = z.object({ conversationId: z.string().nullish() }).optional()
+
 /** The current visitor's active conversation + first page of messages. */
-export const getMyChatFn = createServerFn({ method: 'GET' }).handler(async () => {
-  try {
-    const { getLiveChatConfig, isLiveChatEnabled } =
-      await import('@/lib/server/domains/settings/settings.widget')
-    const { getSettings } = await import('./workspace')
-    const { isEmailConfigured } = await import('@quackback/email')
-    const { canEmailVisitor } = await import('@/lib/shared/chat/reply-capability')
-    const [enabled, liveChatConfig, appSettings] = await Promise.all([
-      isLiveChatEnabled(),
-      getLiveChatConfig(),
-      getSettings(),
-    ])
-    const preChatEmail = liveChatConfig.preChatEmail ?? 'off'
-    const emailConfigured = isEmailConfigured()
-    // Note: team-availability presence is NOT returned here. The widget reads it
-    // from the shared useChatPresence query (getChatPresenceFn) so every surface
-    // agrees and only one poll runs — this fn is just the visitor's thread.
-    const base = {
-      enabled,
-      welcomeMessage: liveChatConfig.welcomeMessage ?? null,
-      offlineMessage: liveChatConfig.offlineMessage ?? null,
-      // Falls back to the workspace name (as the settings help text promises)
-      // when no team name is set.
-      teamName: liveChatConfig.teamName?.trim() || appSettings?.name || null,
-      preChatEmail,
-      // Whether we already have a contact email — the widget skips the pre-chat
-      // prompt when true.
-      visitorHasEmail: false,
-      // Whether an offline reply could actually reach this visitor by email —
-      // the widget shows a non-promising offline message when false.
-      canEmailVisitor: canEmailVisitor({ emailConfigured, preChatEmail, visitorHasEmail: false }),
-      // Whether the surfaced conversation is closed (read-only) — the widget
-      // then offers "start a new conversation" instead of a composer (P1.9).
-      isReadOnly: false,
-    }
+export const getMyChatFn = createServerFn({ method: 'GET' })
+  .inputValidator(myChatSchema)
+  .handler(async ({ data }) => {
+    try {
+      const { getLiveChatConfig, isLiveChatEnabled } =
+        await import('@/lib/server/domains/settings/settings.widget')
+      const { getSettings } = await import('./workspace')
+      const { isEmailConfigured } = await import('@quackback/email')
+      const { canEmailVisitor } = await import('@/lib/shared/chat/reply-capability')
+      const [enabled, liveChatConfig, appSettings] = await Promise.all([
+        isLiveChatEnabled(),
+        getLiveChatConfig(),
+        getSettings(),
+      ])
+      const preChatEmail = liveChatConfig.preChatEmail ?? 'off'
+      const emailConfigured = isEmailConfigured()
+      // Note: team-availability presence is NOT returned here. The widget reads it
+      // from the shared useChatPresence query (getChatPresenceFn) so every surface
+      // agrees and only one poll runs — this fn is just the visitor's thread.
+      const base = {
+        enabled,
+        welcomeMessage: liveChatConfig.welcomeMessage ?? null,
+        offlineMessage: liveChatConfig.offlineMessage ?? null,
+        // Falls back to the workspace name (as the settings help text promises)
+        // when no team name is set.
+        teamName: liveChatConfig.teamName?.trim() || appSettings?.name || null,
+        preChatEmail,
+        // Whether we already have a contact email — the widget skips the pre-chat
+        // prompt when true.
+        visitorHasEmail: false,
+        // Whether an offline reply could actually reach this visitor by email —
+        // the widget shows a non-promising offline message when false.
+        canEmailVisitor: canEmailVisitor({ emailConfigured, preChatEmail, visitorHasEmail: false }),
+        // Whether the surfaced conversation is closed (read-only) — the widget
+        // then offers "start a new conversation" instead of a composer (P1.9).
+        isReadOnly: false,
+      }
 
-    if (!enabled || !hasAuthCredentials()) {
-      return { ...base, conversation: null, messages: [], hasMore: false }
-    }
-
-    const ctx = await getOptionalAuth()
-    if (!ctx?.principal) {
-      return { ...base, conversation: null, messages: [], hasMore: false }
-    }
-
-    // Gate reads behind portal access for non-team callers (degrade gracefully
-    // to the greeting-only state rather than throwing on the bootstrap path).
-    if (!isTeamMember(ctx.principal.role)) {
-      const { resolvePortalAccessForRequest } = await import('./portal-access')
-      const access = await resolvePortalAccessForRequest()
-      if (!access.granted) {
+      if (!enabled || !hasAuthCredentials()) {
         return { ...base, conversation: null, messages: [], hasMore: false }
       }
-    }
 
-    const { getActiveConversationForVisitor, conversationToDTO, listMessages } =
-      await import('@/lib/server/domains/chat/chat.query')
+      const ctx = await getOptionalAuth()
+      if (!ctx?.principal) {
+        return { ...base, conversation: null, messages: [], hasMore: false }
+      }
 
-    const active = await getActiveConversationForVisitor(ctx.principal.id)
-    const conversation = active.conversation
-    // Anonymous visitors carry a synthetic placeholder email — it must not count
-    // as a real address (else the widget promises an email reply it can't send).
-    const visitorHasEmail =
-      Boolean(realEmail(ctx.user?.email)) || Boolean(realEmail(conversation?.visitorEmail))
-    const canEmail = canEmailVisitor({ emailConfigured, preChatEmail, visitorHasEmail })
-    if (!conversation) {
+      // Gate reads behind portal access for non-team callers (degrade gracefully
+      // to the greeting-only state rather than throwing on the bootstrap path).
+      if (!isTeamMember(ctx.principal.role)) {
+        const { resolvePortalAccessForRequest } = await import('./portal-access')
+        const access = await resolvePortalAccessForRequest()
+        if (!access.granted) {
+          return { ...base, conversation: null, messages: [], hasMore: false }
+        }
+      }
+
+      const target = data?.conversationId
+
+      // "New conversation": config + greeting, no thread. The first send creates
+      // it (sendVisitorMessage with no conversationId).
+      if (target === null) {
+        const visitorHasEmail = Boolean(realEmail(ctx.user?.email))
+        return {
+          ...base,
+          visitorHasEmail,
+          canEmailVisitor: canEmailVisitor({ emailConfigured, preChatEmail, visitorHasEmail }),
+          conversation: null,
+          messages: [],
+          hasMore: false,
+        }
+      }
+
+      const {
+        getActiveConversationForVisitor,
+        getConversationForVisitor,
+        conversationToDTO,
+        listMessages,
+      } = await import('@/lib/server/domains/chat/chat.query')
+
+      // A specific thread (history row / ?c= deep link) or the active one (default).
+      const active = target
+        ? await getConversationForVisitor(target as ConversationId, ctx.principal.id)
+        : await getActiveConversationForVisitor(ctx.principal.id)
+      const conversation = active.conversation
+      // Anonymous visitors carry a synthetic placeholder email — it must not count
+      // as a real address (else the widget promises an email reply it can't send).
+      const visitorHasEmail =
+        Boolean(realEmail(ctx.user?.email)) || Boolean(realEmail(conversation?.visitorEmail))
+      const canEmail = canEmailVisitor({ emailConfigured, preChatEmail, visitorHasEmail })
+      if (!conversation) {
+        return {
+          ...base,
+          visitorHasEmail,
+          canEmailVisitor: canEmail,
+          conversation: null,
+          messages: [],
+          hasMore: false,
+        }
+      }
+
+      const [dto, page] = await Promise.all([
+        conversationToDTO(conversation, 'visitor'),
+        listMessages(conversation.id),
+      ])
       return {
         ...base,
         visitorHasEmail,
         canEmailVisitor: canEmail,
-        conversation: null,
-        messages: [],
-        hasMore: false,
+        isReadOnly: active.isReadOnly,
+        conversation: dto,
+        messages: page.messages,
+        hasMore: page.hasMore,
       }
+    } catch (error) {
+      console.error('[fn:chat] getMyChatFn failed:', error)
+      throw error
     }
-
-    const [dto, page] = await Promise.all([
-      conversationToDTO(conversation, 'visitor'),
-      listMessages(conversation.id),
-    ])
-    return {
-      ...base,
-      visitorHasEmail,
-      canEmailVisitor: canEmail,
-      isReadOnly: active.isReadOnly,
-      conversation: dto,
-      messages: page.messages,
-      hasMore: page.hasMore,
-    }
-  } catch (error) {
-    console.error('[fn:chat] getMyChatFn failed:', error)
-    throw error
-  }
-})
+  })
 
 /**
  * The current visitor's own conversations (newest-first) so they can browse and

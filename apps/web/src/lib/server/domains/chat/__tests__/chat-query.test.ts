@@ -78,6 +78,7 @@ import {
   fallbackAuthor,
   loadAuthors,
   listConversationsForAgent,
+  resolveVisitorConversation,
 } from '../chat.query'
 import { isNull, eq } from '@/lib/server/db'
 
@@ -336,5 +337,40 @@ describe('listConversationsForAgent mentions view', () => {
     // note keeps the conversation in Mentions forever.
     await listConversationsForAgent({ mentionedPrincipalId: agentId })
     expect(isNull).toHaveBeenCalled()
+  })
+})
+
+describe('resolveVisitorConversation', () => {
+  it('returns the thread for its owner, read-only only when closed', () => {
+    const open = makeConversation({ status: 'open' })
+    expect(resolveVisitorConversation(open, visitorId)).toEqual({
+      conversation: open,
+      isReadOnly: false,
+    })
+    const closed = makeConversation({ status: 'closed' })
+    expect(resolveVisitorConversation(closed, visitorId)).toEqual({
+      conversation: closed,
+      isReadOnly: true,
+    })
+    const pending = makeConversation({ status: 'pending' })
+    expect(resolveVisitorConversation(pending, visitorId)).toEqual({
+      conversation: pending,
+      isReadOnly: false,
+    })
+  })
+
+  it('hides a thread the visitor does not own', () => {
+    const other = makeConversation({ visitorPrincipalId: 'principal_other' as PrincipalId })
+    expect(resolveVisitorConversation(other, visitorId)).toEqual({
+      conversation: null,
+      isReadOnly: false,
+    })
+  })
+
+  it('returns no conversation for a missing row', () => {
+    expect(resolveVisitorConversation(null, visitorId)).toEqual({
+      conversation: null,
+      isReadOnly: false,
+    })
   })
 })
