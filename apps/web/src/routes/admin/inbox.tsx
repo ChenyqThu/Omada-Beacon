@@ -5,7 +5,6 @@ import {
   ChatBubbleLeftRightIcon,
   PaperAirplaneIcon,
   PaperClipIcon,
-  XMarkIcon,
   ChatBubbleBottomCenterTextIcon,
   PencilSquareIcon,
   ChevronLeftIcon,
@@ -46,6 +45,7 @@ import { SharePostDialog } from '@/components/admin/chat/share-post-dialog'
 import { ConversationListColumn } from '@/components/admin/chat/conversation-list-column'
 import { SavedMessagesColumn } from '@/components/admin/chat/saved-messages-column'
 import { ChatNoteEditor, type ChatNoteEditorHandle } from '@/components/admin/chat/chat-note-editor'
+import { ComposerAttachmentTray } from '@/components/admin/chat/composer-attachment-tray'
 import {
   ChatRichComposer,
   type ChatRichComposerHandle,
@@ -1211,45 +1211,9 @@ function ChatThread({
               </button>
             ))}
           </div>
-          {/* Attachment tray — shared by reply + note; images upload here and
-              send as `attachments`. */}
-          {pendingAttachments.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 px-1 pb-2">
-              {pendingAttachments.map((a, i) => {
-                const isImage = a.contentType?.startsWith('image/') && a.url
-                return (
-                  <div
-                    key={i}
-                    className="group relative flex items-center gap-1 rounded-md border border-border/50 bg-muted/30 px-1.5 py-1 text-[11px]"
-                  >
-                    <PaperClipIcon className="h-3 w-3 shrink-0 text-muted-foreground" />
-                    <span className="max-w-[140px] truncate">{a.name || 'file'}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(i)}
-                      className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      aria-label="Remove attachment"
-                    >
-                      <XMarkIcon className="h-3 w-3" />
-                    </button>
-                    {/* Hover preview for images — a popover above the chip. */}
-                    {isImage && (
-                      <div className="pointer-events-none absolute bottom-full left-0 z-50 mb-2 rounded-lg border border-border bg-popover p-1 opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
-                        <img
-                          src={a.url}
-                          alt={a.name}
-                          className="max-h-40 max-w-[220px] rounded object-contain"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-          {/* Composer: the editor/textarea spans the full width on top, with the
-              actions (attach / emoji / saved replies) and send on the row below.
-              Enter sends; Shift+Enter inserts a newline and the textarea grows. */}
+          {/* Composer: the editor spans the full width on top, then the pending
+              attachment tray, then the actions (attach / emoji / saved replies)
+              and send. Enter sends; Shift+Enter inserts a newline. */}
           <div
             className={cn(
               'rounded-lg border px-3 py-2 focus-within:ring-2',
@@ -1300,6 +1264,7 @@ function ChatThread({
                 onImageFiles={(files) => void addFiles(files)}
               />
             )}
+            <ComposerAttachmentTray attachments={pendingAttachments} onRemove={removeAttachment} />
             <div className="flex items-center gap-0.5 pt-1">
               {/* Attach is available in both reply and note mode. */}
               <button
