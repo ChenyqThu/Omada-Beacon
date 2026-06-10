@@ -154,20 +154,21 @@ const markUnreadFromMessageSchema = z.object({
   messageId: z.string(),
 })
 
-async function assertLiveChatEnabled(): Promise<void> {
-  const { isLiveChatEnabled } = await import('@/lib/server/domains/settings/settings.widget')
-  if (!(await isLiveChatEnabled())) {
+async function assertConversationsEnabled(): Promise<void> {
+  const { isConversationsEnabled } = await import('@/lib/server/domains/settings/settings.support')
+  if (!(await isConversationsEnabled())) {
     throw new Error('Chat is not enabled')
   }
 }
 
 /**
- * Shared gate for every visitor-facing chat endpoint: chat must be enabled AND
- * the caller must have portal access. Team members (agents) bypass the portal
+ * Shared gate for every visitor-facing chat endpoint: conversations must be
+ * reachable from some surface (widget chat or portal Support tab) AND the
+ * caller must have portal access. Team members (agents) bypass the portal
  * check — they reach these endpoints from the admin inbox. Throws on failure.
  */
 async function assertVisitorChatAccess(role: string | null): Promise<void> {
-  await assertLiveChatEnabled()
+  await assertConversationsEnabled()
   if (isTeamMember(role)) return
   const { resolvePortalAccessForRequest } = await import('./portal-access')
   const access = await resolvePortalAccessForRequest()
@@ -267,13 +268,14 @@ export const getMyChatFn = createServerFn({ method: 'GET' })
   .inputValidator(myChatSchema)
   .handler(async ({ data }) => {
     try {
-      const { getLiveChatConfig, isLiveChatEnabled } =
-        await import('@/lib/server/domains/settings/settings.widget')
+      const { getLiveChatConfig } = await import('@/lib/server/domains/settings/settings.widget')
+      const { isConversationsEnabled } =
+        await import('@/lib/server/domains/settings/settings.support')
       const { getSettings } = await import('./workspace')
       const { isEmailConfigured } = await import('@quackback/email')
       const { canEmailVisitor } = await import('@/lib/shared/chat/reply-capability')
       const [enabled, liveChatConfig, appSettings] = await Promise.all([
-        isLiveChatEnabled(),
+        isConversationsEnabled(),
         getLiveChatConfig(),
         getSettings(),
       ])
@@ -391,8 +393,9 @@ export const getMyChatFn = createServerFn({ method: 'GET' })
  */
 export const getMyConversationsFn = createServerFn({ method: 'GET' }).handler(async () => {
   try {
-    const { isLiveChatEnabled } = await import('@/lib/server/domains/settings/settings.widget')
-    if (!(await isLiveChatEnabled()) || !hasAuthCredentials()) return { conversations: [] }
+    const { isConversationsEnabled } =
+      await import('@/lib/server/domains/settings/settings.support')
+    if (!(await isConversationsEnabled()) || !hasAuthCredentials()) return { conversations: [] }
 
     const ctx = await getOptionalAuth()
     if (!ctx?.principal) return { conversations: [] }

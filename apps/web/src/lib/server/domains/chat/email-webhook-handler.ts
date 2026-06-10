@@ -41,6 +41,15 @@ export async function handleInboundEmailWebhook(request: Request): Promise<Respo
     return new Response('', { status: 200 })
   }
 
+  // Conversations gate: when no visitor surface (widget chat or portal
+  // Support) is enabled, replies have nowhere to land. Ack-and-drop like any
+  // other unroutable payload so the provider stops retrying.
+  const { isConversationsEnabled } = await import('@/lib/server/domains/settings/settings.support')
+  if (!(await isConversationsEnabled())) {
+    console.warn('[chat:email-inbound] dropped event (conversations disabled)')
+    return Response.json({ status: 'disabled' })
+  }
+
   try {
     const result = await ingestInboundEmail(event)
     if (

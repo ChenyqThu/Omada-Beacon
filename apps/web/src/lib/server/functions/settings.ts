@@ -309,6 +309,11 @@ const updatePortalConfigSchema = z.object({
       body: tiptapContentSchema.optional(),
     })
     .optional(),
+  support: z
+    .object({
+      enabled: z.boolean().optional(),
+    })
+    .optional(),
 })
 
 const saveLogoKeySchema = z.object({
