@@ -79,7 +79,7 @@ function HelpCenterLandingPage() {
 
       {supportEnabled && (
         <div
-          className="mt-12 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border/60 bg-card px-6 py-5 animate-in fade-in duration-300 fill-mode-backwards"
+          className="mx-auto mt-12 flex max-w-2xl flex-wrap items-center justify-between gap-4 rounded-xl border border-border/60 bg-card px-6 py-5 animate-in fade-in duration-300 fill-mode-backwards"
           style={{ animationDelay: '150ms' }}
         >
           <div className="flex items-center gap-3">
