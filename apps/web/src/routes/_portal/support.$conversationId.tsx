@@ -67,8 +67,10 @@ function SupportThreadPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6">
-      <div className="mb-3">
+    // Same container as the feedback/roadmap pages (max-w-6xl), sized to the
+    // viewport so the thread fills the page instead of floating in a strip.
+    <div className="mx-auto flex h-[calc(100dvh-7rem)] min-h-0 w-full max-w-6xl flex-col px-4 py-6 sm:px-6">
+      <div className="mb-3 shrink-0">
         <BackLink to="/support">
           <FormattedMessage id="portal.support.back" defaultMessage="All conversations" />
         </BackLink>
@@ -94,7 +96,7 @@ function SupportThreadPage() {
           }
         />
       ) : (
-        <div className="h-[calc(100dvh-220px)] min-h-[420px] overflow-hidden rounded-xl border border-border bg-card">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-card">
           <VisitorChatThread
             // Remount when switching threads so per-thread state never bleeds.
             key={conversationId}
