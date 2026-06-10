@@ -59,6 +59,11 @@ export function isEmailConfigured(): boolean {
   return getProvider() !== 'console'
 }
 
+/** Which outbound provider is active — for read-only admin status surfaces. */
+export function getEmailProvider(): EmailProvider {
+  return getProvider()
+}
+
 function getProvider(): EmailProvider {
   if (getEnv('EMAIL_SMTP_HOST')) return 'smtp'
   if (getResendApiKey()) return 'resend'
@@ -549,8 +554,9 @@ export async function sendNewCommentEmail(params: SendNewCommentParams): Promise
 
 interface SendChatMessageEmailParams {
   to: string
-  /** Phrasing differs for an agent reply vs a new visitor message. */
-  direction: 'agent_reply' | 'visitor_message'
+  /** Phrasing differs per case: an agent reply to the visitor, a new visitor
+   *  message to the team, or an agent-started outreach message to the visitor. */
+  direction: 'agent_reply' | 'visitor_message' | 'agent_started'
   senderName: string
   messagePreview: string
   /** Link to the conversation (admin inbox for agents; portal/widget for visitors). */
@@ -583,17 +589,28 @@ export async function sendChatMessageEmail(
   } = params
 
   const isReply = direction === 'agent_reply'
-  const heading = isReply ? `New reply from ${workspaceName}` : 'New chat message'
+  const isStarted = direction === 'agent_started'
+  const heading = isReply
+    ? `New reply from ${workspaceName}`
+    : isStarted
+      ? `New message from ${workspaceName}`
+      : 'New chat message'
   const intro = isReply
     ? `${senderName} replied to your conversation with ${workspaceName}.`
-    : `${senderName} started a conversation in ${workspaceName}.`
-  const ctaLabel = isReply ? 'View conversation' : 'Open inbox'
+    : isStarted
+      ? `${senderName} from ${workspaceName} sent you a message.`
+      : `${senderName} started a conversation in ${workspaceName}.`
+  const ctaLabel = isReply || isStarted ? 'View conversation' : 'Open inbox'
   const reason = isReply
     ? 'You received this email because you have an open conversation with this team.'
-    : 'You received this email because you are a member of this workspace.'
+    : isStarted
+      ? `You received this email because ${workspaceName} sent you a message.`
+      : 'You received this email because you are a member of this workspace.'
   const subject = isReply
     ? `New reply from ${workspaceName}`
-    : `New chat message in ${workspaceName}`
+    : isStarted
+      ? `New message from ${workspaceName}`
+      : `New chat message in ${workspaceName}`
 
   if (getProvider() === 'console') {
     console.log('\n┌────────────────────────────────────────────────────────────')

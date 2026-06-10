@@ -103,11 +103,12 @@ export const Route = createFileRoute('/api/chat/stream')({
           return new Response('Unauthorized', { status: 401 })
         }
 
-        // Feature-flag gate: stop streams when chat is turned off (a token may
-        // have been minted before the flag flipped). Portal access for visitors
-        // was enforced when the stream token was minted.
-        const { isLiveChatEnabled } = await import('@/lib/server/domains/settings/settings.widget')
-        if (!(await isLiveChatEnabled())) {
+        // Feature-flag gate: stop streams when every conversation surface is
+        // off (a token may have been minted before the flag flipped). Portal
+        // access for visitors was enforced when the stream token was minted.
+        const { isConversationsEnabled } =
+          await import('@/lib/server/domains/settings/settings.support')
+        if (!(await isConversationsEnabled())) {
           return new Response('Not found', { status: 404 })
         }
 

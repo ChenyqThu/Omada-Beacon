@@ -259,6 +259,16 @@ export interface PortalConfig {
   moderationDefault: ModerationDefault
   /** Portal-level access control (visibility gate). */
   access?: PortalAccessConfig
+  /** Support tab (conversations on the portal). Optional — absent = disabled. */
+  support?: PortalSupportConfig
+}
+
+/**
+ * Portal Support tab configuration. Gated (with the `supportInbox` feature
+ * flag) by `isPortalSupportEnabled`; independent of the widget chat toggles.
+ */
+export interface PortalSupportConfig {
+  enabled: boolean
 }
 
 /**
@@ -284,6 +294,7 @@ export const DEFAULT_PORTAL_CONFIG: PortalConfig = {
   },
   moderationDefault: { requireApproval: 'none' },
   access: { visibility: 'public', allowedDomains: [], widgetSignIn: false, allowedSegmentIds: [] },
+  support: { enabled: false },
 }
 
 /**
@@ -614,6 +625,7 @@ export interface UpdatePortalConfigInput {
   welcomeCard?: Partial<PortalWelcomeCard>
   moderationDefault?: ModerationDefault
   access?: Partial<PortalAccessConfig>
+  support?: Partial<PortalSupportConfig>
 }
 
 // =============================================================================

@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const isEmailInboundConfigured = vi.fn<() => boolean>()
 const verifyResendWebhookSignature = vi.fn<(...a: unknown[]) => boolean>()
 const ingestInboundEmail = vi.fn()
+const isConversationsEnabled = vi.fn<() => Promise<boolean>>()
 
 vi.mock('../chat.email-channel', () => ({
   isEmailInboundConfigured: (...a: []) => isEmailInboundConfigured(...a),
@@ -18,6 +19,9 @@ vi.mock('../email-webhook-verify', () => ({
 }))
 vi.mock('../chat.email-inbound.service', () => ({
   ingestInboundEmail: (...a: unknown[]) => ingestInboundEmail(...a),
+}))
+vi.mock('@/lib/server/domains/settings/settings.support', () => ({
+  isConversationsEnabled: () => isConversationsEnabled(),
 }))
 
 import { handleInboundEmailWebhook } from '../email-webhook-handler'
@@ -41,6 +45,7 @@ beforeEach(() => {
   process.env.EMAIL_INBOUND_SIGNING_SECRET = 'whsec_test'
   isEmailInboundConfigured.mockReturnValue(true)
   verifyResendWebhookSignature.mockReturnValue(true)
+  isConversationsEnabled.mockResolvedValue(true)
   ingestInboundEmail.mockResolvedValue({ status: 'ingested', conversationId: 'conversation_1' })
 })
 
@@ -79,6 +84,16 @@ describe('handleInboundEmailWebhook', () => {
     expect(ingestInboundEmail).toHaveBeenCalledTimes(1)
     expect(ingestInboundEmail.mock.calls[0][0]).toMatchObject({ type: 'email.received' })
     await expect(res.json()).resolves.toMatchObject({ status: 'ingested' })
+  })
+
+  it('acks and drops a verified event when conversations are disabled (no ingest)', async () => {
+    isConversationsEnabled.mockResolvedValue(false)
+
+    const res = await handleInboundEmailWebhook(req({ type: 'email.received' }))
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toMatchObject({ status: 'disabled' })
+    expect(ingestInboundEmail).not.toHaveBeenCalled()
   })
 
   it('400s on a malformed JSON body (after signature check)', async () => {

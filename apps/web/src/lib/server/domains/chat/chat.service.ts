@@ -17,6 +17,7 @@ import {
   conversations,
   chatMessages,
   principal,
+  user,
   type Conversation,
   type ChatSystemEvent,
 } from '@/lib/server/db'
@@ -56,7 +57,9 @@ import {
   publishAgentTyping,
 } from '@/lib/server/realtime/chat-channels'
 import { truncate } from '@/lib/shared/utils/string'
-import { notifyVisitorMessage, notifyAgentReply } from './chat.notify'
+import { notifyVisitorMessage, notifyAgentReply, notifyConversationStarted } from './chat.notify'
+import { resolveReplyRecipient } from './chat.recipient'
+import { realEmail } from '@/lib/shared/anonymous-email'
 import { conversationToDTO, toMessageDTO, authorFromInput, resolveAuthor } from './chat.query'
 import {
   emitConversationCreated,
@@ -365,6 +368,129 @@ function richMessageFallbackLabel(doc: TiptapContent | null | undefined): string
     }
   }
   return ''
+}
+
+export interface StartAgentConversationInput {
+  targetPrincipalId: PrincipalId
+  content: string
+}
+
+/**
+ * Agent-initiated conversation with a portal user. The target becomes the
+ * conversation's visitor side; the composing agent is auto-assigned and the
+ * first message is agent-typed. The first message is ALWAYS emailed (the
+ * recipient is by definition not in the thread), so the target must be an
+ * identified portal user with a deliverable email — validated before any
+ * write. Each compose creates a new conversation (no dedupe against open
+ * threads).
+ */
+export async function startAgentConversation(
+  input: StartAgentConversationInput,
+  agent: ChatAuthorInput,
+  actor: Actor
+): Promise<SendVisitorMessageResult> {
+  const decision = canActAsAgent(actor)
+  if (!decision.allowed) throw new ForbiddenError('FORBIDDEN', decision.reason)
+
+  const content = validateContent(input.content, false)
+
+  const [target] = await db
+    .select({
+      type: principal.type,
+      role: principal.role,
+      email: user.email,
+      contactEmail: principal.contactEmail,
+    })
+    .from(principal)
+    .leftJoin(user, eq(principal.userId, user.id))
+    .where(eq(principal.id, input.targetPrincipalId))
+    .limit(1)
+
+  if (!target) {
+    throw new NotFoundError('USER_NOT_FOUND', 'User not found')
+  }
+  if (isTeamMember(target.role)) {
+    throw new ValidationError(
+      'CANNOT_MESSAGE_TEAM',
+      'Conversations can only be started with portal users, not team members'
+    )
+  }
+  if (target.type !== 'user') {
+    throw new ValidationError(
+      'NOT_A_PORTAL_USER',
+      'Conversations can only be started with identified portal users'
+    )
+  }
+  // realEmail() filters the synthetic anonymous placeholder addresses — they
+  // resolve but are not deliverable.
+  if (!realEmail(resolveReplyRecipient(target, target.contactEmail, null))) {
+    throw new ValidationError(
+      'NO_DELIVERABLE_EMAIL',
+      'This user has no email address to deliver the message to'
+    )
+  }
+
+  const txResult = await db.transaction(async (tx) => {
+    const [createdConv] = await tx
+      .insert(conversations)
+      .values({
+        visitorPrincipalId: input.targetPrincipalId,
+        // The composer owns the thread from the start — it lands in "Mine".
+        assignedAgentPrincipalId: agent.principalId,
+        status: 'open',
+        subject: preview(content, []),
+      })
+      .returning()
+
+    const [message] = await tx
+      .insert(chatMessages)
+      .values({
+        conversationId: createdConv.id,
+        principalId: agent.principalId,
+        senderType: 'agent',
+        content,
+      })
+      .returning()
+
+    const [updated] = await tx
+      .update(conversations)
+      .set({
+        lastMessageAt: message.createdAt,
+        lastMessagePreview: preview(content, []),
+        // Composing counts as reading on the agent side.
+        agentLastReadAt: message.createdAt,
+        updatedAt: message.createdAt,
+      })
+      .where(eq(conversations.id, createdConv.id))
+      .returning()
+
+    return { conversation: updated, message }
+  })
+
+  const messageDTO = toMessageDTO(txResult.message, await resolveAuthor(agent))
+  // Agent-side DTO for the inbox stream; publishConversationUpdate strips
+  // agent-only fields from the visitor's copy.
+  const agentDTO = await conversationToDTO(txResult.conversation, 'agent')
+  publishConversationUpdate(agentDTO.id, agentDTO)
+  publishChatEvent(messageDTO.conversationId, {
+    kind: 'message',
+    conversationId: messageDTO.conversationId,
+    message: messageDTO,
+  })
+
+  // Always email the first message — fire-and-forget; a delivery failure never
+  // rolls back the conversation (it logs inside notifyConversationStarted).
+  void notifyConversationStarted({
+    conversationId: txResult.conversation.id,
+    visitorPrincipalId: txResult.conversation.visitorPrincipalId,
+    content: preview(content, []),
+    agentName: agent.displayName ?? 'Support',
+  })
+
+  void emitConversationCreated(actor, agent, txResult.conversation)
+  void emitMessageCreated(actor, agent, txResult.message, txResult.conversation)
+
+  return { conversation: agentDTO, message: messageDTO, created: true }
 }
 
 /** Agent reply. Auto-assigns the conversation to the replying agent if unowned. */
@@ -944,15 +1070,24 @@ export async function recordCsat(
   void emitConversationCsatSubmitted(actor, updated)
 }
 
+/**
+ * Which side of a conversation the actor speaks for. Ownership beats role: a
+ * team member inside a thread THEY own (their own portal/widget conversation)
+ * is the visitor there — deriving from role alone would echo their typing back
+ * to them as "agent is typing" and stamp the wrong read watermark.
+ */
+function conversationSideFor(conversation: Conversation, actor: Actor): ChatSenderType {
+  return isTeamMember(actor.role) && conversation.visitorPrincipalId !== actor.principalId
+    ? 'agent'
+    : 'visitor'
+}
+
 /** Broadcast an ephemeral typing signal (never persisted). */
-export async function signalTyping(
-  conversationId: ConversationId,
-  side: ChatSenderType,
-  actor: Actor
-): Promise<void> {
+export async function signalTyping(conversationId: ConversationId, actor: Actor): Promise<void> {
   // Same access gate as reading the thread — prevents spoofing typing into a
   // conversation the actor can't see.
-  await assertConversationViewable(conversationId, actor)
+  const conversation = await assertConversationViewable(conversationId, actor)
+  const side = conversationSideFor(conversation, actor)
   const at = new Date().toISOString()
   // Agent typing carries the agent id on the inbox channel only (collision
   // detection) — never to the visitor. Visitor typing fans out as before.
@@ -963,13 +1098,13 @@ export async function signalTyping(
   }
 }
 
-/** Mark a conversation read up to now for one side. */
+/** Mark a conversation read up to now for the actor's side of it. */
 export async function markConversationRead(
   conversationId: ConversationId,
-  side: ChatSenderType,
   actor: Actor
 ): Promise<void> {
   const conversation = await assertConversationViewable(conversationId, actor)
+  const side = conversationSideFor(conversation, actor)
   const now = new Date()
   await db
     .update(conversations)

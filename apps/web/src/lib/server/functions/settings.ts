@@ -309,6 +309,11 @@ const updatePortalConfigSchema = z.object({
       body: tiptapContentSchema.optional(),
     })
     .optional(),
+  support: z
+    .object({
+      enabled: z.boolean().optional(),
+    })
+    .optional(),
 })
 
 const saveLogoKeySchema = z.object({
@@ -793,6 +798,30 @@ export const regenerateWidgetSecretFn = createServerFn({ method: 'POST' }).handl
 
 const moderationDefaultSchema = z.object({
   requireApproval: z.enum(['none', 'anonymous', 'authenticated', 'all']),
+})
+
+/**
+ * Read-only status of the conversation email channel (admin-only). Reports
+ * which outbound provider the environment resolves to, the from-address, and
+ * whether inbound reply threading is configured — names only, never secrets.
+ */
+export const getEmailChannelStatusFn = createServerFn({ method: 'GET' }).handler(async () => {
+  console.log(`[fn:settings] getEmailChannelStatusFn`)
+  try {
+    await requireAuth({ roles: ['admin'] })
+    const { getEmailProvider } = await import('@quackback/email')
+    const { isEmailInboundConfigured } =
+      await import('@/lib/server/domains/chat/chat.email-channel')
+    return {
+      provider: getEmailProvider(),
+      fromAddress: process.env.EMAIL_FROM ?? null,
+      inboundConfigured: isEmailInboundConfigured(),
+      inboundDomain: process.env.EMAIL_INBOUND_DOMAIN ?? null,
+    }
+  } catch (error) {
+    console.error(`[fn:settings] getEmailChannelStatusFn failed:`, error)
+    throw error
+  }
 })
 
 export const updateModerationDefaultFn = createServerFn({ method: 'POST' })
