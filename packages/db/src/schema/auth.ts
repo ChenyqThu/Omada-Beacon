@@ -540,7 +540,7 @@ export const oauthClient = pgTable('oauth_client', {
  */
 export const oauthRefreshToken = pgTable('oauth_refresh_token', {
   id: text('id').primaryKey(),
-  token: text('token').notNull(),
+  token: text('token').notNull().unique(),
   clientId: text('client_id')
     .notNull()
     .references(() => oauthClient.clientId, { onDelete: 'cascade' }),
