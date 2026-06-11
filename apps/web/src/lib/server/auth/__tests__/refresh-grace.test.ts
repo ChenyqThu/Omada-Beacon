@@ -37,6 +37,7 @@ vi.mock('@/lib/server/db', () => ({
   },
   eq: vi.fn((c: unknown, v: unknown) => ({ eq: [c, v] })),
   and: vi.fn((...args: unknown[]) => ({ and: args })),
+  isNull: vi.fn((c: unknown) => ({ isNull: c })),
 }))
 
 vi.mock('@/lib/server/audit/log', () => ({
@@ -62,7 +63,11 @@ const CLIENT_ID = 'client_abc'
 const USER_ID = 'user_123'
 const WIRE_TOKEN = 'test-refresh-token-value'
 
-function tokenCtx(overrides?: { body?: Record<string, unknown> | null; path?: string }) {
+function tokenCtx(overrides?: {
+  body?: Record<string, unknown> | null
+  path?: string
+  authorization?: string
+}) {
   return {
     path: overrides?.path ?? '/oauth2/token',
     body:
@@ -74,7 +79,14 @@ function tokenCtx(overrides?: { body?: Record<string, unknown> | null; path?: st
             client_id: CLIENT_ID,
             ...overrides?.body,
           },
+    ...(overrides?.authorization
+      ? { request: { headers: new Headers({ authorization: overrides.authorization }) } }
+      : {}),
   }
+}
+
+function basicAuth(clientId: string, secret = 's3cret') {
+  return `Basic ${Buffer.from(`${clientId}:${secret}`).toString('base64')}`
 }
 
 /** A refresh row rotated `agoMs` ago (revocation evidenced by a successor). */
@@ -151,6 +163,56 @@ describe('handleRefreshGraceHeal', () => {
     expect(mockRecordAuditEvent).toHaveBeenCalledWith(
       expect.objectContaining({ event: 'oauth.refresh_token.grace_heal' })
     )
+  })
+
+  it('requires the rotation successor to still be active — a revoked successor is not rotation evidence', async () => {
+    // A → B rotation, then B deliberately revoked via /oauth2/revoke:
+    // B remains in the table with createdAt == A.revoked but with its own
+    // `revoked` set. Healing A here would resurrect access the user/client
+    // explicitly killed, so the successor lookup must filter revoked IS NULL.
+    const row = rotatedRow(60_000)
+    mockFindFirst.mockResolvedValueOnce(row).mockResolvedValueOnce(successorRow)
+
+    await handleRefreshGraceHeal(tokenCtx())
+
+    expect(mockFindFirst.mock.calls[1]?.[0]?.where).toEqual({
+      and: [
+        { eq: ['col:clientId', CLIENT_ID] },
+        { eq: ['col:userId', USER_ID] },
+        { eq: ['col:createdAt', row.revoked] },
+        { isNull: 'col:revoked' },
+      ],
+    })
+  })
+
+  it('heals when client credentials arrive via the Basic authorization header (client_secret_basic)', async () => {
+    mockFindFirst.mockResolvedValueOnce(rotatedRow(60_000)).mockResolvedValueOnce(successorRow)
+
+    await handleRefreshGraceHeal(
+      tokenCtx({ body: { client_id: undefined }, authorization: basicAuth(CLIENT_ID) })
+    )
+
+    expect(mockUpdateSet).toHaveBeenCalledWith({ revoked: null })
+  })
+
+  it('prefers the Basic header client_id over the body client_id, like the provider', async () => {
+    mockFindFirst.mockResolvedValueOnce(rotatedRow(60_000)).mockResolvedValueOnce(successorRow)
+
+    // Body claims the owning client, but the authenticated (header) client
+    // is a different one — the provider resolves the header, so must we.
+    await handleRefreshGraceHeal(tokenCtx({ authorization: basicAuth('client_other') }))
+
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
+  it('skips the heal on a malformed Basic header without touching the DB', async () => {
+    // The provider rejects these with invalid_client before any token
+    // lookup — no family fallout, nothing to heal.
+    await handleRefreshGraceHeal(
+      tokenCtx({ authorization: `Basic ${Buffer.from('no-separator').toString('base64')}` })
+    )
+
+    expect(mockFindFirst).not.toHaveBeenCalled()
   })
 
   it('does NOT heal a revoked token with no rotation successor (RFC 7009 revocation)', async () => {

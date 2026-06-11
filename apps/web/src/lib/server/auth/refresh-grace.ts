@@ -21,9 +21,17 @@
  *  - the revocation is evidenced as a *rotation*: the plugin stamps the old
  *    row's `revoked` and the successor row's `createdAt` from the same
  *    `iat`, so a successor row with `createdAt == revoked` exists for the
- *    same (client, user). Deliberate revocations (RFC 7009 `/oauth2/revoke`)
- *    set `revoked` without creating a successor and are therefore never
- *    healed — reusing those still triggers the plugin's family revocation.
+ *    same (client, user) — and that successor is still active. Deliberate
+ *    revocations (RFC 7009 `/oauth2/revoke`) set `revoked` without creating
+ *    a successor and are therefore never healed — reusing those still
+ *    triggers the plugin's family revocation. A successor that was itself
+ *    later revoked is likewise not evidence: healing its predecessor would
+ *    resurrect a chain the user/client deliberately killed.
+ *
+ * Client identity is resolved the way the provider resolves it: a Basic
+ * `Authorization` header (confidential `client_secret_basic` clients, the
+ * RFC 7591 registration default) takes precedence over `client_id` in the
+ * form body.
  *
  * The plugin then processes the request unmodified: it finds a valid token,
  * rotates it, and issues a fresh pair. We never mint tokens, never widen
@@ -36,7 +44,7 @@
  */
 import { createHash } from 'node:crypto'
 import { getRequestHeaders } from '@tanstack/react-start/server'
-import { db, oauthRefreshToken, eq, and } from '@/lib/server/db'
+import { db, oauthRefreshToken, eq, and, isNull } from '@/lib/server/db'
 import { config } from '@/lib/server/config'
 
 /**
@@ -49,6 +57,21 @@ export function hashRefreshToken(token: string): string {
 }
 
 /**
+ * Mirror of the provider's `basicToClientCredentials`: a Basic
+ * `Authorization` header carries `client_id:client_secret` and takes
+ * precedence over body credentials (`client_secret_basic` clients send no
+ * `client_id` in the form body at all). Returns null on a malformed header
+ * — the provider rejects those with `invalid_client` before any token
+ * lookup, so there is never anything to heal.
+ */
+function basicAuthClientId(authorization: string): string | null {
+  const decoded = Buffer.from(authorization.slice('Basic '.length), 'base64').toString('utf-8')
+  const separatorIndex = decoded.indexOf(':')
+  if (separatorIndex <= 0 || separatorIndex === decoded.length - 1) return null
+  return decoded.slice(0, separatorIndex)
+}
+
+/**
  * Heal a benignly-stale refresh token before the oauth-provider's
  * refresh-grant handler sees it. No-op for everything except a
  * rotation-evidenced, in-grace, unexpired token owned by the requesting
@@ -57,6 +80,7 @@ export function hashRefreshToken(token: string): string {
 export async function handleRefreshGraceHeal(ctx: {
   path?: string
   body?: unknown
+  request?: { headers: { get(name: string): string | null } }
 }): Promise<void> {
   if (ctx.path !== '/oauth2/token') return
 
@@ -64,7 +88,11 @@ export async function handleRefreshGraceHeal(ctx: {
   if (!body || body.grant_type !== 'refresh_token') return
 
   const wireToken = typeof body.refresh_token === 'string' ? body.refresh_token : null
-  const clientId = typeof body.client_id === 'string' ? body.client_id : null
+  let clientId = typeof body.client_id === 'string' ? body.client_id : null
+  const authorization = ctx.request?.headers.get('authorization') ?? null
+  if (authorization?.startsWith('Basic ')) {
+    clientId = basicAuthClientId(authorization)
+  }
   // Missing credentials: the plugin rejects these without family fallout.
   if (!wireToken || !clientId) return
 
@@ -86,13 +114,17 @@ export async function handleRefreshGraceHeal(ctx: {
     if (presented.expiresAt && presented.expiresAt.getTime() <= now) return
     if (now - presented.revoked.getTime() > graceMs) return
 
-    // Rotation evidence: the successor row minted in the same rotation call.
-    // Absent for RFC 7009 revocations — those stay revoked.
+    // Rotation evidence: the successor row minted in the same rotation call,
+    // still active. Absent for RFC 7009 revocations — those stay revoked.
+    // The successor must itself be un-revoked: if it was deliberately
+    // revoked after the rotation, healing its predecessor would resurrect
+    // access the user/client explicitly killed.
     const successor = await db.query.oauthRefreshToken.findFirst({
       where: and(
         eq(oauthRefreshToken.clientId, presented.clientId),
         eq(oauthRefreshToken.userId, presented.userId),
-        eq(oauthRefreshToken.createdAt, presented.revoked)
+        eq(oauthRefreshToken.createdAt, presented.revoked),
+        isNull(oauthRefreshToken.revoked)
       ),
       columns: { id: true },
     })
