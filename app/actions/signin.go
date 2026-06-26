@@ -52,6 +52,7 @@ func (action *SignInByEmail) Validate(ctx context.Context, user *entity.User) *v
 
 	messages := validate.Email(ctx, action.Email)
 	result.AddFieldFailure("email", messages...)
+	result.AddFieldFailure("email", validate.SignupEmailDomain(ctx, action.Email)...)
 
 	return result
 }

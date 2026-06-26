@@ -57,6 +57,7 @@ type config struct {
 	PostCreationWithTagsEnabled bool   `env:"POST_CREATION_WITH_TAGS_ENABLED,default=false"`
 	AllowAllowedSchemes         bool   `env:"ALLOW_ALLOWED_SCHEMES,default=true"`
 	AllowPrivateNetworkTargets  bool   `env:"ALLOW_PRIVATE_NETWORK_TARGETS,default=false"`
+	AllowedSignupDomains        string `env:"ALLOWED_SIGNUP_DOMAINS,default="`
 	Stripe                      struct {
 		SecretKey      string `env:"STRIPE_SECRET_KEY"`
 		WebhookSecret  string `env:"STRIPE_WEBHOOK_SECRET"`
@@ -264,6 +265,22 @@ func IsProduction() bool {
 // SearchNoiseWords returns a list of words that should be ignored on search
 func SearchNoiseWords() []string {
 	return strings.Split(Config.SearchNoiseWords, "|")
+}
+
+// AllowedSignupDomains returns the normalized list of email domains allowed to sign up/sign in.
+// An empty result means there is no restriction (any email domain is allowed).
+func AllowedSignupDomains() []string {
+	domains := make([]string, 0)
+	for _, domain := range strings.Split(Config.AllowedSignupDomains, ",") {
+		domain = strings.ToLower(strings.TrimSpace(domain))
+		if domain != "" {
+			domains = append(domains, domain)
+		}
+	}
+	if len(domains) == 0 {
+		return nil
+	}
+	return domains
 }
 
 // IsTest returns true on Fider test environment

@@ -20,6 +20,7 @@ import (
 	"github.com/getfider/fider/app/pkg/errors"
 	"github.com/getfider/fider/app/pkg/jwt"
 	"github.com/getfider/fider/app/pkg/log"
+	"github.com/getfider/fider/app/pkg/validate"
 	"github.com/getfider/fider/app/pkg/web"
 	webutil "github.com/getfider/fider/app/pkg/web/util"
 )
@@ -67,9 +68,9 @@ func OAuthEcho() web.HandlerFunc {
 			Page:  "OAuthEcho/OAuthEcho.page",
 			Title: "OAuth Test Page",
 			Data: web.Map{
-				"body":                 rawProfile.Result,
-				"profile":              parseRawProfile.Result,
-				"configuredRolesPath":  configuredRolesPath,
+				"body":                   rawProfile.Result,
+				"profile":                parseRawProfile.Result,
+				"configuredRolesPath":    configuredRolesPath,
 				"configuredAllowedRoles": configuredAllowedRoles,
 			},
 		})
@@ -149,6 +150,15 @@ func OAuthToken() web.HandlerFunc {
 				isTrusted := customConfig != nil && customConfig.IsTrusted
 				if c.Tenant().IsPrivate && !isTrusted {
 					return c.Redirect("/not-invited")
+				}
+
+				// Restrict new account creation to allowed email domains (ALLOWED_SIGNUP_DOMAINS).
+				// Existing users (handled above) are never affected — only first-time sign up is gated.
+				if len(validate.SignupEmailDomain(c, oauthUser.Result.Email)) > 0 {
+					log.Warnf(c, "OAuth sign up blocked: email domain not allowed for @{Email}", dto.Props{
+						"Email": oauthUser.Result.Email,
+					})
+					return c.Redirect("/access-denied")
 				}
 
 				user = &entity.User{
@@ -358,4 +368,3 @@ func hasAllowedRole(userRoles []string, jsonUserRolesPath string, allowedRoles s
 	// User doesn't have any of the required roles
 	return false
 }
-

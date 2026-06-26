@@ -45,6 +45,63 @@ func TestValidEmail(t *testing.T) {
 	}
 }
 
+func TestSignupEmailDomain_NoRestrictionWhenUnconfigured(t *testing.T) {
+	RegisterT(t)
+
+	original := env.Config.AllowedSignupDomains
+	env.Config.AllowedSignupDomains = ""
+	t.Cleanup(func() { env.Config.AllowedSignupDomains = original })
+
+	for _, email := range []string{
+		"anyone@gmail.com",
+		"someone@random-domain.org",
+		"not-even-an-email",
+	} {
+		messages := validate.SignupEmailDomain(context.Background(), email)
+		Expect(messages).HasLen(0)
+	}
+}
+
+func TestSignupEmailDomain_AllowsConfiguredDomains(t *testing.T) {
+	RegisterT(t)
+
+	original := env.Config.AllowedSignupDomains
+	env.Config.AllowedSignupDomains = "tp-link.com, omadanetworks.com"
+	t.Cleanup(func() { env.Config.AllowedSignupDomains = original })
+
+	for _, email := range []string{
+		"jon.snow@tp-link.com",
+		"alice@omadanetworks.com",
+		// Domain matching is case-insensitive.
+		"BOB@TP-LINK.COM",
+		"Carol@OmadaNetworks.com",
+	} {
+		messages := validate.SignupEmailDomain(context.Background(), email)
+		Expect(messages).HasLen(0)
+	}
+}
+
+func TestSignupEmailDomain_RejectsOtherDomains(t *testing.T) {
+	RegisterT(t)
+
+	original := env.Config.AllowedSignupDomains
+	env.Config.AllowedSignupDomains = "tp-link.com,omadanetworks.com"
+	t.Cleanup(func() { env.Config.AllowedSignupDomains = original })
+
+	for _, email := range []string{
+		"someone@gmail.com",
+		"intruder@evil.com",
+		// Suffix-style lookalikes must not pass — exact domain match only.
+		"attacker@nottp-link.com",
+		"attacker@tp-link.com.evil.com",
+		// Missing domain part.
+		"noatsign",
+	} {
+		messages := validate.SignupEmailDomain(context.Background(), email)
+		Expect(len(messages) > 0).IsTrue()
+	}
+}
+
 func TestInvalidURL(t *testing.T) {
 	RegisterT(t)
 

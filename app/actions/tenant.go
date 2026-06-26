@@ -20,9 +20,9 @@ import (
 
 // CreateTenant is the input model used to create a tenant
 type CreateTenant struct {
-	Token           string `json:"token"`
-	Name            string `json:"name"`
-	Email           string `json:"email" format:"lower"`
+	Token           string           `json:"token"`
+	Name            string           `json:"name"`
+	Email           string           `json:"email" format:"lower"`
 	VerificationKey string           `json:"-"`
 	TenantName      string           `json:"tenantName"`
 	LegalAgreement  bool             `json:"legalAgreement"`
@@ -58,6 +58,9 @@ func (action *CreateTenant) Validate(ctx context.Context, user *entity.User) *va
 			if action.UserClaims, err = jwt.DecodeOAuthClaims(action.Token); err != nil {
 				return validate.Error(err)
 			}
+			if action.UserClaims.OAuthEmail != "" {
+				result.AddFieldFailure("token", validate.SignupEmailDomain(ctx, action.UserClaims.OAuthEmail)...)
+			}
 		}
 	} else {
 		if action.Email == "" {
@@ -65,6 +68,7 @@ func (action *CreateTenant) Validate(ctx context.Context, user *entity.User) *va
 		} else {
 			messages := validate.Email(ctx, action.Email)
 			result.AddFieldFailure("email", messages...)
+			result.AddFieldFailure("email", validate.SignupEmailDomain(ctx, action.Email)...)
 		}
 
 		if action.Name == "" {

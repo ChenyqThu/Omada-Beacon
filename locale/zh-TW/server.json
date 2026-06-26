@@ -15,6 +15,7 @@
   "validation.custom.maxattachments": "每篇文章最多允許 {number} 個附件。",
   "validation.custom.differentemail": "請選擇其他電子郵件。",
   "validation.custom.emailtaken": "此電子郵件已被其他人使用。",
+  "validation.custom.emaildomainnotallowed": "'{email}' 不被允許。請使用受信任網域（如公司郵箱）的郵箱地址。",
   "validation.custom.descriptivetitle": "標題需要更具描述性。",
   "validation.custom.duplicatetitle": "此內容先前已發布過。",
   "validation.custom.selfduplicate": "不能與自身重複。",

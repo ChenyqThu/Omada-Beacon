@@ -15,6 +15,7 @@
   "validation.custom.maxattachments": "每篇帖子允许添加最多 {number} 个附件.",
   "validation.custom.differentemail": "选择其他电子邮件.",
   "validation.custom.emailtaken": "此电子邮件已被其他人使用",
+  "validation.custom.emaildomainnotallowed": "'{email}' 不被允许。请使用受信任域名（如公司邮箱）的邮箱地址。",
   "validation.custom.descriptivetitle": "标题需要更具描述性.",
   "validation.custom.duplicatetitle": "这已经发布过了.",
   "validation.custom.selfduplicate": "不能与自身重复.",

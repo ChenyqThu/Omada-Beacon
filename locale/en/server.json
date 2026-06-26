@@ -22,6 +22,7 @@
   "validation.custom.cannotdeleteduplicatepost": "This post cannot be deleted because it's being referenced by a duplicated post.",
   "validation.custom.unknownsettings": "Unknown settings named '{name}'",
   "validation.custom.invalidemail": "'{email}' is not a valid email address.",
+  "validation.custom.emaildomainnotallowed": "'{email}' is not allowed. Please use an email address from an approved domain.",
   "validation.custom.invalidurl": "'{url}' is not a valid URL.",
   "validation.custom.invalidcustomdomain": "'{domain}' is not a valid Custom Domain.",
   "validation.custom.customdomaintaken": "This custom domain is already in use by someone else.",
