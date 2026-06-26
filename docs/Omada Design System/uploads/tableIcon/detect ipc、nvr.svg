@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 20 20">
+  <path stroke="#00A870" stroke-linecap="square" stroke-width="1.2" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" clip-rule="evenodd"></path>
+  <path stroke="#00A870" stroke-linecap="square" stroke-width="1.2" d="M10 14a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" clip-rule="evenodd"></path>
+  <path stroke="#00A870" stroke-linecap="square" stroke-width="1.2" d="M10 2v16m-8-8 5.6.004M2 10.003h16"></path>
+</svg>

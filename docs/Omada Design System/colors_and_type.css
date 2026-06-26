@@ -1,0 +1,315 @@
+/* ========================================================================
+   Omada Design System — Foundations
+   TP-Link Omada (Enterprise Network & Surveillance)
+   ======================================================================== */
+
+/* ─── Manrope — local files, uploaded by user (replaces Google Fonts CDN) ── */
+@font-face {
+  font-family: 'Manrope';
+  src: url('fonts/Manrope-VariableFont_wght.ttf') format('truetype-variations'),
+       url('fonts/Manrope-Regular.ttf') format('truetype');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face { font-family: 'Manrope'; src: url('fonts/Manrope-ExtraLight.ttf') format('truetype'); font-weight: 200; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url('fonts/Manrope-Light.ttf')      format('truetype'); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url('fonts/Manrope-Regular.ttf')    format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url('fonts/Manrope-Medium.ttf')     format('truetype'); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url('fonts/Manrope-SemiBold.ttf')   format('truetype'); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url('fonts/Manrope-Bold.ttf')       format('truetype'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url('fonts/Manrope-ExtraBold.ttf')  format('truetype'); font-weight: 800; font-style: normal; font-display: swap; }
+
+/* ─── Cascadia Code — monospace member of --font-mono, self-hosted from the
+       user's upload. ── */
+@font-face { font-family: 'Cascadia Code'; src: url('fonts/CascadiaCode-Regular.ttf') format('truetype'); font-weight: 200 700; font-style: normal; font-display: swap; }
+
+/* ─── PingFang SC — CJK member of --font-sans / --font-cn. Regular (400),
+       Medium (500) and Semibold (600) are all self-hosted from the user's
+       uploads. ── */
+@font-face { font-family: 'PingFang SC'; src: url('fonts/PingFang-SC-Regular.ttf')  format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'PingFang SC'; src: url('fonts/PingFang-SC-Medium.ttf')   format('truetype'); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: 'PingFang SC'; src: url('fonts/PingFang-SC-Semibold.ttf') format('truetype'); font-weight: 600; font-style: normal; font-display: swap; }
+
+:root {
+  /* ---------------------------------------------------------------
+     PRIMARY — Omada Green
+     The brand mark and product chrome (top bar, primary buttons,
+     active states, links, charts) all use this green ramp.
+     --------------------------------------------------------------- */
+  --omada-green-50:  #E5F6EE;
+  --omada-green-100: #C2EAD6;
+  --omada-green-200: #8DD6B0;
+  --omada-green-300: #4BC68C;
+  --omada-green-400: #18B782;   /* hover / lighter primary */
+  --omada-green-500: #00A870;   /* PRIMARY — the Omada brand green */
+  --omada-green-600: #009765;   /* high-contrast (dark) */
+  --omada-green-700: #008055;
+  --omada-green-800: #006A48;
+  --omada-green-900: #00543A;
+
+  --color-primary:       var(--omada-green-500);
+  --color-primary-hover: var(--omada-green-400);
+  --color-primary-press: var(--omada-green-600);
+
+  /* ---------------------------------------------------------------
+     ACCENT — Omada teal (logo plate, marketing, login backplate)
+     --------------------------------------------------------------- */
+  --omada-teal-700: #0A5A5A;    /* logo plate background */
+  --omada-teal-600: #0A7171;
+  --omada-teal-500: #0E8C8C;
+
+  /* ---------------------------------------------------------------
+     SECONDARY ACCENTS — Extended brand palette (charts, tags, illos)
+     --------------------------------------------------------------- */
+  --omada-lime:    #A6EF00;   /* "Green 1" — high-energy accent */
+  --omada-blue:    #0069CB;   /* Omada Blue */
+  --omada-blue-light: #0088E3;
+  --omada-magenta: #F476FF;   /* Omada Magenta */
+  --omada-orange:  #FF8C27;   /* Omada Orange */
+  --omada-red:     #EE385C;   /* Omada Red — destructive */
+  --omada-yellow:  #FFCB00;
+  --omada-coral:   #EF5533;   /* warning highlight */
+  --omada-purple:  #585781;   /* chart purple */
+
+  /* ---------------------------------------------------------------
+     SEMANTIC
+     --------------------------------------------------------------- */
+  --color-success: var(--omada-green-500);
+  --color-info:    var(--omada-blue);
+  --color-warning: var(--omada-orange);
+  --color-danger:  var(--omada-red);
+
+  /* ---------------------------------------------------------------
+     NEUTRALS — Greyscale ramp
+     Text colour priorities follow the Figma spec:
+       primary = #2B2B2B (主)
+       secondary = #636363 (副)
+       tertiary = #999999 (说明 / disabled)
+     --------------------------------------------------------------- */
+  --grey-50:  #F7F7F7;   /* background-grey */
+  --grey-100: #F4F4F4;   /* secondary button surface */
+  --grey-200: #ECECEC;   /* borders, dividers */
+  --grey-300: #E7E9ED;
+  --grey-400: #CCCCCC;
+  --grey-500: #999999;   /* tertiary text */
+  --grey-600: #636363;   /* secondary text (accessibility default) */
+  --grey-700: #4E5969;
+  --grey-800: #2B2B2B;   /* primary text — "Soft Black" */
+  --grey-900: #1D2529;
+  --grey-950: #1A1A1A;   /* dark mode background */
+
+  /* ---------------------------------------------------------------
+     SEMANTIC SURFACE & TEXT TOKENS
+     --------------------------------------------------------------- */
+  --bg-app:      var(--grey-50);
+  --bg-surface:  #FFFFFF;
+  --bg-subtle:   var(--grey-100);
+  --bg-muted:    var(--grey-200);
+  --bg-dark:     var(--grey-950);
+
+  --fg-primary:    var(--grey-800);   /* 主文本 */
+  --fg-secondary:  var(--grey-600);   /* 副文本 */
+  --fg-tertiary:   var(--grey-500);   /* 提示/禁用 */
+  --fg-disabled:   var(--grey-400);
+  --fg-on-primary: #FFFFFF;
+  --fg-link:       var(--omada-green-500);
+
+  --border-default: var(--grey-200);
+  --border-strong:  var(--grey-400);
+  --border-focus:   var(--omada-green-500);
+
+  /* ---------------------------------------------------------------
+     TYPOGRAPHY
+     System order from the Figma spec:
+       Manrope → Arial → Sans-Serif → Geneva → Verdana
+     Chinese fallback: PingFang SC.  TP-Link Aktiv is the proprietary
+     corporate typeface (not bundled — use Manrope as substitute).
+     --------------------------------------------------------------- */
+  --font-sans: 'Manrope', 'TP-Link Aktiv', 'PingFang SC', Arial, 'Helvetica Neue',
+               sans-serif, Geneva, Verdana;
+  --font-mono: 'SF Mono', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+  --font-cn:   'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+
+  /* Type scale — Omada uses a tight modular scale.
+     Body text in the product is Manrope 14 / Manrope-Medium 16.
+     Headings start at 20 and step up. */
+  --fs-xs:    11px;     /* helper labels in tables */
+  --fs-sm:    12px;     /* secondary metadata */
+  --fs-base:  14px;     /* product body */
+  --fs-md:    16px;     /* section labels, inputs */
+  --fs-lg:    18px;
+  --fs-xl:    20px;     /* card titles */
+  --fs-2xl:   24px;
+  --fs-3xl:   28px;     /* page H1 (light) */
+  --fs-4xl:   36px;
+  --fs-5xl:   48px;     /* marketing H1 */
+  --fs-6xl:   60px;     /* hero / chapter titles in Figma */
+
+  --fw-regular:  400;   /* @kind font */
+  --fw-medium:   500;   /* @kind font */
+  --fw-semibold: 600;   /* @kind font */
+  --fw-bold:     700;   /* @kind font */
+
+  --lh-tight:  1.0;     /* @kind font */     /* heading default — Figma lineHeight:"100%" */
+  --lh-snug:   1.25;    /* @kind font */
+  --lh-normal: 1.5;     /* @kind font */
+  --lh-relaxed: 1.65;   /* @kind font */
+
+  --tracking-tight:  -0.08px;   /* @kind font */   /* SF Pro display tracking found in Figma */
+  --tracking-normal: 0;         /* @kind font */
+
+  /* ---------------------------------------------------------------
+     SPACING — multiples of 4 (8-pt grid). Layout gutter is 16 / 24.
+     --------------------------------------------------------------- */
+  --space-0:  0;
+  --space-1:  2px;
+  --space-2:  4px;
+  --space-3:  6px;
+  --space-4:  8px;
+  --space-5:  12px;
+  --space-6:  16px;   /* default content gap */
+  --space-7:  20px;
+  --space-8:  24px;   /* default panel padding */
+  --space-9:  32px;
+  --space-10: 40px;
+  --space-11: 48px;
+  --space-12: 64px;
+
+  /* ---------------------------------------------------------------
+     RADII — small radii throughout. Buttons are 3-4, cards 8,
+     full-bleed panels 12, modals 16, brand badges 20%.
+     --------------------------------------------------------------- */
+  --radius-xs:   2px;
+  --radius-sm:   3px;   /* buttons */
+  --radius-md:   4px;   /* inputs, tags */
+  --radius-lg:   8px;   /* cards, dropdowns */
+  --radius-xl:   12px;  /* panels */
+  --radius-2xl:  16px;  /* drawers / modals */
+  --radius-pill: 999px;
+
+  /* ---------------------------------------------------------------
+     ELEVATION — three-tier shadow system from /Shadow page.
+       sm  — dropdowns, popovers (radius:10  offset:(0,4)  #2B2B2B 25%)
+       md  — drawers          (radius:24  offset:(-4,2)  #2B2B2B 10%)
+       lg  — tooltips         (radius:16  offset:(0,2)   #2B2B2B 14%)
+     Plus dark variants for inverse surfaces.
+     --------------------------------------------------------------- */
+  --shadow-sm: 0 4px 10px 0 rgba(43, 43, 43, 0.10);
+  --shadow-md: 0 2px 16px 0 rgba(43, 43, 43, 0.14);
+  --shadow-lg: -4px 2px 24px 0 rgba(43, 43, 43, 0.10);
+  --shadow-popover: 0 4px 10px 0 rgba(43, 43, 43, 0.10);
+  --shadow-drawer:  -4px 0 24px 0 rgba(43, 43, 43, 0.08);
+  --shadow-tooltip: 0 2px 16px 0 rgba(0, 0, 0, 0.20);
+  --shadow-card:    0 1px 3px 0 rgba(43, 43, 43, 0.06);
+
+  /* ---------------------------------------------------------------
+     MOTION — short, professional easing. No bounces.
+     --------------------------------------------------------------- */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);   /* @kind other */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);  /* @kind other */
+  --duration-1:  120ms;   /* @kind other */   /* micro feedback (hover) */
+  --duration-2:  180ms;   /* @kind other */   /* default */
+  --duration-3:  240ms;   /* @kind other */   /* dialog/drawer */
+}
+
+/* ========================================================================
+   SEMANTIC TYPE STYLES
+   ======================================================================== */
+
+.t-display {
+  font-family: var(--font-sans);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-6xl);
+  line-height: var(--lh-tight);
+  letter-spacing: 0.04em;
+  color: var(--fg-primary);
+}
+
+.t-h1 {
+  font-family: var(--font-sans);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-4xl);
+  line-height: var(--lh-tight);
+  color: var(--fg-primary);
+}
+
+.t-h2 {
+  font-family: var(--font-sans);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-2xl);
+  line-height: 1.2;
+  color: var(--fg-primary);
+}
+
+.t-h3 {
+  font-family: var(--font-sans);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-xl);
+  line-height: 1.25;
+  color: var(--fg-primary);
+}
+
+.t-section-title {     /* "Site Health Trend", "Topology" — card headers */
+  font-family: var(--font-sans);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-md);
+  line-height: 1.25;
+  color: var(--fg-primary);
+}
+
+.t-body {
+  font-family: var(--font-sans);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+  color: var(--fg-primary);
+}
+
+.t-body-strong {
+  font-family: var(--font-sans);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+  color: var(--fg-primary);
+}
+
+.t-meta {
+  font-family: var(--font-sans);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--fg-secondary);
+}
+
+.t-caption {
+  font-family: var(--font-sans);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+  color: var(--fg-tertiary);
+  letter-spacing: 0.01em;
+}
+
+.t-mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--fg-secondary);
+}
+
+.t-link {
+  color: var(--fg-link);
+  text-decoration: none;
+  font-weight: var(--fw-medium);
+}
+.t-link:hover { color: var(--color-primary-hover); text-decoration: underline; }
+
+/* Base reset that everything below the design system inherits */
+html, body {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  color: var(--fg-primary);
+  background: var(--bg-app);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

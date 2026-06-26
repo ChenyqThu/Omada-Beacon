@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Sidebar & Action Icons" subtitle="16-icon nav set (Lucide substitute)" viewport="700x220" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Icons — Sidebar &amp; Action</title>
+<link rel="stylesheet" href="_card.css">
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  body { padding: 22px 24px; }
+  .row { display: grid; grid-template-columns: repeat(8, 1fr); gap: 14px 10px; }
+  .ic {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 10px 6px; border-radius: 6px;
+  }
+  .ic svg { width: 22px; height: 22px; stroke: var(--fg-primary); stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .ic .nm { font-size: 10px; color: var(--fg-secondary); }
+  .ic.active { background: rgba(0,168,112,0.08); }
+  .ic.active svg { stroke: var(--omada-green-500); }
+  .ic.active .nm { color: var(--omada-green-500); font-weight: 600; }
+  .meta { font-size: 11px; color: var(--fg-tertiary); margin-top: 12px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="ic active"><i data-lucide="layout-dashboard"></i><div class="nm">Dashboard</div></div>
+    <div class="ic"><i data-lucide="home"></i><div class="nm">Settings</div></div>
+    <div class="ic"><i data-lucide="radio"></i><div class="nm">Devices</div></div>
+    <div class="ic"><i data-lucide="users"></i><div class="nm">Clients</div></div>
+    <div class="ic"><i data-lucide="map"></i><div class="nm">Map</div></div>
+    <div class="ic"><i data-lucide="lightbulb"></i><div class="nm">Insights</div></div>
+    <div class="ic"><i data-lucide="bell"></i><div class="nm">Alerts</div></div>
+    <div class="ic"><i data-lucide="file-clock"></i><div class="nm">Logs</div></div>
+
+    <div class="ic"><i data-lucide="globe"></i><div class="nm">Network</div></div>
+    <div class="ic"><i data-lucide="settings-2"></i><div class="nm">Config</div></div>
+    <div class="ic"><i data-lucide="wifi"></i><div class="nm">Hotspot</div></div>
+    <div class="ic"><i data-lucide="briefcase"></i><div class="nm">Tools</div></div>
+    <div class="ic"><i data-lucide="rotate-ccw"></i><div class="nm">Recover</div></div>
+    <div class="ic"><i data-lucide="wrench"></i><div class="nm">Maintain</div></div>
+    <div class="ic"><i data-lucide="shield-check"></i><div class="nm">Security</div></div>
+    <div class="ic"><i data-lucide="user-circle"></i><div class="nm">Profile</div></div>
+  </div>
+  <div class="meta">Substituted from <strong>Lucide</strong> at 22 px, 1.6 stroke. Real product uses bespoke 20 px Omada icons — replace at production time.</div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

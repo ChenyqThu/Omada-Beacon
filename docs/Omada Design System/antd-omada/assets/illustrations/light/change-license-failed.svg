@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="160" fill="none" viewBox="0 0 300 160">
+  <path fill="#E3F1EC" stroke="#0A5A5A" stroke-linecap="square" stroke-width="1.2" d="M105 29h52.2l12.6 12.6 11.7 11.25v67.95H105V29Z"></path>
+  <path fill="#fff" stroke="#0A5A5A" stroke-linecap="square" stroke-width="1.2" d="M118.5 38h51.3l12.6 13.05 12.6 12.6v66.15h-76.5V38Z"></path>
+  <path stroke="#0A5A5A" stroke-linecap="square" stroke-linejoin="bevel" stroke-width="1.2" d="M169.8 63.65V38L195 63.65h-25.2Z"></path>
+  <path fill="#0069CB" d="M128.4 48.8h28.8v5.4h-28.8z"></path>
+  <path fill="#00E194" d="M128.4 60.5h19.8v5.4h-19.8z"></path>
+  <path fill="#E3F1EC" stroke="#636363" stroke-linecap="square" stroke-width=".63" d="M146.4 81.2h27v29.7h-27z"></path>
+  <path fill="#00E194" stroke="#636363" stroke-linecap="square" stroke-width=".63" d="M140.1 86.6h27v29.7h-27z"></path>
+  <circle cx="153.6" cy="98.3" r="4.185" fill="#fff" stroke="#636363" stroke-width=".63"></circle>
+  <path stroke="#636363" stroke-linecap="square" stroke-linejoin="bevel" stroke-width=".63" d="M145.5 108.2h16.2"></path>
+  <path fill="#EE385C" fill-rule="evenodd" d="M195.333 116c7.364 0 13.334 5.97 13.334 13.333 0 7.364-5.97 13.334-13.334 13.334-7.363 0-13.333-5.97-13.333-13.334 0-7.363 5.97-13.333 13.333-13.333Z" clip-rule="evenodd"></path>
+  <path stroke="#fff" stroke-width="1.733" d="m190 124 10.667 10.667m-10.667 0L200.667 124"></path>
+</svg>

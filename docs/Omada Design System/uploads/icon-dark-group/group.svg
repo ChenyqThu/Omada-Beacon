@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="none" viewBox="0 0 40 40">
+  <mask id="a" width="33" height="22" x="2" y="9" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+    <path fill="#D9D9D9" d="M35 15h-5a2 2 0 0 0-2 2v14H2V9h33v6Z"></path>
+  </mask>
+  <g mask="url(#a)">
+    <path fill="url(#b)" d="M6 10a.5.5 0 0 1 .5-.5h27a.5.5 0 0 1 .5.5v18.5H6V10Z"></path>
+    <mask id="c" width="28" height="19" x="6" y="10" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+      <path fill="#323232" d="M6.5 10.5A.5.5 0 0 1 7 10h26a.5.5 0 0 1 .5.5v17a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-17Z"></path>
+    </mask>
+    <g mask="url(#c)">
+      <path fill="#323232" d="M6.5 12.5A.5.5 0 0 1 7 12h26a.5.5 0 0 1 .5.5v15a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-15Z"></path>
+      <path fill="url(#d)" d="M6 9.5h28v19H6z"></path>
+      <path fill="url(#e)" d="M5 9.5h31v20H5z"></path>
+    </g>
+    <path fill="#3D3D3F" d="M7 29.2h3v1H7zm23 0h3v1h-3z"></path>
+    <path fill="url(#f)" d="M3 28.5h34v.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-.5Z"></path>
+    <path fill="url(#g)" fill-opacity=".2" d="M3 28.5h34v.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-.5Z"></path>
+    <g filter="url(#h)">
+      <path fill="#D8D8D8" d="M17.4 28.5h5.2l-.04.094a1 1 0 0 1-.92.606h-3.28a1 1 0 0 1-.92-.606l-.04-.094Z"></path>
+    </g>
+    <rect width="10" height="18" x="28" y="15" fill="#fff" rx="2"></rect>
+  </g>
+  <path fill="#CCC" d="M29 17.6a1.6 1.6 0 0 1 1.6-1.6h4.8a1.6 1.6 0 0 1 1.6 1.6v13.134a1.6 1.6 0 0 1-1.6 1.6h-4.8a1.6 1.6 0 0 1-1.6-1.6V17.6Z"></path>
+  <mask id="i" width="8" height="16" x="29" y="16" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+    <path fill="#323232" d="M29.425 17.567a1.1 1.1 0 0 1 1.1-1.1h4.95a1.1 1.1 0 0 1 1.1 1.1v13.2a1.1 1.1 0 0 1-1.1 1.1h-4.95a1.1 1.1 0 0 1-1.1-1.1v-13.2Z"></path>
+  </mask>
+  <g mask="url(#i)">
+    <path fill="#959595" d="M29.15 16.898a.43.43 0 0 1 .431-.43h6.838a.43.43 0 0 1 .43.43v14.538a.431.431 0 0 1-.43.431H29.58a.431.431 0 0 1-.431-.431V16.898Z"></path>
+    <path fill="url(#j)" fill-opacity=".76" d="M29.15 16.467h7.7v16.5h-7.7z"></path>
+  </g>
+  <defs>
+    <linearGradient id="b" x1="20" x2="20" y1="11.5" y2="28.5" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C7C7C7"></stop>
+      <stop offset="1" stop-color="#9D9D9D"></stop>
+    </linearGradient>
+    <linearGradient id="f" x1="3" x2="37" y1="29.25" y2="29.25" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7C7D81"></stop>
+      <stop offset=".023" stop-color="#BEBFC3"></stop>
+      <stop offset=".048" stop-color="#5E5F63"></stop>
+      <stop offset=".952" stop-color="#5E5F63"></stop>
+      <stop offset=".974" stop-color="#C1C2C6"></stop>
+      <stop offset="1" stop-color="#737373"></stop>
+    </linearGradient>
+    <linearGradient id="g" x1="20" x2="20" y1="28.5" y2="30" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D0D0D0"></stop>
+      <stop offset=".482" stop-color="#B6B6B6"></stop>
+      <stop offset=".805"></stop>
+      <stop offset="1" stop-color="#949494"></stop>
+    </linearGradient>
+    <pattern id="d" width="1" height="1" patternContentUnits="objectBoundingBox">
+      <use href="#k" transform="matrix(.0017 0 0 .00251 -.008 0)"></use>
+    </pattern>
+    <pattern id="e" width="1" height="1" patternContentUnits="objectBoundingBox">
+      <use href="#l" transform="matrix(.0006 0 0 .00092 -.205 -.118)"></use>
+    </pattern>
+    <pattern id="j" width="1" height="1" patternContentUnits="objectBoundingBox">
+      <use href="#m" transform="matrix(.00203 0 0 .00095 0 -.012)"></use>
+    </pattern>
+    <image id="k" width="596" height="398" data-name="image.png" preserveAspectRatio="none"></image>
+    <image id="l" width="2270" height="1400" data-name="image.png" preserveAspectRatio="none"></image>
+    <image id="m" width="492" height="1080" data-name="image.png" preserveAspectRatio="none"></image>
+    <filter id="h" width="5.2" height=".8" x="17.4" y="28.5" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+      <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend>
+      <feColorMatrix in="SourceAlpha" result="hardAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"></feColorMatrix>
+      <feOffset dy=".1"></feOffset>
+      <feGaussianBlur stdDeviation=".5"></feGaussianBlur>
+      <feComposite in2="hardAlpha" k2="-1" k3="1" operator="arithmetic"></feComposite>
+      <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.9 0"></feColorMatrix>
+      <feBlend in2="shape" result="effect1_innerShadow_25947_14151"></feBlend>
+    </filter>
+  </defs>
+</svg>

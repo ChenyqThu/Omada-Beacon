@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="244" height="160" fill="none" viewBox="0 0 244 160">
+  <path fill="#242424" stroke="#999" stroke-linecap="square" stroke-width="1.2" d="M61.927 51.188h103.14v70.414H61.927z"></path>
+  <path fill="#2D3633" stroke="#fff" stroke-opacity=".5" stroke-width=".6" d="M66.887 57.145h93.223v64.464H66.887z"></path>
+  <path fill="#1C1C1C" stroke="#fff" stroke-linecap="square" stroke-opacity=".64" stroke-width=".6" d="M75.295 79.783h36.393v34.022H75.295z"></path>
+  <path fill="#2D3633" stroke="#fff" stroke-linecap="square" stroke-opacity=".64" stroke-width=".6" d="M79.103 83.482h28.789v26.629H79.103z"></path>
+  <path stroke="#fff" stroke-linecap="square" stroke-opacity=".64" stroke-width=".6" d="M93.223 117.174v-3.364m0-34.024v-3.364M72.098 97.308h3.197m36.383 0h3.197"></path>
+  <path fill="#00A870" d="M88.199 91.766h10.587v10.073H88.199z"></path>
+  <path fill="#242424" stroke="#999" stroke-linecap="square" stroke-width="1.2" d="M53 121.595h120v4.959H53z"></path>
+  <ellipse cx="72.832" cy="63.091" fill="#FF4D62" rx="1.983" ry="1.984"></ellipse>
+  <ellipse cx="78.785" cy="63.091" fill="#CCA200" rx="1.983" ry="1.984"></ellipse>
+  <ellipse cx="84.737" cy="63.091" fill="#008055" rx="1.983" ry="1.984"></ellipse>
+  <path fill="#242424" stroke="#999" stroke-linecap="square" stroke-width="1.2" d="M125.746 38h67v45h-67z"></path>
+  <path fill="#2D3633" stroke="#fff" stroke-opacity=".5" stroke-width=".6" d="M128.447 40.456h61.599v40.088h-61.599z"></path>
+  <path stroke="#00A870" stroke-width="1.2" d="M121.246 42.5V33h8.5m67.5 9.5V33h-8.5m-67.5 45v9.5h8.5m67.5-9.5v9.5h-8.5"></path>
+  <path fill="#F476FF" d="M134.246 48h46v4h-46z"></path>
+  <path fill="#33A0E9" d="M134.246 58h32v4h-32zm0 10h23v4h-23z"></path>
+</svg>

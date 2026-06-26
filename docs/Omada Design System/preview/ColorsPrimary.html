@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Primary Colors" subtitle="Omada Green ramp — #00A870 is the brand" viewport="700x280" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Primary Colors</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 22px 24px; }
+  .ramp { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+  .ramp .chip { width: 100%; aspect-ratio: 1 / 1; border-radius: 6px; border: 1px solid rgba(0,0,0,0.04); position: relative; }
+  .ramp .label { font-size: 10px; font-family: var(--font-mono); color: var(--fg-tertiary); margin-top: 6px; text-align: center; }
+  .ramp .star { position: absolute; top: 6px; right: 6px; color: #fff; font-size: 10px; font-weight: 700; font-family: var(--font-mono); }
+
+  .hero { display: flex; gap: 18px; align-items: center; margin-bottom: 18px; }
+  .hero .big {
+    width: 156px; aspect-ratio: 1; border-radius: 12px;
+    background: var(--omada-green-500);
+    display: flex; align-items: flex-end; padding: 14px; color: #fff;
+  }
+  .hero .big .h { font-size: 11px; font-weight: 600; opacity: 0.85; }
+  .hero .big .v { font-size: 26px; font-weight: 700; line-height: 1; margin-top: 4px; letter-spacing: -0.02em; }
+  .hero .desc { flex: 1; }
+  .hero .desc h4 { font-size: 15px; font-weight: 700; color: var(--fg-primary); margin-bottom: 4px; }
+  .hero .desc p { font-size: 12px; color: var(--fg-secondary); line-height: 1.55; }
+</style>
+</head>
+<body>
+  <div class="hero">
+    <div class="big">
+      <div>
+        <div class="h">Omada Green</div>
+        <div class="v">#00A870</div>
+      </div>
+    </div>
+    <div class="desc">
+      <h4>The single signature colour</h4>
+      <p>Carries every brand surface: the top bar, primary CTAs, active sidebar items, links, "healthy" chart series. Saturated, slightly cool. Pair with white surface and Soft Black text — never another hue.</p>
+    </div>
+  </div>
+  <div class="ramp">
+    <div><div class="chip" style="background:#E5F6EE"></div><div class="label">50</div></div>
+    <div><div class="chip" style="background:#C2EAD6"></div><div class="label">100</div></div>
+    <div><div class="chip" style="background:#8DD6B0"></div><div class="label">200</div></div>
+    <div><div class="chip" style="background:#4BC68C"></div><div class="label">300</div></div>
+    <div><div class="chip" style="background:#18B782"></div><div class="label">400</div></div>
+    <div><div class="chip" style="background:#00A870"><span class="star">★</span></div><div class="label" style="color:var(--fg-primary);font-weight:700">500</div></div>
+    <div><div class="chip" style="background:#009765"></div><div class="label">600</div></div>
+    <div><div class="chip" style="background:#008055"></div><div class="label">700</div></div>
+    <div><div class="chip" style="background:#006A48"></div><div class="label">800</div></div>
+    <div><div class="chip" style="background:#00543A"></div><div class="label">900</div></div>
+  </div>
+</body>
+</html>

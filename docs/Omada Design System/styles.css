@@ -1,0 +1,13 @@
+/* ========================================================================
+   Omada Design System — root stylesheet
+   Single entry point for consumers. Link THIS one file and you get the full
+   system: foundation tokens + type styles, then the antd-6 component layer
+   (token-driven overrides with light + dark twins).
+
+   The preview-card chrome (preview/_card.css) and the standalone console UI
+   kit (ui_kits/omada-console/console.css) are intentionally NOT imported —
+   they are specimen/demo scaffolding, not part of the shared library surface.
+   ======================================================================== */
+
+@import url('colors_and_type.css');
+@import url('antd-omada/omada-overrides.css');

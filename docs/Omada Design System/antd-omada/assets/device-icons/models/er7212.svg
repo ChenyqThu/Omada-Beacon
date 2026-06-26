@@ -1,0 +1,14 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<rect y="13" width="40" height="12" fill="url(#pattern0_1151_11243)"></rect>
+<circle cx="32" cy="28" r="6" fill="#00A870"></circle>
+<rect x="28.4" y="24.4" width="7.2" height="7.2" fill="white" fill-opacity="0.01"></rect>
+<path d="M31.7 26.35H29.3V29.65H31.7" stroke="white" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M31.1 28.75H34.7V30.55H31.1V29.65V28.75Z" fill="white" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M31.1 25.45H34.7V27.25H31.1V26.35V25.45Z" fill="white" stroke="white" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<defs>
+<pattern id="pattern0_1151_11243" patternContentUnits="objectBoundingBox" width="1" height="1">
+<use xlink:href="#image0_1151_11243" transform="scale(0.000426621 0.00130719)"></use>
+</pattern>
+<image id="image0_1151_11243" width="2344" height="765" preserveAspectRatio="none"></image>
+</defs>
+</svg>

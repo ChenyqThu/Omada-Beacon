@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="88" height="72" fill="none" viewBox="0 0 88 72">
+  <path fill="url(#a)" d="M20.6 45.556h46.8v5.572a1.8 1.8 0 0 1-1.8 1.8H22.4a1.8 1.8 0 0 1-1.8-1.8v-5.572Z"></path>
+  <path fill="url(#b)" d="M20.908 45.78h46.184v5.123a1.8 1.8 0 0 1-1.8 1.8H22.708a1.8 1.8 0 0 1-1.8-1.8V45.78Z"></path>
+  <path fill="url(#c)" d="M24.366 21.323 20.6 45.558h46.8l-3.766-24.234a1.8 1.8 0 0 0-1.779-1.523h-35.71a1.8 1.8 0 0 0-1.78 1.523Z"></path>
+  <mask id="f" width="48" height="27" x="20" y="19" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+    <path fill="url(#d)" d="M24.602 19.8 20.6 45.557h46.8L63.397 19.8H24.603Z"></path>
+  </mask>
+  <g filter="url(#e)" mask="url(#f)">
+    <ellipse cx="24.321" cy="6.198" fill="#D6D6D6" fill-opacity=".17" rx="24.321" ry="6.198" transform="matrix(.83597 -.54878 .4422 .89692 29.375 43.119)"></ellipse>
+  </g>
+  <path fill="#000" d="M47.15 47.644h1.688v3.375H47.15zm3.375 0h1.688v3.375h-1.688zm3.375 0h1.688v3.375H53.9zm3.375 0h1.688v3.375h-1.688zm3.375 0h1.688v3.375H60.65z"></path>
+  <circle cx="25.55" cy="49.331" r=".9" fill="#777"></circle>
+  <defs>
+    <linearGradient id="a" x1="44.616" x2="44.616" y1="45.556" y2="52.928" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5C5C5C"></stop>
+      <stop offset="1" stop-color="#747578"></stop>
+    </linearGradient>
+    <linearGradient id="b" x1="44" x2="44" y1="45.78" y2="51.016" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#292929"></stop>
+      <stop offset="1" stop-color="#494A4D"></stop>
+    </linearGradient>
+    <linearGradient id="c" x1="20.6" x2="67.4" y1="41.116" y2="41.116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#303133"></stop>
+      <stop offset="1" stop-color="#8C8C90"></stop>
+    </linearGradient>
+    <linearGradient id="d" x1="20.6" x2="67.4" y1="41.116" y2="41.116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1D1E21"></stop>
+      <stop offset="1" stop-color="#8C8C90"></stop>
+    </linearGradient>
+    <filter id="e" width="58.942" height="46.83" x="22.977" y="11.916" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+      <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend>
+      <feGaussianBlur result="effect1_foregroundBlur_25947_14550" stdDeviation="4.476"></feGaussianBlur>
+    </filter>
+  </defs>
+</svg>

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="88" height="60" fill="none" viewBox="0 0 88 60">
+  <path fill="url(#a)" d="M23 12.753a.75.75 0 0 1 .75-.75h40.5a.75.75 0 0 1 .75.75v24.75H23v-24.75Z"></path>
+  <mask id="b" width="42" height="25" x="23" y="12" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+    <path fill="#323232" d="M23.75 13.503a.75.75 0 0 1 .75-.75h39a.75.75 0 0 1 .75.75v22.5a.75.75 0 0 1-.75.75h-39a.75.75 0 0 1-.75-.75v-22.5Z"></path>
+  </mask>
+  <g mask="url(#b)">
+    <path fill="#323232" d="M23.75 13.503a.75.75 0 0 1 .75-.75h39a.75.75 0 0 1 .75.75v22.5a.75.75 0 0 1-.75.75h-39a.75.75 0 0 1-.75-.75v-22.5Z"></path>
+    <path fill="url(#c)" d="M23 12.003h42v28.5H23z"></path>
+    <path fill="url(#d)" d="M21.5 12.003h45v25.5h-45z"></path>
+    <path fill="url(#e)" d="M20.75 12.003h45v25.5h-45z"></path>
+  </g>
+  <path fill="#DADCDE" d="M23 37.5h42v3a1.5 1.5 0 0 1-1.5 1.5h-39a1.5 1.5 0 0 1-1.5-1.5v-3Z"></path>
+  <path fill="url(#f)" d="M38 41.999h12v9H38z"></path>
+  <path fill="#CDCDCD" d="M38 51h12v1.5H38z"></path>
+  <defs>
+    <pattern id="c" width="1" height="1" patternContentUnits="objectBoundingBox">
+      <use href="#g" transform="matrix(.0017 0 0 .00251 -.008 0)"></use>
+    </pattern>
+    <pattern id="d" width="1" height="1" patternContentUnits="objectBoundingBox">
+      <use href="#h" transform="matrix(.00152 0 0 .00275 -.053 -.073)"></use>
+    </pattern>
+    <pattern id="e" width="1" height="1" patternContentUnits="objectBoundingBox">
+      <use href="#i" transform="matrix(.00138 0 0 .00246 -.12 -.357)"></use>
+    </pattern>
+    <image id="g" width="596" height="398" data-name="image.png" preserveAspectRatio="none"></image>
+    <image id="h" width="728" height="660" data-name="ç»¿è² iMac å±å¹æåæ­£åæ¹.jpg" preserveAspectRatio="none"></image>
+    <image id="i" width="904" height="840" data-name="å±ç¤º iMac çæ­£é¢å¤è§ï¼éæç½è²æ¾ç¤ºå±è¾¹æ¡ãé¶è²å¤å£³åééå±æ¯æ¶ï¼æ¾ç¤ºå±ä¸æ¹æ¾æåè²ç³»å¦æ§é¼ æ åé®çã.jpg" preserveAspectRatio="none"></image>
+    <linearGradient id="a" x1="44" x2="44" y1="12.003" y2="37.503" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EFEFEF"></stop>
+      <stop offset="1" stop-color="#ECECEC"></stop>
+    </linearGradient>
+    <linearGradient id="f" x1="44" x2="44" y1="41.999" y2="50.999" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#CDCDCD"></stop>
+      <stop offset="1" stop-color="#DBDDDF"></stop>
+    </linearGradient>
+  </defs>
+</svg>

@@ -1,60 +1,41 @@
-
 <p align="center">
-  <a href="https://fider.io/" target="_blank">
-    <img src="etc/fiderlogo.png" width="300" alt="Fider">
-  </a>
+  <strong>Omada Beacon</strong>
 </p>
 
 <p align="center">
-    <a href="https://fider.io/">Fider.io</a> •
-    <a href="https://feedback.fider.io">Fider Feedback</a> •
-    <a href="https://demo.fider.io">Fider Demo</a> •
-    <a href="https://docs.fider.io">Docs</a> •
-    <a href="https://github.com/getfider/fider/blob/main/CONTRIBUTING.md">Contributing</a>
+  Omada 多产品线（Controller / Fusion / VIGI / MSP）内部产品反馈平台<br/>
+  基于开源项目 <a href="https://fider.io/">Fider</a> 改造 · 内部自部署自用
 </p>
 
-<br/>
-<br/>
+---
 
-<img src="etc/fidergithub.png">
+## 这是什么
 
-<br/>
-<br/>
+**Omada Beacon** 是 [Fider](https://github.com/getfider/fider)（AGPL-3.0）的 fork，目标是 Omada 多产品线的内部产品反馈 / 需求采集平台：让 Fider 承担「反馈采集 + 投票 + 多租户 + 权限」基建，把精力投到差异化价值 —— **AI 舆情 / 分类 / 摘要 + 内部系统打通**（Notion 需求池 / 标案池双向同步）。
 
-[![build](https://github.com/getfider/fider/actions/workflows/build.yml/badge.svg)](https://github.com/getfider/fider/actions/workflows/build.yml)
+## 文档
 
-# Fider is a feedback portal for feature requests and suggestions.
+完整的项目文档在 [`docs/`](./docs/README.md)：
 
-__Give your customers a voice and let them tell you what they need. Spend less time guessing and more time building the right product.__
+- [项目总览](./docs/01-overview.md) · [技术架构](./docs/02-architecture.md) · [路线图](./docs/03-roadmap.md)
+- [本地开发指南](./docs/07-local-development.md) · [部署方案](./docs/06-deployment.md) · [数据库方案](./docs/04-database.md)
+- [设计提案](./docs/design/)：可配置表单 + 双 Site + Notion 同步、内容站架构
 
-# Getting Started
+## 快速开始
 
-## ☁️ **Fider Cloud**
+```bash
+cp .example.env .env
+docker compose up -d pgdev smtp
+npm install
+make build && make migrate && make run   # → http://localhost:3000
+```
 
-The easiest and quickest way to get started. A fully managed services by the creators of Fider to help you get started in minutes. Forget about managing software updates and patches, we do it all for you! [Sign up now](https://fider.io/#get-started)
+详见 [本地开发指南](./docs/07-local-development.md)（含国内网络 GOPROXY / Docker 镜像源配置）。
 
-## 🏢 **Self-Hosted**
+## 技术栈
 
-Install Fider on your own servers, in your own infrastructure. It's totally free, but of course you're responsible for everything. [Learn how](https://docs.fider.io/self-hosted/)
+Go（CQRS + Bus，无 ORM，直写 SQL）· React 18 + TypeScript（SSR）· PostgreSQL · SCSS（自建组件 + utility，**无 Tailwind**）· LinguiJS i18n。
 
-If you do self-host and enjoy Fider, please [let us know where you're using it](https://github.com/getfider/fider/issues/899) - we really appreciate it 🙏
+## 致谢
 
-# 💰 Donations and Sponsors
-
-Support the development of Fider to help us make it the best feedback tool! You can set up donations as small or large as you want to help us keep Fider going. [Donate](https://opencollective.com/fider)
-
-If your organization uses Fider, consider becoming a sponsor - set up a monthly donation and get your logo and link on the README. [Become a sponsor](https://opencollective.com/fider)
-
-<br/>
-<br/>
-
-# Contributors
-
-This project exists thanks to all the amazing people who contribute!
-
-<a href="https://github.com/getfider/fider/graphs/contributors"><img src="https://opencollective.com/fider/contributors.svg?width=890&button=false" /></a>
-
-Read our [CONTRIBUTING](CONTRIBUTING.md) guide to learn how you can contribute to Fider.
-
-<br/>
-<br/>
+本项目基于 [**Fider**](https://github.com/getfider/fider) 构建，遵循 **AGPL-3.0** 许可证。感谢 Fider 团队与社区提供了优秀的开源反馈平台基座。上游开发指南见仓库内 `CLAUDE.md`。

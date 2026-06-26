@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="83" fill="none" viewBox="0 0 120 83">
+  <rect width="119" height="82" x=".5" y=".5" stroke="#9747FF" stroke-dasharray="10 5" rx="4.5"></rect>
+  <g clip-path="url(#a)">
+    <g clip-path="url(#b)">
+      <rect width="16" height="16" x="84" y="20" fill="#ECECEC" rx="2"></rect>
+      <path stroke="#999" stroke-linecap="square" d="M88 28h8"></path>
+    </g>
+  </g>
+  <g clip-path="url(#c)">
+    <g clip-path="url(#d)">
+      <rect width="16" height="16" x="52" y="20" fill="#CCC" rx="2"></rect>
+      <path stroke="#2B2B2B" stroke-linecap="square" d="M56 28h8"></path>
+    </g>
+  </g>
+  <g clip-path="url(#e)">
+    <g clip-path="url(#f)">
+      <rect width="16" height="16" x="20" y="20" fill="#ECECEC" rx="2"></rect>
+      <path stroke="#2B2B2B" stroke-linecap="square" d="M24 28h8"></path>
+    </g>
+  </g>
+  <g clip-path="url(#g)">
+    <rect width="16" height="16" x="84" y="47" fill="#ECECEC" rx="2"></rect>
+    <path fill="#999" fill-rule="evenodd" d="M91.5 59v.5h1v-4h4v-1h-4v-4h-1v4h-4v1h4V59Z" clip-rule="evenodd"></path>
+  </g>
+  <g clip-path="url(#h)">
+    <rect width="16" height="16" x="52" y="47" fill="#CCC" rx="2"></rect>
+    <path fill="#2B2B2B" fill-rule="evenodd" d="M59.5 59v.5h1v-4h4v-1h-4v-4h-1v4h-4v1h4V59Z" clip-rule="evenodd"></path>
+  </g>
+  <g clip-path="url(#i)">
+    <rect width="16" height="16" x="20" y="47" fill="#ECECEC" rx="2"></rect>
+    <path stroke="#2B2B2B" stroke-linecap="square" d="M24 55h8m-4 4v-8"></path>
+  </g>
+  <defs>
+    <clipPath id="a">
+      <path fill="#fff" d="M84 20h16v16H84z"></path>
+    </clipPath>
+    <clipPath id="b">
+      <path fill="#fff" d="M84 20h16v16H84z"></path>
+    </clipPath>
+    <clipPath id="c">
+      <path fill="#fff" d="M52 20h16v16H52z"></path>
+    </clipPath>
+    <clipPath id="d">
+      <path fill="#fff" d="M52 20h16v16H52z"></path>
+    </clipPath>
+    <clipPath id="e">
+      <path fill="#fff" d="M20 20h16v16H20z"></path>
+    </clipPath>
+    <clipPath id="f">
+      <path fill="#fff" d="M20 20h16v16H20z"></path>
+    </clipPath>
+    <clipPath id="g">
+      <path fill="#fff" d="M84 47h16v16H84z"></path>
+    </clipPath>
+    <clipPath id="h">
+      <path fill="#fff" d="M52 47h16v16H52z"></path>
+    </clipPath>
+    <clipPath id="i">
+      <path fill="#fff" d="M20 47h16v16H20z"></path>
+    </clipPath>
+  </defs>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="160" fill="none" viewBox="0 0 300 160">
+  <path stroke="#999" stroke-width="1.2" d="M89 83h123v26H89z"></path>
+  <path stroke="#fff" stroke-opacity=".5" stroke-width=".6" d="M116 70h96m-96 2h96m-96 29h96m-96 2h96"></path>
+  <path fill="#00E195" d="M102 60h20v2h-20z"></path>
+  <path stroke="#999" stroke-width="1.2" d="M89 52h123v26H89z"></path>
+  <circle cx="96.5" cy="86.5" r="27.5" fill="#2D3633" stroke="#999" stroke-width="1.2"></circle>
+  <circle cx="96.5" cy="86.5" r="21.5" fill="#242424" stroke="#fff" stroke-linecap="square" stroke-opacity=".64" stroke-width=".892"></circle>
+  <path fill="#00E195" stroke="#fff" stroke-linecap="square" stroke-opacity=".64" stroke-width=".446" d="M180 63h4v4h-4zm6 0h4v4h-4zm6 0h4v4h-4zm6 0h4v4h-4z"></path>
+  <path fill="#00A870" fill-rule="evenodd" d="M217.333 91c7.364 0 13.334 5.97 13.334 13.333 0 7.364-5.97 13.334-13.334 13.334-7.363 0-13.333-5.97-13.333-13.334S209.97 91 217.333 91Z" clip-rule="evenodd"></path>
+  <path stroke="#fff" stroke-width="1.529" d="M210 104.5h15m-7.5 7.5V97"></path>
+  <path fill="#B7EE00" stroke="#fff" stroke-linecap="square" stroke-opacity=".64" stroke-width=".446" d="M180 94h4v4h-4zm6 0h4v4h-4zm6 0h4v4h-4zm6 0h4v4h-4z"></path>
+  <path fill="#008055" d="M96.498 94.504c4.418 0 8.002-3.776 8.002-8.002 0-4.226-3.584-8.002-8.002-8.002-2.213 0-4.215.947-5.666 2.423l1.98 2.195a4.994 4.994 0 0 1 3.686-1.618 5.002 5.002 0 1 1-4.897 6.021l-2.862.874c.102.388.229.766.385 1.132l2.263-.693-2.038 1.175c.203.4.435.78.7 1.143l1.469-.849-1.237 1.154c1.47 1.828 3.707 3.047 6.217 3.047Z"></path>
+  <path fill="#008055" d="M91.496 86.49v.012c0 .348.036.685.102 1.012l-3.004.21a8.005 8.005 0 0 1-.094-1.023l2.996-.21Zm-2.847-1.497 2.956.468a4.963 4.963 0 0 0-.105.874l-2.975-.472c.026-.293.066-.584.124-.87Zm.522-1.625 2.753 1.11a5.06 5.06 0 0 0-.247.693l-2.77-1.121a7.44 7.44 0 0 1 .264-.682Zm3.269.214-.002-.001c-.116.158-.22.325-.314.494l-2.43-1.701c.1-.163.21-.326.326-.486l2.418 1.693.001-.003v.004Z"></path>
+</svg>

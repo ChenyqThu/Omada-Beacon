@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Spacing" subtitle="8-pt scale — 24 is the panel default" viewport="700x240" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spacing</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 22px 24px; }
+  .row { display: flex; align-items: flex-end; gap: 14px; }
+  .step { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .step .bar { background: var(--omada-green-500); border-radius: 2px; width: 28px; }
+  .step .px { font-family: var(--font-mono); font-size: 10px; color: var(--fg-tertiary); }
+  .step .nm { font-family: var(--font-mono); font-size: 10px; color: var(--fg-secondary); font-weight: 600; }
+
+  .demo { display: flex; gap: 24px; padding: 16px; background: var(--bg-app); border-radius: 8px; margin-top: 20px; align-items: center; }
+  .demo .box {
+    width: 100px; height: 60px; background: #fff; border-radius: 6px; border: 1px solid var(--border-default);
+    display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--fg-secondary);
+  }
+  .demo .desc { font-size: 11px; color: var(--fg-tertiary); font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="step"><div class="bar" style="height:4px"></div><div class="nm">4</div><div class="px">--space-2</div></div>
+    <div class="step"><div class="bar" style="height:8px"></div><div class="nm">8</div><div class="px">--space-4</div></div>
+    <div class="step"><div class="bar" style="height:12px"></div><div class="nm">12</div><div class="px">--space-5</div></div>
+    <div class="step"><div class="bar" style="height:16px"></div><div class="nm">16</div><div class="px">--space-6</div></div>
+    <div class="step"><div class="bar" style="height:24px"></div><div class="nm">24</div><div class="px">--space-8</div></div>
+    <div class="step"><div class="bar" style="height:32px"></div><div class="nm">32</div><div class="px">--space-9</div></div>
+    <div class="step"><div class="bar" style="height:40px"></div><div class="nm">40</div><div class="px">--space-10</div></div>
+    <div class="step"><div class="bar" style="height:48px"></div><div class="nm">48</div><div class="px">--space-11</div></div>
+    <div class="step"><div class="bar" style="height:64px"></div><div class="nm">64</div><div class="px">--space-12</div></div>
+  </div>
+  <div class="demo">
+    <div class="box">A</div>
+    <div class="desc">gap: 24px&nbsp;&nbsp;|&nbsp;&nbsp;padding: 16px<br/>default panel gutter</div>
+    <div class="box">B</div>
+  </div>
+</body>
+</html>

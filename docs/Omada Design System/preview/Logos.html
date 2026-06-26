@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Logos" subtitle="Real Omada lockup & app icon (from Figma)" viewport="700x300" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Brand Logos</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 22px 24px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .tile { border-radius: 8px; padding: 24px 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 120px; }
+  .tile .cap { font-size: 10px; color: var(--fg-tertiary); font-family: var(--font-mono); }
+  .light { background: #FFFFFF; border: 1px solid var(--border-default, #ECECEC); }
+  .dark  { background: #1D2529; }
+  .dark .cap { color: rgba(255,255,255,0.6); }
+  .lockup { height: 34px; }
+  /* lockup ships with dark ink; invert to white on the dark surface */
+  .dark .lockup { filter: brightness(0) invert(1); }
+  .appicon { width: 76px; height: 76px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="tile light"><img class="lockup" src="../antd-omada/assets/logos/omada-lockup.svg" alt="Omada"/><div class="cap">omada-lockup.svg</div></div>
+    <div class="tile dark"><img class="lockup" src="../antd-omada/assets/logos/omada-lockup.svg" alt="Omada"/><div class="cap">omada-lockup · on dark</div></div>
+    <div class="tile light"><img class="appicon" src="../antd-omada/assets/logos/omada-appicon.svg" alt="Omada app icon"/><div class="cap">omada-appicon.svg</div></div>
+  </div>
+</body>
+</html>

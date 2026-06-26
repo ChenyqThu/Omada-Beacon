@@ -1,7 +1,7 @@
 {
-  "name": "fider",
+  "name": "omada-beacon",
   "version": "0.0.0",
-  "repository": "https://github.com/getfider/fider",
+  "repository": "https://github.com/ChenyqThu/fider",
   "private": true,
   "dependencies": {
     "@lingui/format-json": "^5.1.2",

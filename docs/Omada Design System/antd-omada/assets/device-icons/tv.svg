@@ -1,0 +1,26 @@
+<svg width="88" height="68" viewBox="0 0 88 68" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<rect x="20.2" y="18.7" width="47.6" height="28.8999" rx="0.500001" fill="url(#paint0_linear_28254_112977)"></rect>
+<mask id="mask0_28254_112977" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="21" y="19" width="46" height="28">
+<path d="M21.0507 20.4002C21.0507 19.9308 21.4312 19.5502 21.9007 19.5502L66.1007 19.5502C66.5701 19.5502 66.9507 19.9308 66.9507 20.4002V45.9002C66.9507 46.3696 66.5701 46.7502 66.1007 46.7502H21.9007C21.4312 46.7502 21.0507 46.3696 21.0507 45.9002V20.4002Z" fill="#323232"></path>
+</mask>
+<g mask="url(#mask0_28254_112977)">
+<path d="M21.0507 20.4002C21.0507 19.9308 21.4312 19.5502 21.9007 19.5502L66.1007 19.5502C66.5701 19.5502 66.9507 19.9308 66.9507 20.4002V45.9002C66.9507 46.3696 66.5701 46.7502 66.1007 46.7502H21.9007C21.4312 46.7502 21.0507 46.3696 21.0507 45.9002V20.4002Z" fill="#323232"></path>
+<rect x="-25.7" y="-3.39999" width="139.4" height="93.4998" fill="url(#pattern0_28254_112977)"></rect>
+</g>
+<rect x="40.6" y="47.5999" width="6.79998" height="5.09999" fill="url(#paint1_linear_28254_112977)"></rect>
+<path d="M30.3999 54.3999V52.6999H57.5998V54.3999" stroke="#4C4C4C" stroke-width="2"></path>
+<defs>
+<pattern id="pattern0_28254_112977" patternContentUnits="objectBoundingBox" width="1" height="1">
+<use xlink:href="#image0_28254_112977" transform="matrix(0.000244141 0 0 0.000363991 0 -0.0587269)"></use>
+</pattern>
+<linearGradient id="paint0_linear_28254_112977" x1="44" y1="18.7" x2="44" y2="47.5999" gradientUnits="userSpaceOnUse">
+<stop stop-color="#BABABA"></stop>
+<stop offset="1" stop-color="#8F8F8F"></stop>
+</linearGradient>
+<linearGradient id="paint1_linear_28254_112977" x1="44" y1="47.5999" x2="44" y2="51.8499" gradientUnits="userSpaceOnUse">
+<stop stop-color="#4B4B4B"></stop>
+<stop offset="1" stop-color="#515151"></stop>
+</linearGradient>
+<image id="image0_28254_112977" width="4096" height="3070" preserveAspectRatio="none"></image>
+</defs>
+</svg>

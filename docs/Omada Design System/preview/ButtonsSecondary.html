@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Buttons — Secondary" subtitle="Secondary, Outline, Text/Link" viewport="700x180" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Buttons — Secondary &amp; Outline</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 22px 24px; }
+  .group { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .lab { font-family: var(--font-mono); font-size: 10px; color: var(--fg-tertiary); width: 84px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-sans); font-weight: 500; font-size: 14px; line-height: 1;
+    padding: 7px 16px; border-radius: 3px; border: 1px solid transparent;
+    cursor: pointer; transition: 120ms;
+  }
+  .btn-secondary { background: #F4F4F4; color: #2B2B2B; }
+  .btn-secondary.hover { background: #ECECEC; }
+  .btn-secondary.disabled { background: #F4F4F4; color: #999; }
+  .btn-outline { background: #fff; color: #00A870; border: 1px solid #00A870; padding: 6px 15px; }
+  .btn-outline.hover { background: #E5F6EE; }
+  .btn-outline.disabled { color: #8DD6B0; border-color: #8DD6B0; }
+  .btn-link { background: transparent; color: #00A870; padding: 6px 4px; font-weight: 500; }
+  .btn-link.hover { color: #18B782; text-decoration: underline; }
+  .btn-link.disabled { color: #CCCCCC; }
+  .ic { width: 14px; height: 14px; background: currentColor; -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M8 3v10M3 8h10' stroke='black' stroke-width='1.8' stroke-linecap='round'/></svg>") center/contain no-repeat; mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M8 3v10M3 8h10' stroke='black' stroke-width='1.8' stroke-linecap='round'/></svg>") center/contain no-repeat; }
+</style>
+</head>
+<body>
+  <div class="group"><span class="lab">secondary</span><button class="btn btn-secondary"><span class="ic"></span>Button</button><button class="btn btn-secondary hover">Hover</button><button class="btn btn-secondary disabled">Disabled</button></div>
+  <div class="group"><span class="lab">outline</span><button class="btn btn-outline"><span class="ic"></span>Button</button><button class="btn btn-outline hover">Hover</button><button class="btn btn-outline disabled">Disabled</button></div>
+  <div class="group"><span class="lab">link / text</span><button class="btn btn-link">Refresh</button><button class="btn btn-link hover">Refresh</button><button class="btn btn-link disabled">Refresh</button></div>
+</body>
+</html>

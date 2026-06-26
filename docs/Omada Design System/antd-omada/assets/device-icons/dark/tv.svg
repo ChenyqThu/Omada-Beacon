@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="88" height="68" fill="none" viewBox="0 0 88 68">
+  <rect width="47.6" height="28.9" x="20.2" y="18.7" fill="url(#a)" rx=".5"></rect>
+  <mask id="b" width="46" height="28" x="21" y="19" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+    <path fill="#323232" d="M21.05 20.4c0-.47.381-.85.85-.85h44.2c.47 0 .85.38.85.85v25.5c0 .47-.38.85-.85.85H21.9a.85.85 0 0 1-.85-.85V20.4Z"></path>
+  </mask>
+  <g mask="url(#b)">
+    <path fill="#323232" d="M21.05 20.4c0-.47.381-.85.85-.85h44.2c.47 0 .85.38.85.85v25.5c0 .47-.38.85-.85.85H21.9a.85.85 0 0 1-.85-.85V20.4Z"></path>
+    <path fill="url(#c)" d="M-25.7-3.4h139.4v93.5H-25.7z"></path>
+  </g>
+  <path fill="url(#d)" d="M40.6 47.6h6.8v5.1h-6.8z"></path>
+  <path stroke="#4C4C4C" stroke-width="2" d="M30.4 54.4v-1.7h27.2v1.7"></path>
+  <defs>
+    <linearGradient id="a" x1="44" x2="44" y1="18.7" y2="47.6" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#BABABA"></stop>
+      <stop offset="1" stop-color="#8F8F8F"></stop>
+    </linearGradient>
+    <linearGradient id="d" x1="44" x2="44" y1="47.6" y2="51.85" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4B4B4B"></stop>
+      <stop offset="1" stop-color="#515151"></stop>
+    </linearGradient>
+    <pattern id="c" width="1" height="1" patternContentUnits="objectBoundingBox">
+      <use href="#e" transform="matrix(.00024 0 0 .00036 0 -.059)"></use>
+    </pattern>
+    <image id="e" width="4096" height="3070" data-name="image.png" preserveAspectRatio="none"></image>
+  </defs>
+</svg>

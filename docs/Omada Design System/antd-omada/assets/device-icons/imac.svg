@@ -1,0 +1,37 @@
+<svg width="88" height="60" viewBox="0 0 88 60" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<path d="M23.0004 12.7531C23.0004 12.3389 23.3362 12.0031 23.7504 12.0031H64.2504C64.6646 12.0031 65.0004 12.3389 65.0004 12.7531V37.5031H23.0004V12.7531Z" fill="url(#paint0_linear_28254_112975)"></path>
+<mask id="mask0_28254_112975" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="23" y="12" width="42" height="25">
+<path d="M23.7504 13.5034C23.7504 13.0892 24.0862 12.7534 24.5004 12.7534L63.5004 12.7534C63.9146 12.7534 64.2504 13.0892 64.2504 13.5034V36.0033C64.2504 36.4175 63.9146 36.7533 63.5004 36.7533H24.5004C24.0862 36.7533 23.7504 36.4175 23.7504 36.0033V13.5034Z" fill="#323232"></path>
+</mask>
+<g mask="url(#mask0_28254_112975)">
+<path d="M23.7504 13.5034C23.7504 13.0892 24.0862 12.7534 24.5004 12.7534L63.5004 12.7534C63.9146 12.7534 64.2504 13.0892 64.2504 13.5034V36.0033C64.2504 36.4175 63.9146 36.7533 63.5004 36.7533H24.5004C24.0862 36.7533 23.7504 36.4175 23.7504 36.0033V13.5034Z" fill="#323232"></path>
+<rect x="23.0004" y="12.0031" width="42" height="28.4999" fill="url(#pattern0_28254_112975)"></rect>
+<rect x="21.5005" y="12.0032" width="45" height="25.4999" fill="url(#pattern1_28254_112975)"></rect>
+<rect x="20.7501" y="12.0031" width="45" height="25.4999" fill="url(#pattern2_28254_112975)"></rect>
+</g>
+<path d="M23.0002 37.4995H65.0003V40.4995C65.0003 41.3279 64.3287 41.9995 63.5003 41.9995H24.5002C23.6718 41.9995 23.0002 41.3279 23.0002 40.4995V37.4995Z" fill="#DADCDE"></path>
+<rect x="38.0001" y="41.9995" width="12" height="8.99998" fill="url(#paint1_linear_28254_112975)"></rect>
+<rect x="38.0001" y="51.0003" width="12" height="1.5" fill="#CDCDCD"></rect>
+<defs>
+<pattern id="pattern0_28254_112975" patternContentUnits="objectBoundingBox" width="1" height="1">
+<use xlink:href="#image0_28254_112975" transform="matrix(0.00170495 0 0 0.00251256 -0.00807485 0)"></use>
+</pattern>
+<pattern id="pattern1_28254_112975" patternContentUnits="objectBoundingBox" width="1" height="1">
+<use xlink:href="#image1_28254_112975" transform="matrix(0.00151822 0 0 0.00274725 -0.0526316 -0.0732601)"></use>
+</pattern>
+<pattern id="pattern2_28254_112975" patternContentUnits="objectBoundingBox" width="1" height="1">
+<use xlink:href="#image2_28254_112975" transform="matrix(0.00137741 0 0 0.00246305 -0.119835 -0.357143)"></use>
+</pattern>
+<linearGradient id="paint0_linear_28254_112975" x1="44.0004" y1="12.0031" x2="44.0004" y2="37.5031" gradientUnits="userSpaceOnUse">
+<stop stop-color="#EFEFEF"></stop>
+<stop offset="1" stop-color="#ECECEC"></stop>
+</linearGradient>
+<linearGradient id="paint1_linear_28254_112975" x1="44.0001" y1="41.9995" x2="44.0001" y2="50.9995" gradientUnits="userSpaceOnUse">
+<stop stop-color="#CDCDCD"></stop>
+<stop offset="1" stop-color="#DBDDDF"></stop>
+</linearGradient>
+<image id="image0_28254_112975" width="596" height="398" preserveAspectRatio="none"></image>
+<image id="image1_28254_112975" width="728" height="660" preserveAspectRatio="none"></image>
+<image id="image2_28254_112975" width="904" height="840" preserveAspectRatio="none"></image>
+</defs>
+</svg>

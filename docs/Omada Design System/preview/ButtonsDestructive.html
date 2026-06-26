@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Buttons — Destructive & Icon" subtitle="Danger variants + icon-only + FABs" viewport="700x260" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Buttons — Destructive &amp; Icon</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 22px 24px; }
+  .group { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .lab { font-family: var(--font-mono); font-size: 10px; color: var(--fg-tertiary); width: 90px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-sans); font-weight: 500; font-size: 14px; line-height: 1;
+    padding: 7px 16px; border-radius: 3px; cursor: pointer; border: 1px solid transparent;
+  }
+  .btn-danger { background: #EE385C; color: #fff; }
+  .btn-danger.hover { background: #f25478; }
+  .btn-danger.disabled { background: #FAD1DC; color: #fff; }
+  .btn-danger-outline { background: #fff; color: #EE385C; border: 1px solid #EE385C; padding: 6px 15px; }
+  .btn-danger-outline.hover { background: #FCEAEF; }
+
+  .icbtn { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: transparent; border: none; cursor: pointer; color: #2B2B2B; }
+  .icbtn:hover { background: rgba(0,0,0,0.04); }
+  .icbtn svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+  .fab { width: 44px; height: 44px; border-radius: 999px; background: #00A870; color: #fff; display: inline-flex; align-items: center; justify-content: center; border: none; cursor: pointer; }
+  .fab svg { width: 18px; height: 18px; stroke: #fff; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .fab.ghost { background: #F4F4F4; color: #2B2B2B; }
+  .fab.ghost svg { stroke: #2B2B2B; }
+  .fab.disabled { background: #F4F4F4; }
+  .fab.disabled svg { stroke: #CCCCCC; }
+
+  .ban { width: 14px; height: 14px; border: 1.8px solid currentColor; border-radius: 50%; position: relative; display: inline-block; }
+  .ban::after { content: ''; position: absolute; left: 0; top: 50%; width: 100%; height: 1.8px; background: currentColor; transform: rotate(45deg); transform-origin: center; }
+</style>
+</head>
+<body>
+  <div class="group"><span class="lab">danger</span>
+    <button class="btn btn-danger"><span class="ban"></span>Delete</button>
+    <button class="btn btn-danger hover">Hover</button>
+    <button class="btn btn-danger disabled">Disabled</button>
+    <button class="btn btn-danger-outline">Forget</button>
+    <button class="btn btn-danger-outline hover">Hover</button>
+  </div>
+
+  <div class="group" style="margin-top:18px"><span class="lab">icon-only</span>
+    <button class="icbtn"><svg viewBox="0 0 24 24"><path d="M21 21l-4.35-4.35M11 19a8 8 0 110-16 8 8 0 010 16z"/></svg></button>
+    <button class="icbtn"><svg viewBox="0 0 24 24"><path d="M20.49 9A9 9 0 1 1 5.64 5.64L21 20"/><path d="M21 4v6h-6"/></svg></button>
+    <button class="icbtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button>
+    <button class="icbtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg></button>
+  </div>
+
+  <div class="group"><span class="lab">FAB / arrow</span>
+    <button class="fab"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg></button>
+    <button class="fab ghost"><svg viewBox="0 0 24 24"><path d="M19 12H5M11 19l-7-7 7-7"/></svg></button>
+    <button class="fab disabled"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg></button>
+  </div>
+</body>
+</html>

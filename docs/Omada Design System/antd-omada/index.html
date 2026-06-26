@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>antd-omada — Component Library</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="https://unpkg.com/antd@6.4.3/dist/reset.css">
+<link rel="stylesheet" href="omada-overrides.css">
+<link rel="icon" href="../assets/omada-app-icon.png">
+
+<!-- React 18 + Babel -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- dayjs (antd date dependency) -->
+<script src="https://unpkg.com/dayjs@1.11.13/dayjs.min.js"></script>
+
+<!-- antd 6 UMD -->
+<script src="https://unpkg.com/antd@6.4.3/dist/antd.min.js"></script>
+
+<!-- ECharts (Batch 6 charts) — single clean UMD, themed via one Omada option object -->
+<script src="https://unpkg.com/echarts@5.5.1/dist/echarts.min.js"></script>
+
+<!-- Lucide stays ONLY as a fallback for components not yet wrapped (Batch 2–4).
+     Batch-1 components all use OmadaIcon, never Lucide. -->
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+
+<style>
+  body { background: var(--bg-app); font-family: 'Manrope', sans-serif; color: var(--fg-primary); }
+  .page { max-width: 1200px; margin: 0 auto; padding: 28px 32px 90px; }
+
+  .hero {
+    background: linear-gradient(135deg, #0A5A5A 0%, #00A870 100%);
+    color: #fff; border-radius: 14px; padding: 28px 36px; margin-bottom: 24px;
+    display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  }
+  .hero h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 6px; }
+  .hero p { font-size: 14px; opacity: 0.88; margin: 0; max-width: 560px; line-height: 1.55; }
+  .hero .stats { display: flex; gap: 26px; flex-shrink: 0; }
+  .hero .stats .s .n { font-size: 26px; font-weight: 700; line-height: 1; }
+  .hero .stats .s .l { font-size: 11px; opacity: 0.72; margin-top: 4px; }
+
+  .section { background: #fff; border: 1px solid var(--border-default); border-radius: 12px; padding: 22px 26px; margin-bottom: 18px; }
+  .section h2 { font-size: 16px; font-weight: 600; margin: 0 0 4px; color: var(--fg-primary); display: flex; align-items: center; gap: 10px; }
+  .section h2 .ix { color: var(--omada-green-500); display: inline-flex; }
+  .section .desc { font-size: 12px; color: var(--fg-tertiary); margin-bottom: 18px; }
+
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .row:last-child { margin-bottom: 0; }
+  .row .label { font-family: var(--font-mono); font-size: 10px; color: var(--fg-tertiary); width: 92px; flex-shrink: 0; text-transform: lowercase; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 28px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 28px; }
+
+  .toc {
+    position: sticky; top: 16px; z-index: 5;
+    background: rgba(255,255,255,0.92); backdrop-filter: none;
+    border: 1px solid var(--border-default); border-radius: 10px; padding: 12px 16px;
+    margin-bottom: 22px; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; align-items: center;
+  }
+  .toc a { color: var(--fg-secondary); text-decoration: none; padding: 3px 9px; border-radius: 6px; }
+  .toc a:hover { background: var(--grey-100); color: var(--omada-green-600); }
+
+  .toolbar { display: flex; justify-content: flex-end; gap: 24px; align-items: center; margin-bottom: 16px; }
+  .toolbar .tl { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--fg-secondary); }
+
+  [data-omada-theme="dark"] .section { background: #1F1F1F; border-color: #333; }
+  [data-omada-theme="dark"] .section h2 { color: #E8E8E8; }
+  [data-omada-theme="dark"] .section .desc { color: #737373; }
+  [data-omada-theme="dark"] .toc { background: rgba(31,31,31,0.92); border-color: #333; }
+  [data-omada-theme="dark"] .toc a { color: #A6A6A6; }
+  [data-omada-theme="dark"] .toc a:hover { background: #262626; color: #5FD3A6; }
+  [data-omada-theme="dark"] .toc strong { color: #E8E8E8 !important; }
+  [data-omada-theme="dark"] .row .label { color: #737373; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Foundations (plain JS — set window globals) -->
+<script src="omada-theme.js"></script>
+<script src="omada-i18n.js"></script>
+<script src="omada-chart-theme.js"></script>
+
+<!-- Component wrappers (JSX) -->
+<!-- Real Omada icon set (extracted from Figma) — loaded before Icon.jsx so the
+     primitive can prefer real glyphs over the legacy hand-drawn fallback. -->
+<script src="components/Icon/icons-omada.js"></script>
+<script type="text/babel" src="components/Icon/Icon.jsx"></script>
+<script type="text/babel" src="components/ThemeProvider/ThemeProvider.jsx"></script>
+<script type="text/babel" src="components/Button/Button.jsx"></script>
+<script type="text/babel" src="components/Tag/Tag.jsx"></script>
+<script type="text/babel" src="components/Input/Input.jsx"></script>
+<script type="text/babel" src="components/Select/Select.jsx"></script>
+<script type="text/babel" src="components/Toggle/Toggle.jsx"></script>
+
+<!-- Batch 2 — Data display wrappers -->
+<script type="text/babel" src="components/DataTable/DataTable.jsx"></script>
+<script type="text/babel" src="components/Pagination/Pagination.jsx"></script>
+<script type="text/babel" src="components/Descriptions/Descriptions.jsx"></script>
+<script type="text/babel" src="components/Statistic/Statistic.jsx"></script>
+<script type="text/babel" src="components/Badge/Badge.jsx"></script>
+<script type="text/babel" src="components/Avatar/Avatar.jsx"></script>
+<script type="text/babel" src="components/Tooltip/Tooltip.jsx"></script>
+<script type="text/babel" src="components/Popover/Popover.jsx"></script>
+
+<!-- Batch 3 — Forms & overlays wrappers -->
+<script type="text/babel" src="components/Form/Form.jsx"></script>
+<script type="text/babel" src="components/DatePicker/DatePicker.jsx"></script>
+<script type="text/babel" src="components/InputNumber/InputNumber.jsx"></script>
+<script type="text/babel" src="components/TextArea/TextArea.jsx"></script>
+<script type="text/babel" src="components/Modal/Modal.jsx"></script>
+<script type="text/babel" src="components/Drawer/Drawer.jsx"></script>
+<script type="text/babel" src="components/Popconfirm/Popconfirm.jsx"></script>
+<script type="text/babel" src="components/Message/Message.jsx"></script>
+<script type="text/babel" src="components/Notification/Notification.jsx"></script>
+<script type="text/babel" src="components/Alert/Alert.jsx"></script>
+
+<!-- Batch 4 — Navigation & layout wrappers -->
+<script type="text/babel" src="components/Menu/Menu.jsx"></script>
+<script type="text/babel" src="components/AppShell/AppShell.jsx"></script>
+<script type="text/babel" src="components/Tabs/Tabs.jsx"></script>
+<script type="text/babel" src="components/Breadcrumb/Breadcrumb.jsx"></script>
+<script type="text/babel" src="components/Steps/Steps.jsx"></script>
+<script type="text/babel" src="components/Dropdown/Dropdown.jsx"></script>
+
+<!-- Batch 5 — Advanced / Pro wrappers -->
+<script type="text/babel" src="components/Tree/Tree.jsx"></script>
+<script type="text/babel" src="components/TreeSelect/TreeSelect.jsx"></script>
+<script type="text/babel" src="components/Cascader/Cascader.jsx"></script>
+<script type="text/babel" src="components/Transfer/Transfer.jsx"></script>
+<script type="text/babel" src="components/Upload/Upload.jsx"></script>
+<script type="text/babel" src="components/Collapse/Collapse.jsx"></script>
+<script type="text/babel" src="components/Result/Result.jsx"></script>
+<script type="text/babel" src="components/Empty/Empty.jsx"></script>
+<script type="text/babel" src="components/Segmented/Segmented.jsx"></script>
+<script type="text/babel" src="components/Slider/Slider.jsx"></script>
+<script type="text/babel" src="components/ColorPicker/ColorPicker.jsx"></script>
+
+<!-- Batch 6 — Charts (ECharts) — base renderer first, then wrappers -->
+<script type="text/babel" src="components/Chart/EChart.jsx"></script>
+<script type="text/babel" src="components/LineChart/LineChart.jsx"></script>
+<script type="text/babel" src="components/BarChart/BarChart.jsx"></script>
+<script type="text/babel" src="components/PieChart/PieChart.jsx"></script>
+<script type="text/babel" src="components/Gauge/Gauge.jsx"></script>
+<script type="text/babel" src="components/Sparkline/Sparkline.jsx"></script>
+
+<!-- Batch 7 — Progress, feedback & misc wrappers -->
+<script type="text/babel" src="components/Progress/Progress.jsx"></script>
+<script type="text/babel" src="components/Spin/Spin.jsx"></script>
+<script type="text/babel" src="components/Skeleton/Skeleton.jsx"></script>
+<script type="text/babel" src="components/Rate/Rate.jsx"></script>
+<script type="text/babel" src="components/Calendar/Calendar.jsx"></script>
+<script type="text/babel" src="components/Search/Search.jsx"></script>
+<script type="text/babel" src="components/NetworkInput/NetworkInput.jsx"></script>
+<script type="text/babel" src="components/Schedule/Schedule.jsx"></script>
+
+<!-- Batch 8 — Card, Divider, Typography, Space, Grid, Mask wrappers -->
+<script type="text/babel" src="components/Card/Card.jsx"></script>
+<script type="text/babel" src="components/Divider/Divider.jsx"></script>
+<script type="text/babel" src="components/Typography/Typography.jsx"></script>
+<script type="text/babel" src="components/Space/Space.jsx"></script>
+<script type="text/babel" src="components/Grid/Grid.jsx"></script>
+<script type="text/babel" src="components/Mask/Mask.jsx"></script>
+
+<!-- Batch 9 — Anchor, Affix, FloatButton, Watermark, QRCode, Splitter, Image, Timeline, Tour, token boards -->
+<script type="text/babel" src="components/Anchor/Anchor.jsx"></script>
+<script type="text/babel" src="components/Affix/Affix.jsx"></script>
+<script type="text/babel" src="components/FloatButton/FloatButton.jsx"></script>
+<script type="text/babel" src="components/Watermark/Watermark.jsx"></script>
+<script type="text/babel" src="components/QRCode/QRCode.jsx"></script>
+<script type="text/babel" src="components/Splitter/Splitter.jsx"></script>
+<script type="text/babel" src="components/Image/Image.jsx"></script>
+<script type="text/babel" src="components/Timeline/Timeline.jsx"></script>
+<script type="text/babel" src="components/Tour/Tour.jsx"></script>
+<script type="text/babel" src="components/ColorTokens/ColorTokens.jsx"></script>
+<script type="text/babel" src="components/Elevation/Elevation.jsx"></script>
+
+<!-- Batch 10 — List, AutoComplete, Mentions, Carousel, Flex wrappers -->
+<script type="text/babel" src="components/List/List.jsx"></script>
+<script type="text/babel" src="components/AutoComplete/AutoComplete.jsx"></script>
+<script type="text/babel" src="components/Mentions/Mentions.jsx"></script>
+<script type="text/babel" src="components/Carousel/Carousel.jsx"></script>
+<script type="text/babel" src="components/Flex/Flex.jsx"></script>
+
+<!-- Batch 11 — ConfigProvider, Link, Illustration wrappers (Spin/Skeleton load in Batch 7 slot) -->
+<script type="text/babel" src="components/ConfigProvider/ConfigProvider.jsx"></script>
+<script type="text/babel" src="components/Link/Link.jsx"></script>
+<script src="components/Illustration/illustrations-omada.js"></script>
+<script type="text/babel" src="components/Illustration/Illustration.jsx"></script>
+
+<!-- Batch 12 — IconBoard (icon specimen) + ChartEmpty (chart empty-state pattern) wrappers -->
+<script type="text/babel" src="components/IconBoard/IconBoard.jsx"></script>
+<script type="text/babel" src="components/ChartEmpty/ChartEmpty.jsx"></script>
+
+<!-- Batch 13 — Motion (spec board) + LoadingStates (loading catalogue) + FormValidation (validation board) wrappers -->
+<script type="text/babel" src="components/Motion/Motion.jsx"></script>
+<script type="text/babel" src="components/LoadingStates/LoadingStates.jsx"></script>
+<script type="text/babel" src="components/FormValidation/FormValidation.jsx"></script>
+
+<!-- Batch 14 — Accessibility · Density · Responsive · Spacing spec boards -->
+<script type="text/babel" src="components/Accessibility/Accessibility.jsx"></script>
+<script type="text/babel" src="components/Density/Density.jsx"></script>
+<script type="text/babel" src="components/Responsive/Responsive.jsx"></script>
+<script type="text/babel" src="components/Spacing/Spacing.jsx"></script>
+
+<!-- Batch 15 — Content · Localization · Theming spec boards + Countdown primitive -->
+<script type="text/babel" src="components/Content/Content.jsx"></script>
+<script type="text/babel" src="components/Localization/Localization.jsx"></script>
+<script type="text/babel" src="components/Theming/Theming.jsx"></script>
+<script type="text/babel" src="components/Countdown/Countdown.jsx"></script>
+
+<!-- Batch 16 — App (static-method context) + ChartTokens · FormPatterns · TablePatterns spec boards + ErrorBoundary -->
+<script type="text/babel" src="components/App/App.jsx"></script>
+<script type="text/babel" src="components/ChartTokens/ChartTokens.jsx"></script>
+<script type="text/babel" src="components/FormPatterns/FormPatterns.jsx"></script>
+<script type="text/babel" src="components/TablePatterns/TablePatterns.jsx"></script>
+<script type="text/babel" src="components/ErrorBoundary/ErrorBoundary.jsx"></script>
+
+<!-- Batch 17 — ToastPatterns · CommandPalette · VirtualList · ThemeExport · PrintExport -->
+<script type="text/babel" src="components/ToastPatterns/ToastPatterns.jsx"></script>
+<script type="text/babel" src="components/CommandPalette/CommandPalette.jsx"></script>
+<script type="text/babel" src="components/VirtualList/VirtualList.jsx"></script>
+<script type="text/babel" src="components/ThemeExport/ThemeExport.jsx"></script>
+<script type="text/babel" src="components/PrintExport/PrintExport.jsx"></script>
+
+<!-- Batch 18 — SortableList · FormWizard · DataExport · NotificationCenter · Workspace -->
+<script type="text/babel" src="components/SortableList/SortableList.jsx"></script>
+<script type="text/babel" src="components/FormWizard/FormWizard.jsx"></script>
+<script type="text/babel" src="components/DataExport/DataExport.jsx"></script>
+<script type="text/babel" src="components/NotificationCenter/NotificationCenter.jsx"></script>
+<script type="text/babel" src="components/Workspace/Workspace.jsx"></script>
+
+<!-- Batch 19 — ThemeTransition · BoardView · SearchResults · BulkActions · FilterBuilder · SettingsPage · ShortcutsOverlay -->
+<script type="text/babel" src="components/ThemeTransition/ThemeTransition.jsx"></script>
+<script type="text/babel" src="components/BoardView/BoardView.jsx"></script>
+<script type="text/babel" src="components/SearchResults/SearchResults.jsx"></script>
+<script type="text/babel" src="components/BulkActions/BulkActions.jsx"></script>
+<script type="text/babel" src="components/FilterBuilder/FilterBuilder.jsx"></script>
+<script type="text/babel" src="components/SettingsPage/SettingsPage.jsx"></script>
+<script type="text/babel" src="components/ShortcutsOverlay/ShortcutsOverlay.jsx"></script>
+
+<!-- Batch 20 — SetupChecklist · WidgetGrid · DataGrid · SavedViews · DiffView · UploadQueue · PresenceStack -->
+<script type="text/babel" src="components/SetupChecklist/SetupChecklist.jsx"></script>
+<script type="text/babel" src="components/WidgetGrid/WidgetGrid.jsx"></script>
+<script type="text/babel" src="components/DataGrid/DataGrid.jsx"></script>
+<script type="text/babel" src="components/SavedViews/SavedViews.jsx"></script>
+<script type="text/babel" src="components/DiffView/DiffView.jsx"></script>
+<script type="text/babel" src="components/UploadQueue/UploadQueue.jsx"></script>
+<script type="text/babel" src="components/PresenceStack/PresenceStack.jsx"></script>
+
+<!-- Batch 21 — Topbar · ActivityLog · CommentThread · MetricCards · DataExplorer · Coachmarks · TopologyMap -->
+<script type="text/babel" src="components/Topbar/Topbar.jsx"></script>
+<script type="text/babel" src="components/ActivityLog/ActivityLog.jsx"></script>
+<script type="text/babel" src="components/CommentThread/CommentThread.jsx"></script>
+<script type="text/babel" src="components/MetricCards/MetricCards.jsx"></script>
+<script type="text/babel" src="components/DataExplorer/DataExplorer.jsx"></script>
+<script type="text/babel" src="components/Coachmarks/Coachmarks.jsx"></script>
+<script type="text/babel" src="components/TopologyMap/TopologyMap.jsx"></script>
+
+<!-- Batch 22 — RowSelection · AutoSave · Banner · EditableField · CodeBlock · ContextMenu · KeyValueEditor -->
+<script type="text/babel" src="components/RowSelection/RowSelection.jsx"></script>
+<script type="text/babel" src="components/AutoSave/AutoSave.jsx"></script>
+<script type="text/babel" src="components/Banner/Banner.jsx"></script>
+<script type="text/babel" src="components/EditableField/EditableField.jsx"></script>
+<script type="text/babel" src="components/CodeBlock/CodeBlock.jsx"></script>
+<script type="text/babel" src="components/ContextMenu/ContextMenu.jsx"></script>
+<script type="text/babel" src="components/KeyValueEditor/KeyValueEditor.jsx"></script>
+
+<!-- Batch 23 — UndoToast · ApprovalFlow · WhatsNew · PresetPicker · FieldArray · NotificationMatrix · HintPopover -->
+<script type="text/babel" src="components/UndoToast/UndoToast.jsx"></script>
+<script type="text/babel" src="components/ApprovalFlow/ApprovalFlow.jsx"></script>
+<script type="text/babel" src="components/WhatsNew/WhatsNew.jsx"></script>
+<script type="text/babel" src="components/PresetPicker/PresetPicker.jsx"></script>
+<script type="text/babel" src="components/FieldArray/FieldArray.jsx"></script>
+<script type="text/babel" src="components/NotificationMatrix/NotificationMatrix.jsx"></script>
+<script type="text/babel" src="components/HintPopover/HintPopover.jsx"></script>
+
+<!-- Batch 24 — CommandBar · Cheatsheet · TableInlineCreate · Inspector · ComparisonTable · UsageMeter · ImageField -->
+<script type="text/babel" src="components/CommandBar/CommandBar.jsx"></script>
+<script type="text/babel" src="components/Cheatsheet/Cheatsheet.jsx"></script>
+<script type="text/babel" src="components/TableInlineCreate/TableInlineCreate.jsx"></script>
+<script type="text/babel" src="components/Inspector/Inspector.jsx"></script>
+<script type="text/babel" src="components/ComparisonTable/ComparisonTable.jsx"></script>
+<script type="text/babel" src="components/UsageMeter/UsageMeter.jsx"></script>
+<script type="text/babel" src="components/ImageField/ImageField.jsx"></script>
+
+<!-- Batch 25 — DiffViewer · AuditTrail · SchedulePicker · PortPanel · ConflictDialog · TrafficSparkline · DependencyHint · MaintenanceBanner -->
+<script type="text/babel" src="components/DiffViewer/DiffViewer.jsx"></script>
+<script type="text/babel" src="components/AuditTrail/AuditTrail.jsx"></script>
+<script type="text/babel" src="components/SchedulePicker/SchedulePicker.jsx"></script>
+<script type="text/babel" src="components/PortPanel/PortPanel.jsx"></script>
+<script type="text/babel" src="components/ConflictDialog/ConflictDialog.jsx"></script>
+<script type="text/babel" src="components/TrafficSparkline/TrafficSparkline.jsx"></script>
+<script type="text/babel" src="components/DependencyHint/DependencyHint.jsx"></script>
+<script type="text/babel" src="components/MaintenanceBanner/MaintenanceBanner.jsx"></script>
+
+<!-- Batch 26 — FirmwareRollout · SpeedTest · ClientFingerprint · AlarmRules · TwoFactorSetup · LicenseCard · NetworkSelector · HeatCalendar -->
+<script type="text/babel" src="components/FirmwareRollout/FirmwareRollout.jsx"></script>
+<script type="text/babel" src="components/SpeedTest/SpeedTest.jsx"></script>
+<script type="text/babel" src="components/ClientFingerprint/ClientFingerprint.jsx"></script>
+<script type="text/babel" src="components/AlarmRules/AlarmRules.jsx"></script>
+<script type="text/babel" src="components/TwoFactorSetup/TwoFactorSetup.jsx"></script>
+<script type="text/babel" src="components/LicenseCard/LicenseCard.jsx"></script>
+<script type="text/babel" src="components/NetworkSelector/NetworkSelector.jsx"></script>
+<script type="text/babel" src="components/HeatCalendar/HeatCalendar.jsx"></script>
+
+<!-- Batch 27 — VoucherPrinter · PacketCapture · VlanMatrix · RadiusProfileForm · DnsTable · CertManager · WanFailover · ChannelScanner -->
+<script type="text/babel" src="components/VoucherPrinter/VoucherPrinter.jsx"></script>
+<script type="text/babel" src="components/PacketCapture/PacketCapture.jsx"></script>
+<script type="text/babel" src="components/VlanMatrix/VlanMatrix.jsx"></script>
+<script type="text/babel" src="components/RadiusProfileForm/RadiusProfileForm.jsx"></script>
+<script type="text/babel" src="components/DnsTable/DnsTable.jsx"></script>
+<script type="text/babel" src="components/CertManager/CertManager.jsx"></script>
+<script type="text/babel" src="components/WanFailover/WanFailover.jsx"></script>
+<script type="text/babel" src="components/ChannelScanner/ChannelScanner.jsx"></script>
+
+<!-- Batch 28 — PoeBudget · CaptivePortalEditor · RateLimitProfile · DeviceAdoption · FirewallRules · DhcpReservation · BackupRestore · PortMirror -->
+<script type="text/babel" src="components/PoeBudget/PoeBudget.jsx"></script>
+<script type="text/babel" src="components/CaptivePortalEditor/CaptivePortalEditor.jsx"></script>
+<script type="text/babel" src="components/RateLimitProfile/RateLimitProfile.jsx"></script>
+<script type="text/babel" src="components/DeviceAdoption/DeviceAdoption.jsx"></script>
+<script type="text/babel" src="components/FirewallRules/FirewallRules.jsx"></script>
+<script type="text/babel" src="components/DhcpReservation/DhcpReservation.jsx"></script>
+<script type="text/babel" src="components/BackupRestore/BackupRestore.jsx"></script>
+<script type="text/babel" src="components/PortMirror/PortMirror.jsx"></script>
+<script type="text/babel" src="components/Icon/Icon.demo.jsx"></script>
+<script type="text/babel" src="components/Button/Button.demo.jsx"></script>
+<script type="text/babel" src="components/Tag/Tag.demo.jsx"></script>
+<script type="text/babel" src="components/Input/Input.demo.jsx"></script>
+<script type="text/babel" src="components/Select/Select.demo.jsx"></script>
+<script type="text/babel" src="components/Toggle/Toggle.demo.jsx"></script>
+
+<!-- Batch 2 — Data display demos -->
+<script type="text/babel" src="components/DataTable/DataTable.demo.jsx"></script>
+<script type="text/babel" src="components/Pagination/Pagination.demo.jsx"></script>
+<script type="text/babel" src="components/Descriptions/Descriptions.demo.jsx"></script>
+<script type="text/babel" src="components/Statistic/Statistic.demo.jsx"></script>
+<script type="text/babel" src="components/Badge/Badge.demo.jsx"></script>
+<script type="text/babel" src="components/Avatar/Avatar.demo.jsx"></script>
+<script type="text/babel" src="components/Tooltip/Tooltip.demo.jsx"></script>
+<script type="text/babel" src="components/Popover/Popover.demo.jsx"></script>
+
+<!-- Batch 3 — Forms & overlays demos -->
+<script type="text/babel" src="components/Form/Form.demo.jsx"></script>
+<script type="text/babel" src="components/DatePicker/DatePicker.demo.jsx"></script>
+<script type="text/babel" src="components/InputNumber/InputNumber.demo.jsx"></script>
+<script type="text/babel" src="components/TextArea/TextArea.demo.jsx"></script>
+<script type="text/babel" src="components/Modal/Modal.demo.jsx"></script>
+<script type="text/babel" src="components/Drawer/Drawer.demo.jsx"></script>
+<script type="text/babel" src="components/Popconfirm/Popconfirm.demo.jsx"></script>
+<script type="text/babel" src="components/Message/Message.demo.jsx"></script>
+<script type="text/babel" src="components/Notification/Notification.demo.jsx"></script>
+<script type="text/babel" src="components/Alert/Alert.demo.jsx"></script>
+
+<!-- Batch 4 — Navigation & layout demos -->
+<script type="text/babel" src="components/Menu/Menu.demo.jsx"></script>
+<script type="text/babel" src="components/AppShell/AppShell.demo.jsx"></script>
+<script type="text/babel" src="components/Tabs/Tabs.demo.jsx"></script>
+<script type="text/babel" src="components/Breadcrumb/Breadcrumb.demo.jsx"></script>
+<script type="text/babel" src="components/Steps/Steps.demo.jsx"></script>
+<script type="text/babel" src="components/Dropdown/Dropdown.demo.jsx"></script>
+
+<!-- Batch 5 — Advanced / Pro demos -->
+<script type="text/babel" src="components/Tree/Tree.demo.jsx"></script>
+<script type="text/babel" src="components/TreeSelect/TreeSelect.demo.jsx"></script>
+<script type="text/babel" src="components/Cascader/Cascader.demo.jsx"></script>
+<script type="text/babel" src="components/Transfer/Transfer.demo.jsx"></script>
+<script type="text/babel" src="components/Upload/Upload.demo.jsx"></script>
+<script type="text/babel" src="components/Collapse/Collapse.demo.jsx"></script>
+<script type="text/babel" src="components/Result/Result.demo.jsx"></script>
+<script type="text/babel" src="components/Empty/Empty.demo.jsx"></script>
+<script type="text/babel" src="components/Segmented/Segmented.demo.jsx"></script>
+<script type="text/babel" src="components/Slider/Slider.demo.jsx"></script>
+<script type="text/babel" src="components/ColorPicker/ColorPicker.demo.jsx"></script>
+
+<!-- Batch 6 — Charts demos -->
+<script type="text/babel" src="components/LineChart/LineChart.demo.jsx"></script>
+<script type="text/babel" src="components/BarChart/BarChart.demo.jsx"></script>
+<script type="text/babel" src="components/PieChart/PieChart.demo.jsx"></script>
+<script type="text/babel" src="components/Gauge/Gauge.demo.jsx"></script>
+<script type="text/babel" src="components/Sparkline/Sparkline.demo.jsx"></script>
+
+<!-- Batch 7 — Progress, feedback & misc demos -->
+<script type="text/babel" src="components/Progress/Progress.demo.jsx"></script>
+<script type="text/babel" src="components/Rate/Rate.demo.jsx"></script>
+<script type="text/babel" src="components/Calendar/Calendar.demo.jsx"></script>
+<script type="text/babel" src="components/Search/Search.demo.jsx"></script>
+<script type="text/babel" src="components/NetworkInput/NetworkInput.demo.jsx"></script>
+<script type="text/babel" src="components/Schedule/Schedule.demo.jsx"></script>
+
+<!-- Batch 8 — Card, Divider, Typography, Space, Grid, Mask, RTL demos -->
+<script type="text/babel" src="components/Card/Card.demo.jsx"></script>
+<script type="text/babel" src="components/Divider/Divider.demo.jsx"></script>
+<script type="text/babel" src="components/Typography/Typography.demo.jsx"></script>
+<script type="text/babel" src="components/Space/Space.demo.jsx"></script>
+<script type="text/babel" src="components/Grid/Grid.demo.jsx"></script>
+<script type="text/babel" src="components/Mask/Mask.demo.jsx"></script>
+<script type="text/babel" src="components/RTL/RTL.demo.jsx"></script>
+
+<!-- Batch 9 — Anchor, Affix, FloatButton, Watermark, QRCode, Splitter, Image, Timeline, Tour, token boards demos -->
+<script type="text/babel" src="components/Anchor/Anchor.demo.jsx"></script>
+<script type="text/babel" src="components/Affix/Affix.demo.jsx"></script>
+<script type="text/babel" src="components/FloatButton/FloatButton.demo.jsx"></script>
+<script type="text/babel" src="components/Watermark/Watermark.demo.jsx"></script>
+<script type="text/babel" src="components/QRCode/QRCode.demo.jsx"></script>
+<script type="text/babel" src="components/Splitter/Splitter.demo.jsx"></script>
+<script type="text/babel" src="components/Image/Image.demo.jsx"></script>
+<script type="text/babel" src="components/Timeline/Timeline.demo.jsx"></script>
+<script type="text/babel" src="components/Tour/Tour.demo.jsx"></script>
+<script type="text/babel" src="components/ColorTokens/ColorTokens.demo.jsx"></script>
+<script type="text/babel" src="components/Elevation/Elevation.demo.jsx"></script>
+
+<!-- Batch 10 — List, AutoComplete, Mentions, Carousel, Flex demos -->
+<script type="text/babel" src="components/List/List.demo.jsx"></script>
+<script type="text/babel" src="components/AutoComplete/AutoComplete.demo.jsx"></script>
+<script type="text/babel" src="components/Mentions/Mentions.demo.jsx"></script>
+<script type="text/babel" src="components/Carousel/Carousel.demo.jsx"></script>
+<script type="text/babel" src="components/Flex/Flex.demo.jsx"></script>
+
+<!-- Batch 11 — Spin, Skeleton, ConfigProvider, Link, Illustration demos -->
+<script type="text/babel" src="components/Spin/Spin.demo.jsx"></script>
+<script type="text/babel" src="components/Skeleton/Skeleton.demo.jsx"></script>
+<script type="text/babel" src="components/ConfigProvider/ConfigProvider.demo.jsx"></script>
+<script type="text/babel" src="components/Link/Link.demo.jsx"></script>
+<script type="text/babel" src="components/Illustration/Illustration.demo.jsx"></script>
+
+<!-- Batch 12 — IconBoard, ChartEmpty demos -->
+<script type="text/babel" src="components/IconBoard/IconBoard.demo.jsx"></script>
+<script type="text/babel" src="components/ChartEmpty/ChartEmpty.demo.jsx"></script>
+
+<!-- Batch 13 — Motion, LoadingStates, FormValidation demos -->
+<script type="text/babel" src="components/Motion/Motion.demo.jsx"></script>
+<script type="text/babel" src="components/LoadingStates/LoadingStates.demo.jsx"></script>
+<script type="text/babel" src="components/FormValidation/FormValidation.demo.jsx"></script>
+
+<!-- Batch 14 — Accessibility, Density, Responsive, Spacing demos -->
+<script type="text/babel" src="components/Accessibility/Accessibility.demo.jsx"></script>
+<script type="text/babel" src="components/Density/Density.demo.jsx"></script>
+<script type="text/babel" src="components/Responsive/Responsive.demo.jsx"></script>
+<script type="text/babel" src="components/Spacing/Spacing.demo.jsx"></script>
+
+<!-- Batch 15 — Content, Localization, Theming, Countdown demos -->
+<script type="text/babel" src="components/Content/Content.demo.jsx"></script>
+<script type="text/babel" src="components/Localization/Localization.demo.jsx"></script>
+<script type="text/babel" src="components/Theming/Theming.demo.jsx"></script>
+<script type="text/babel" src="components/Countdown/Countdown.demo.jsx"></script>
+
+<!-- Batch 16 — App, ChartTokens, FormPatterns, TablePatterns, ErrorBoundary demos -->
+<script type="text/babel" src="components/App/App.demo.jsx"></script>
+<script type="text/babel" src="components/ChartTokens/ChartTokens.demo.jsx"></script>
+<script type="text/babel" src="components/FormPatterns/FormPatterns.demo.jsx"></script>
+<script type="text/babel" src="components/TablePatterns/TablePatterns.demo.jsx"></script>
+<script type="text/babel" src="components/ErrorBoundary/ErrorBoundary.demo.jsx"></script>
+
+<!-- Batch 17 — ToastPatterns · CommandPalette · VirtualList · ThemeExport · PrintExport demos -->
+<script type="text/babel" src="components/ToastPatterns/ToastPatterns.demo.jsx"></script>
+<script type="text/babel" src="components/CommandPalette/CommandPalette.demo.jsx"></script>
+<script type="text/babel" src="components/VirtualList/VirtualList.demo.jsx"></script>
+<script type="text/babel" src="components/ThemeExport/ThemeExport.demo.jsx"></script>
+<script type="text/babel" src="components/PrintExport/PrintExport.demo.jsx"></script>
+
+<!-- Batch 18 — SortableList · FormWizard · DataExport · NotificationCenter · Workspace demos -->
+<script type="text/babel" src="components/SortableList/SortableList.demo.jsx"></script>
+<script type="text/babel" src="components/FormWizard/FormWizard.demo.jsx"></script>
+<script type="text/babel" src="components/DataExport/DataExport.demo.jsx"></script>
+<script type="text/babel" src="components/NotificationCenter/NotificationCenter.demo.jsx"></script>
+<script type="text/babel" src="components/Workspace/Workspace.demo.jsx"></script>
+
+<!-- Batch 19 — ThemeTransition · BoardView · SearchResults · BulkActions · FilterBuilder · SettingsPage · ShortcutsOverlay demos -->
+<script type="text/babel" src="components/ThemeTransition/ThemeTransition.demo.jsx"></script>
+<script type="text/babel" src="components/BoardView/BoardView.demo.jsx"></script>
+<script type="text/babel" src="components/SearchResults/SearchResults.demo.jsx"></script>
+<script type="text/babel" src="components/BulkActions/BulkActions.demo.jsx"></script>
+<script type="text/babel" src="components/FilterBuilder/FilterBuilder.demo.jsx"></script>
+<script type="text/babel" src="components/SettingsPage/SettingsPage.demo.jsx"></script>
+<script type="text/babel" src="components/ShortcutsOverlay/ShortcutsOverlay.demo.jsx"></script>
+
+<!-- Batch 20 — SetupChecklist · WidgetGrid · DataGrid · SavedViews · DiffView · UploadQueue · PresenceStack demos -->
+<script type="text/babel" src="components/SetupChecklist/SetupChecklist.demo.jsx"></script>
+<script type="text/babel" src="components/WidgetGrid/WidgetGrid.demo.jsx"></script>
+<script type="text/babel" src="components/DataGrid/DataGrid.demo.jsx"></script>
+<script type="text/babel" src="components/SavedViews/SavedViews.demo.jsx"></script>
+<script type="text/babel" src="components/DiffView/DiffView.demo.jsx"></script>
+<script type="text/babel" src="components/UploadQueue/UploadQueue.demo.jsx"></script>
+<script type="text/babel" src="components/PresenceStack/PresenceStack.demo.jsx"></script>
+
+<!-- Batch 21 — Topbar · ActivityLog · CommentThread · MetricCards · DataExplorer · Coachmarks · TopologyMap demos -->
+<script type="text/babel" src="components/Topbar/Topbar.demo.jsx"></script>
+<script type="text/babel" src="components/ActivityLog/ActivityLog.demo.jsx"></script>
+<script type="text/babel" src="components/CommentThread/CommentThread.demo.jsx"></script>
+<script type="text/babel" src="components/MetricCards/MetricCards.demo.jsx"></script>
+<script type="text/babel" src="components/DataExplorer/DataExplorer.demo.jsx"></script>
+<script type="text/babel" src="components/Coachmarks/Coachmarks.demo.jsx"></script>
+<script type="text/babel" src="components/TopologyMap/TopologyMap.demo.jsx"></script>
+
+<!-- Batch 22 — RowSelection · AutoSave · Banner · EditableField · CodeBlock · ContextMenu · KeyValueEditor demos -->
+<script type="text/babel" src="components/RowSelection/RowSelection.demo.jsx"></script>
+<script type="text/babel" src="components/AutoSave/AutoSave.demo.jsx"></script>
+<script type="text/babel" src="components/Banner/Banner.demo.jsx"></script>
+<script type="text/babel" src="components/EditableField/EditableField.demo.jsx"></script>
+<script type="text/babel" src="components/CodeBlock/CodeBlock.demo.jsx"></script>
+<script type="text/babel" src="components/ContextMenu/ContextMenu.demo.jsx"></script>
+<script type="text/babel" src="components/KeyValueEditor/KeyValueEditor.demo.jsx"></script>
+
+<!-- Batch 23 — UndoToast · ApprovalFlow · WhatsNew · PresetPicker · FieldArray · NotificationMatrix · HintPopover demos -->
+<script type="text/babel" src="components/UndoToast/UndoToast.demo.jsx"></script>
+<script type="text/babel" src="components/ApprovalFlow/ApprovalFlow.demo.jsx"></script>
+<script type="text/babel" src="components/WhatsNew/WhatsNew.demo.jsx"></script>
+<script type="text/babel" src="components/PresetPicker/PresetPicker.demo.jsx"></script>
+<script type="text/babel" src="components/FieldArray/FieldArray.demo.jsx"></script>
+<script type="text/babel" src="components/NotificationMatrix/NotificationMatrix.demo.jsx"></script>
+<script type="text/babel" src="components/HintPopover/HintPopover.demo.jsx"></script>
+
+<!-- Batch 24 — CommandBar · Cheatsheet · TableInlineCreate · Inspector · ComparisonTable · UsageMeter · ImageField demos -->
+<script type="text/babel" src="components/CommandBar/CommandBar.demo.jsx"></script>
+<script type="text/babel" src="components/Cheatsheet/Cheatsheet.demo.jsx"></script>
+<script type="text/babel" src="components/TableInlineCreate/TableInlineCreate.demo.jsx"></script>
+<script type="text/babel" src="components/Inspector/Inspector.demo.jsx"></script>
+<script type="text/babel" src="components/ComparisonTable/ComparisonTable.demo.jsx"></script>
+<script type="text/babel" src="components/UsageMeter/UsageMeter.demo.jsx"></script>
+<script type="text/babel" src="components/ImageField/ImageField.demo.jsx"></script>
+
+<!-- Batch 25 — DiffViewer · AuditTrail · SchedulePicker · PortPanel · ConflictDialog · TrafficSparkline · DependencyHint · MaintenanceBanner demos -->
+<script type="text/babel" src="components/DiffViewer/DiffViewer.demo.jsx"></script>
+<script type="text/babel" src="components/AuditTrail/AuditTrail.demo.jsx"></script>
+<script type="text/babel" src="components/SchedulePicker/SchedulePicker.demo.jsx"></script>
+<script type="text/babel" src="components/PortPanel/PortPanel.demo.jsx"></script>
+<script type="text/babel" src="components/ConflictDialog/ConflictDialog.demo.jsx"></script>
+<script type="text/babel" src="components/TrafficSparkline/TrafficSparkline.demo.jsx"></script>
+<script type="text/babel" src="components/DependencyHint/DependencyHint.demo.jsx"></script>
+<script type="text/babel" src="components/MaintenanceBanner/MaintenanceBanner.demo.jsx"></script>
+
+<!-- Batch 26 — FirmwareRollout · SpeedTest · ClientFingerprint · AlarmRules · TwoFactorSetup · LicenseCard · NetworkSelector · HeatCalendar demos -->
+<script type="text/babel" src="components/FirmwareRollout/FirmwareRollout.demo.jsx"></script>
+<script type="text/babel" src="components/SpeedTest/SpeedTest.demo.jsx"></script>
+<script type="text/babel" src="components/ClientFingerprint/ClientFingerprint.demo.jsx"></script>
+<script type="text/babel" src="components/AlarmRules/AlarmRules.demo.jsx"></script>
+<script type="text/babel" src="components/TwoFactorSetup/TwoFactorSetup.demo.jsx"></script>
+<script type="text/babel" src="components/LicenseCard/LicenseCard.demo.jsx"></script>
+<script type="text/babel" src="components/NetworkSelector/NetworkSelector.demo.jsx"></script>
+<script type="text/babel" src="components/HeatCalendar/HeatCalendar.demo.jsx"></script>
+
+<!-- Batch 27 — VoucherPrinter · PacketCapture · VlanMatrix · RadiusProfileForm · DnsTable · CertManager · WanFailover · ChannelScanner demos -->
+<script type="text/babel" src="components/VoucherPrinter/VoucherPrinter.demo.jsx"></script>
+<script type="text/babel" src="components/PacketCapture/PacketCapture.demo.jsx"></script>
+<script type="text/babel" src="components/VlanMatrix/VlanMatrix.demo.jsx"></script>
+<script type="text/babel" src="components/RadiusProfileForm/RadiusProfileForm.demo.jsx"></script>
+<script type="text/babel" src="components/DnsTable/DnsTable.demo.jsx"></script>
+<script type="text/babel" src="components/CertManager/CertManager.demo.jsx"></script>
+<script type="text/babel" src="components/WanFailover/WanFailover.demo.jsx"></script>
+<script type="text/babel" src="components/ChannelScanner/ChannelScanner.demo.jsx"></script>
+
+<!-- Batch 28 — PoeBudget · CaptivePortalEditor · RateLimitProfile · DeviceAdoption · FirewallRules · DhcpReservation · BackupRestore · PortMirror demos -->
+<script type="text/babel" src="components/PoeBudget/PoeBudget.demo.jsx"></script>
+<script type="text/babel" src="components/CaptivePortalEditor/CaptivePortalEditor.demo.jsx"></script>
+<script type="text/babel" src="components/RateLimitProfile/RateLimitProfile.demo.jsx"></script>
+<script type="text/babel" src="components/DeviceAdoption/DeviceAdoption.demo.jsx"></script>
+<script type="text/babel" src="components/FirewallRules/FirewallRules.demo.jsx"></script>
+<script type="text/babel" src="components/DhcpReservation/DhcpReservation.demo.jsx"></script>
+<script type="text/babel" src="components/BackupRestore/BackupRestore.demo.jsx"></script>
+<script type="text/babel" src="components/PortMirror/PortMirror.demo.jsx"></script>
+<script type="text/babel">
+const { useState } = React;
+const { Radio } = window.antd;
+const { Icon } = window.Omada;
+
+/* Section metadata — order = TOC order. `key` resolves window.OmadaDemos[key]. */
+const SECTIONS = [
+  { id: 'icon',   key: 'Icon',   icon: 'settings',  title: { en: 'Icon', zh: '图标' },
+    desc: { en: 'OmadaIcon — bespoke 24-grid line icons · currentColor · 16 / 20 / 24', zh: 'OmadaIcon — 24 网格线性图标 · currentColor · 16 / 20 / 24' } },
+  { id: 'button', key: 'Button', icon: 'plus',      title: { en: 'Button', zh: '按钮' },
+    desc: { en: '7 variants · 3px radius · 500 weight · flat (no shadow) · 24 / 32 / 40 heights', zh: '7 种类型 · 圆角 3px · 字重 500 · 无阴影 · 高度 24 / 32 / 40' } },
+  { id: 'tag',    key: 'Tag',    icon: 'check-circle', title: { en: 'Tag & Status Pill', zh: '标签与状态' },
+    desc: { en: 'Rectangular tags + the signature round status pill (leading dot, auto-i18n label)', zh: '矩形标签 + 标志性圆形状态标签（前置圆点，自动多语言）' } },
+  { id: 'input',  key: 'Input',  icon: 'edit',      title: { en: 'Input', zh: '输入框' },
+    desc: { en: '4px radius · 3px green focus ring · OmadaIcon prefixes', zh: '圆角 4px · 3px 绿色聚焦环 · OmadaIcon 前缀' } },
+  { id: 'select', key: 'Select', icon: 'chevron-down', title: { en: 'Select', zh: '选择器' },
+    desc: { en: 'Omada chevron · multiple · search · loading · disabled', zh: 'Omada 箭头 · 多选 · 搜索 · 加载 · 禁用' } },
+  { id: 'toggle', key: 'Toggle', icon: 'power',     title: { en: 'Switch · Checkbox · Radio', zh: '开关 · 复选框 · 单选框' },
+    desc: { en: 'Brand-green checked states, all driven by tokens', zh: '品牌绿选中态，全部由 token 驱动' } },
+
+  /* ── Batch 2 — Data display ── */
+  { id: 'datatable', key: 'DataTable', icon: 'devices', title: { en: 'DataTable', zh: '数据表格' },
+    desc: { en: 'Sortable · selectable · filterable · dense · row actions · loading & empty', zh: '排序 · 多选 · 筛选 · 紧凑 · 行操作 · 加载与空状态' } },
+  { id: 'pagination', key: 'Pagination', icon: 'more-horizontal', title: { en: 'Pagination', zh: '分页器' },
+    desc: { en: 'Localized total · size changer · simple · mini · quick jumper', zh: '本地化总数 · 每页条数 · 极简 · 迷你 · 快速跳转' } },
+  { id: 'descriptions', key: 'Descriptions', icon: 'info', title: { en: 'Descriptions', zh: '描述列表' },
+    desc: { en: 'Label / value facts · horizontal & vertical · bordered', zh: '标签 / 值 · 左右与上下 · 带边框' } },
+  { id: 'statistic', key: 'Statistic', icon: 'insights', title: { en: 'Statistic', zh: '统计数值' },
+    desc: { en: 'KPI tiles · leading icon · up/down trend delta · loading', zh: 'KPI 卡片 · 前置图标 · 升降趋势 · 加载' } },
+  { id: 'badge', key: 'Badge', icon: 'bell', title: { en: 'Badge', zh: '徽标数' },
+    desc: { en: 'Count · 99+ · dot · standalone · status · ribbon', zh: '计数 · 99+ · 圆点 · 独立 · 状态 · 缎带' } },
+  { id: 'avatar', key: 'Avatar', icon: 'user', title: { en: 'Avatar', zh: '头像' },
+    desc: { en: 'Sizes 24–64 · initials with tone · image · square · group +N', zh: '尺寸 24–64 · 带色首字母 · 图片 · 方形 · 头像组 +N' } },
+  { id: 'tooltip', key: 'Tooltip', icon: 'help-circle', title: { en: 'Tooltip', zh: '文字提示' },
+    desc: { en: 'Dark spotlight hint · 12 placements · arrow toggle', zh: '深色提示 · 12 个方位 · 箭头开关' } },
+  { id: 'popover', key: 'Popover', icon: 'warning', title: { en: 'Popover', zh: '气泡卡片' },
+    desc: { en: 'Light bubble · confirm with actions · rich content · placements', zh: '浅色气泡 · 带操作的确认 · 富内容 · 多方位' } },
+
+  /* ── Batch 3 — Forms & overlays ── */
+  { id: 'form', key: 'Form', icon: 'edit', title: { en: 'Form', zh: '表单' },
+    desc: { en: 'Label-left ↔ vertical · tooltip labels · rule presets · blur validation', zh: '左右布局 ↔ 垂直 · 提示标签 · 校验预设 · 失焦校验' } },
+  { id: 'datepicker', key: 'DatePicker', icon: 'calendar', title: { en: 'Date & Time Picker', zh: '日期时间选择器' },
+    desc: { en: 'Date · week / month / year · range · date-time · TimePicker · locale-driven', zh: '日期 · 周/月/年 · 范围 · 日期时间 · 时间选择器 · 跟随语言' } },
+  { id: 'inputnumber', key: 'InputNumber', icon: 'minus', title: { en: 'InputNumber', zh: '数字输入框' },
+    desc: { en: 'Basic · unit before/after · formatted · range-clamped · no-controls', zh: '基础 · 前后单位 · 格式化 · 范围限制 · 无步进器' } },
+  { id: 'textarea', key: 'TextArea', icon: 'edit', title: { en: 'TextArea', zh: '多行文本' },
+    desc: { en: 'Auto-size · character count · fixed rows · disabled', zh: '自动高度 · 字数统计 · 固定行数 · 禁用' } },
+  { id: 'modal', key: 'Modal', icon: 'info', title: { en: 'Modal', zh: '对话框' },
+    desc: { en: 'Confirm-delete · discard · info presets · form dialog · centered', zh: '删除确认 · 放弃 · 信息预设 · 表单对话框 · 居中' } },
+  { id: 'drawer', key: 'Drawer', icon: 'export', title: { en: 'Drawer', zh: '抽屉' },
+    desc: { en: 'Device detail (right) · filter panel (left) · sticky Apply/Cancel footer', zh: '设备详情（右）· 筛选面板（左）· 固定 应用/取消 底栏' } },
+  { id: 'popconfirm', key: 'Popconfirm', icon: 'help-circle', title: { en: 'Popconfirm', zh: '气泡确认框' },
+    desc: { en: 'Inline are-you-sure · danger / warning / info tones · optional body', zh: '行内确认 · 危险/警告/信息 色调 · 可选说明' } },
+  { id: 'message', key: 'Message', icon: 'check-circle', title: { en: 'Message (Toast)', zh: '全局提示' },
+    desc: { en: 'Transient toast · success / error / info / warning · loading → result', zh: '瞬时提示 · 成功/错误/信息/警告 · 加载 → 结果' } },
+  { id: 'notification', key: 'Notification', icon: 'bell', title: { en: 'Notification', zh: '通知提醒框' },
+    desc: { en: 'Top-right titled card · description · action buttons · status glyphs', zh: '右上角标题卡片 · 描述 · 操作按钮 · 状态图标' } },
+  { id: 'alert', key: 'Alert', icon: 'warning', title: { en: 'Alert', zh: '警告提示' },
+    desc: { en: 'In-page banner · 4 tones · description + action · closable · banner', zh: '页内横幅 · 四种色调 · 描述+操作 · 可关闭 · 通栏' } },
+
+  /* ── Batch 4 — Navigation & layout ── */
+  { id: 'appshell', key: 'AppShell', icon: 'dashboard', title: { en: 'AppShell', zh: '应用框架' },
+    desc: { en: 'Layout + green top bar + collapsible sider · live theme/lang toggle · breadcrumb + title', zh: '布局 + 绿色顶栏 + 可折叠侧栏 · 主题/语言实时切换 · 面包屑 + 标题' } },
+  { id: 'menu', key: 'Menu', icon: 'devices', title: { en: 'Menu', zh: '导航菜单' },
+    desc: { en: 'Sectioned sidebar · group titles + dividers · left accent bar · submenu · collapsed rail', zh: '分组侧边菜单 · 分组标题+分割线 · 左侧强调条 · 子菜单 · 折叠栏' } },
+  { id: 'tabs', key: 'Tabs', icon: 'insights', title: { en: 'Tabs', zh: '标签页' },
+    desc: { en: 'Line (green ink) · card · editable-card (add/close) · icons · sizes · centered', zh: '线性（绿色墨条）· 卡片 · 可编辑卡片（增/删）· 图标 · 尺寸 · 居中' } },
+  { id: 'breadcrumb', key: 'Breadcrumb', icon: 'chevron-right', title: { en: 'Breadcrumb', zh: '面包屑' },
+    desc: { en: 'Slanted-slash separator · leading icon · dropdown crumb · hover green', zh: '倾斜斜杠分隔符 · 前置图标 · 下拉面包屑 · 悬停变绿' } },
+  { id: 'steps', key: 'Steps', icon: 'check-circle', title: { en: 'Steps', zh: '步骤条' },
+    desc: { en: 'Wizard · wait/process/finish/error + loading · horizontal & vertical · small', zh: '向导 · 等待/进行/完成/错误 + 加载 · 横向与纵向 · 小尺寸' } },
+  { id: 'dropdown', key: 'Dropdown', icon: 'more-vertical', title: { en: 'Dropdown', zh: '下拉菜单' },
+    desc: { en: 'Row actions · icons · danger row · submenu · split button · hover trigger', zh: '行操作 · 图标 · 危险项 · 子菜单 · 分裂按钮 · 悬停触发' } },
+
+  /* ── Batch 5 — Advanced / Pro ── */
+  { id: 'tree', key: 'Tree', icon: 'devices', title: { en: 'Tree', zh: '树形控件' },
+    desc: { en: 'Site / device hierarchy · checkable · type icons · directory full-row · chevron switcher', zh: '站点 / 设备层级 · 可勾选 · 类型图标 · 目录整行 · 箭头切换' } },
+  { id: 'treeselect', key: 'TreeSelect', icon: 'chevron-down', title: { en: 'TreeSelect', zh: '树选择' },
+    desc: { en: 'Assign-to-site picker · single · checkable multiple · search · clearable', zh: '分配站点选择器 · 单选 · 可勾选多选 · 搜索 · 可清除' } },
+  { id: 'cascader', key: 'Cascader', icon: 'chevron-right', title: { en: 'Cascader', zh: '级联选择' },
+    desc: { en: 'Region › City › Site columns · change-on-select · search · multiple', zh: '区域 › 城市 › 站点 多列 · 选择即改变 · 搜索 · 多选' } },
+  { id: 'transfer', key: 'Transfer', icon: 'arrow-right', title: { en: 'Transfer', zh: '穿梭框' },
+    desc: { en: 'Dual-list device assignment · search both sides · one-way · disabled', zh: '双列设备分配 · 双侧搜索 · 单向 · 禁用' } },
+  { id: 'upload', key: 'Upload', icon: 'upload', title: { en: 'Upload', zh: '上传' },
+    desc: { en: 'Trigger button · dashed drag zone · picture-card · seeded list states', zh: '触发按钮 · 虚线拖拽区 · 图片卡片 · 预置列表状态' } },
+  { id: 'collapse', key: 'Collapse', icon: 'chevron-down', title: { en: 'Collapse', zh: '折叠面板' },
+    desc: { en: 'Card panels · white header + grey body · green status · accordion · ghost', zh: '卡片面板 · 白头灰体 · 绿色状态 · 手风琴 · 幽灵' } },
+  { id: 'result', key: 'Result', icon: 'check-circle', title: { en: 'Result', zh: '结果页' },
+    desc: { en: 'Success / error tone discs (OmadaIcon) · 404 / 403 pages · action buttons', zh: '成功 / 错误 色盘（OmadaIcon）· 404 / 403 页 · 操作按钮' } },
+  { id: 'empty', key: 'Empty', icon: 'devices', title: { en: 'Empty', zh: '空状态' },
+    desc: { en: 'No-data placeholder · simple line image · with hint + CTA', zh: '无数据占位 · 简约线性插图 · 带提示与操作' } },
+  { id: 'segmented', key: 'Segmented', icon: 'dashboard', title: { en: 'Segmented', zh: '分段控制器' },
+    desc: { en: 'View / range switch · icons · sizes · block · lifted green thumb', zh: '视图 / 范围切换 · 图标 · 尺寸 · 块级 · 抬起绿色滑块' } },
+  { id: 'slider', key: 'Slider', icon: 'minus', title: { en: 'Slider', zh: '滑动输入条' },
+    desc: { en: 'Green track · graduated marks · range · vertical · unit tooltip', zh: '绿色轨道 · 有级刻度 · 范围 · 垂直 · 单位提示' } },
+  { id: 'colorpicker', key: 'ColorPicker', icon: 'edit', title: { en: 'ColorPicker', zh: '颜色选择器' },
+    desc: { en: 'LED / tag colour · Omada accent presets · gradient · sizes · clearable', zh: 'LED / 标签颜色 · Omada 强调色预设 · 渐变 · 尺寸 · 可清除' } },
+
+  /* ── Batch 6 — Charts (ECharts) ── */
+  { id: 'linechart', key: 'LineChart', icon: 'trending-up', title: { en: 'Line & Area Chart', zh: '折线 / 面积图' },
+    desc: { en: 'Gradient (≤2 lines) · solid (≥3) · stacked area · accent ramp · dashed grid', zh: '渐变（≤2 条）· 纯线（≥3）· 堆叠面积 · 强调色阶 · 虚线网格' } },
+  { id: 'barchart', key: 'BarChart', icon: 'insights', title: { en: 'Bar & Column Chart', zh: '柱状 / 条形图' },
+    desc: { en: 'Column · horizontal bar · grouped · stacked · slim rounded bars', zh: '柱状 · 水平条形 · 分组 · 堆叠 · 细圆角柱' } },
+  { id: 'piechart', key: 'PieChart', icon: 'dashboard', title: { en: 'Pie & Donut Chart', zh: '饼 / 环图' },
+    desc: { en: 'Donut centre total · right legend list · pie · ramp slices · percent tooltip', zh: '环图中心总计 · 右侧图例列表 · 饼图 · 色阶分区 · 百分比提示' } },
+  { id: 'gauge', key: 'Gauge', icon: 'power', title: { en: 'Gauge', zh: '仪表盘' },
+    desc: { en: 'Brand-green progress arc · graded zones · centred value · 270° sweep', zh: '品牌绿进度弧 · 分级区间 · 居中数值 · 270° 扫过' } },
+  { id: 'sparkline', key: 'Sparkline', icon: 'trending-up', title: { en: 'Sparkline', zh: '迷你趋势图' },
+    desc: { en: 'Inline trend for KPI tiles / table cells · tone-coloured · gradient · end dot', zh: 'KPI 卡片 / 表格内联趋势 · 色调区分 · 渐变 · 末点' } },
+
+  /* ── Batch 7 — Progress, feedback & misc ── */
+  { id: 'progress', key: 'Progress', icon: 'insights', title: { en: 'Progress', zh: '进度条' },
+    desc: { en: 'Line · circle · dashboard · steps · active/success/warning/error tones', zh: '线性 · 环形 · 仪表 · 分段 · 进行/成功/警示/错误' } },
+  { id: 'spin', key: 'Spin', icon: 'refresh', title: { en: 'Spin', zh: '加载中' },
+    desc: { en: 'Brand-green spinner · sizes · tip · determinate percent · blocking overlay · delay', zh: '品牌绿加载图标 · 尺寸 · 提示 · 确定进度 · 遮罩 · 延迟' } },
+  { id: 'skeleton', key: 'Skeleton', icon: 'insights', title: { en: 'Skeleton', zh: '骨架屏' },
+    desc: { en: 'Shimmer placeholder · paragraph · avatar + title · button / input / image / node blocks · card shell', zh: '微光占位 · 段落 · 头像+标题 · 按钮/输入/图片/节点占位 · 卡片骨架' } },
+  { id: 'rate', key: 'Rate', icon: 'check-circle', title: { en: 'Rate', zh: '评分' },
+    desc: { en: 'Gold #FFCB00 stars · half-star · read-only · hover tips · custom count', zh: '金色 #FFCB00 星 · 半星 · 只读 · 悬停提示 · 自定义数量' } },
+  { id: 'calendar', key: 'Calendar', icon: 'calendar', title: { en: 'Calendar', zh: '日历' },
+    desc: { en: 'Full month grid · green selected accent · per-day event rows · locale-driven', zh: '整月网格 · 绿色选中强调 · 每日事件 · 跟随语言' } },
+  { id: 'search', key: 'Search', icon: 'search', title: { en: 'Search', zh: '搜索框' },
+    desc: { en: 'Filled field · autocomplete · debounce + Enter · clear · empty state · disabled', zh: '填充字段 · 自动完成 · 防抖+回车 · 清除 · 空状态 · 禁用' } },
+  { id: 'networkinput', key: 'NetworkInput', icon: 'globe', title: { en: 'MAC & IP Input', zh: 'MAC 与 IP 输入框' },
+    desc: { en: 'Segmented octets/pairs · auto-advance · paste · focus green · error · disabled', zh: '分段八位/双字 · 自动跳格 · 粘贴 · 聚焦变绿 · 错误 · 禁用' } },
+  { id: 'sched-grid', key: 'Schedule', icon: 'clock', title: { en: 'Schedule', zh: '时间排程' },
+    desc: { en: '7×24 weekly hour grid · click / drag to paint · select all / clear · disabled', zh: '7×24 周时段网格 · 点击/拖拽涂选 · 全选/清除 · 禁用' } },
+
+  /* ── Batch 8 — Card · Divider · Typography · Space · Grid · Mask · RTL ── */
+  { id: 'card', key: 'Card', icon: 'dashboard', title: { en: 'Card', zh: '卡片' },
+    desc: { en: 'Content container · outlined / shadow / filled · title + extra + actions · meta · grid · inner', zh: '内容容器 · 描边/阴影/填充 · 标题+操作 · 元信息 · 宫格 · 内嵌' } },
+  { id: 'divider', key: 'Divider', icon: 'minus', title: { en: 'Divider', zh: '分割线' },
+    desc: { en: '1px hairline · with-text (left/center/right) · dashed · vertical inline', zh: '1px 细线 · 带文字（左/中/右）· 虚线 · 竖向行内' } },
+  { id: 'typography', key: 'Typography', icon: 'edit', title: { en: 'Typography', zh: '文本' },
+    desc: { en: 'Manrope scale · titles h1–h5 · text types & decoration · paragraph ellipsis / copyable', zh: 'Manrope 字阶 · 标题 h1–h5 · 文本类型与修饰 · 段落省略 / 可复制' } },
+  { id: 'space', key: 'Space', icon: 'more-horizontal', title: { en: 'Space', zh: '间距' },
+    desc: { en: 'Inline gaps on the 8-grid · horizontal / vertical · split · wrap · compact group', zh: '8 网格行内间距 · 横向/纵向 · 分隔 · 换行 · 紧凑组合' } },
+  { id: 'grid', key: 'Grid', icon: 'dashboard', title: { en: 'Grid', zh: '栅格' },
+    desc: { en: '24-column Row / Col · gutter · offset · justify · responsive xs–xl breakpoints', zh: '24 栏 Row / Col · 间隔 · 偏移 · 对齐 · 响应式 xs–xl 断点' } },
+  { id: 'mask', key: 'Mask', icon: 'eye', title: { en: 'Mask', zh: '遮罩' },
+    desc: { en: 'Overlay scrim · loading / blocking confirm / spotlight · dark & light tone · blur', zh: '遮罩层 · 加载 / 阻断确认 / 聚焦 · 深浅色调 · 模糊' } },
+  { id: 'rtl', key: 'RTL', icon: 'languages', title: { en: 'RTL', zh: 'RTL 适配' },
+    desc: { en: 'Direction mirroring · live LTR/RTL toggle · whole library flips via antd direction', zh: '方向镜像 · 实时 LTR/RTL 切换 · 整库通过 antd direction 翻转' } },
+
+  /* ── Batch 9 — Anchor · Affix · FloatButton · Watermark · QRCode · Splitter · Image · Timeline · Tour · Color & Elevation tokens ── */
+  { id: 'anchor', key: 'Anchor', icon: 'insights', title: { en: 'Anchor', zh: '锚点' },
+    desc: { en: 'In-page scroll-spy nav · green ink marker · scoped to a panel · localized titles', zh: '页内滚动定位导航 · 绿色墨标 · 限定面板 · 多语言标题' } },
+  { id: 'affix', key: 'Affix', icon: 'chevron-up', title: { en: 'Affix', zh: '固钉' },
+    desc: { en: 'Stick a toolbar to the edge on scroll · lifted shadow when pinned · scoped target', zh: '滚动时将工具栏吸附到边缘 · 固定时浮起阴影 · 限定容器' } },
+  { id: 'floatbutton', key: 'FloatButton', icon: 'plus', title: { en: 'FloatButton', zh: '悬浮按钮' },
+    desc: { en: 'Pinned action · brand-green primary · hover speed-dial group · BackTop', zh: '固定操作 · 品牌绿主按钮 · 悬停展开组 · 回到顶部' } },
+  { id: 'watermark', key: 'Watermark', icon: 'lock', title: { en: 'Watermark', zh: '水印' },
+    desc: { en: 'Tamper-evident overlay · theme-aware faint mark · config / topology exports', zh: '防篡改水印 · 跟随主题的淡色标记 · 配置 / 拓扑导出' } },
+  { id: 'qrcode', key: 'QRCode', icon: 'devices', title: { en: 'QRCode', zh: '二维码' },
+    desc: { en: 'Add-device / pairing code · brand-green modules · status: active / expired / loading / scanned', zh: '添加设备 / 配对码 · 品牌绿码点 · 状态：有效 / 过期 / 加载 / 已扫描' } },
+  { id: 'splitter', key: 'Splitter', icon: 'more-vertical', title: { en: 'Splitter', zh: '分隔面板' },
+    desc: { en: 'Resizable master / detail · green drag bar · horizontal & vertical · min/max bounds', zh: '可调主从面板 · 绿色拖拽条 · 横向与纵向 · 最小/最大边界' } },
+  { id: 'image', key: 'Image', icon: 'eye', title: { en: 'Image', zh: '图片' },
+    desc: { en: 'Framed tile · click to zoom / rotate lightbox · preview group · localized mask', zh: '带框图块 · 点击缩放 / 旋转灯箱 · 预览组 · 多语言遮罩' } },
+  { id: 'timeline', key: 'Timeline', icon: 'clock', title: { en: 'Timeline', zh: '时间轴' },
+    desc: { en: 'Activity / audit feed · tone dots · OmadaIcon glyphs · processing pulse · pending', zh: '活动 / 审计流 · 色调圆点 · OmadaIcon 图标 · 进行中脉冲 · 待处理' } },
+  { id: 'tour', key: 'Tour', icon: 'help-circle', title: { en: 'Tour', zh: '漫游引导' },
+    desc: { en: 'Guided walkthrough · spotlight target · green glyph step cards · localized buttons', zh: '引导漫游 · 聚光目标 · 绿色图标步骤卡 · 多语言按钮' } },
+  { id: 'colortokens', key: 'ColorTokens', icon: 'dashboard', title: { en: 'Color Tokens', zh: '色彩 Token' },
+    desc: { en: 'Live palette board read from window.OMADA · brand ramp · neutrals · semantic · accent · dark surfaces · click to copy', zh: '读取 window.OMADA 的实时色板 · 品牌色阶 · 中性 · 语义 · 强调 · 深色表面 · 点击复制' } },
+  { id: 'elevation', key: 'Elevation', icon: 'copy', title: { en: 'Elevation & Radius', zh: '投影与圆角' },
+    desc: { en: 'Shadow ladder (sm / md / lg) read from the theme · radius scale · light + dark', zh: '从主题读取的投影梯度（sm / md / lg）· 圆角刻度 · 浅色 + 深色' } },
+
+  /* ── Batch 10 — List · AutoComplete · Mentions · Carousel · Flex ── */
+  { id: 'list', key: 'List', icon: 'devices', title: { en: 'List', zh: '列表' },
+    desc: { en: 'Device roster · meta + row actions + status · header/footer · load more · grid · compact feed', zh: '设备列表 · 元信息+行操作+状态 · 页眉/页脚 · 加载更多 · 网格 · 紧凑动态' } },
+  { id: 'autocomplete', key: 'AutoComplete', icon: 'search', title: { en: 'AutoComplete', zh: '自动完成' },
+    desc: { en: 'Quick-find device / site · grouped suggestions · icon prefix · plain · disabled', zh: '快速查找设备 / 站点 · 分组建议 · 图标前缀 · 普通 · 禁用' } },
+  { id: 'mentions', key: 'Mentions', icon: 'user', title: { en: 'Mentions', zh: '提及' },
+    desc: { en: '@-tag teammates in device notes · avatar suggestions · auto-size · disabled', zh: '在设备备注中 @ 提及同事 · 头像建议 · 自适应高度 · 禁用' } },
+  { id: 'carousel', key: 'Carousel', icon: 'chevron-right', title: { en: 'Carousel', zh: '走马灯' },
+    desc: { en: '“What’s new” panels · brand-green dots · pill arrows · fade · autoplay', zh: '“更新内容”面板 · 品牌绿圆点 · 胶囊箭头 · 淡入淡出 · 自动播放' } },
+  { id: 'flex', key: 'Flex', icon: 'more-horizontal', title: { en: 'Flex', zh: '弹性布局' },
+    desc: { en: 'Flexbox primitive · justify · align · gap steps · wrap · vertical', zh: '弹性布局基元 · justify · align · gap 步进 · 换行 · 垂直' } },
+
+  /* ── Batch 11 — ConfigProvider · Link · Illustration ── */
+  { id: 'configprovider', key: 'ConfigProvider', icon: 'settings', title: { en: 'ConfigProvider', zh: '全局化配置' },
+    desc: { en: 'Scoped presets · live componentSize · compact algorithm · wave · componentDisabled · App message context', zh: '局部预设 · 实时组件尺寸 · 紧凑算法 · 波纹 · 整体禁用 · App message 上下文' } },
+  { id: 'link', key: 'Link', icon: 'external-link', title: { en: 'Link', zh: '链接' },
+    desc: { en: 'Brand-green text link · sizes · leading icon · external (new tab + glyph) · types · in-text', zh: '品牌绿文字链接 · 尺寸 · 前置图标 · 外链（新标签+图标）· 类型 · 文内' } },
+  { id: 'illustration', key: 'Illustration', icon: 'eye', title: { en: 'Illustration', zh: '插画' },
+    desc: { en: 'Original Omada line + flat empty-state scenes · square corners · pale-green fill · small accent · empty-state compositions', zh: '原创 Omada 线+面空状态插画 · 直角 · 浅绿填充 · 小面积强调 · 空状态组合' } },
+
+  /* ── Batch 12 — IconBoard · ChartEmpty ── */
+  { id: 'iconboard', key: 'IconBoard', icon: 'search', title: { en: 'Icon Board', zh: '图标规范' },
+    desc: { en: 'Searchable specimen of the live OMADA_ICONS set · size switch 16 / 20 / 24 · click to copy name', zh: '实时 OMADA_ICONS 图标集可搜索规范 · 尺寸切换 16 / 20 / 24 · 点击复制名称' } },
+  { id: 'chartempty', key: 'ChartEmpty', icon: 'insights', title: { en: 'Chart Empty State', zh: '图表空状态' },
+    desc: { en: 'Frame-only empty pattern · axes + ghost plot at 40% opacity (no illustration) · line / bar / donut · loading pulse', zh: '仅框架空状态 · 坐标轴+幻影图形透明度 40%（无插图）· 折线 / 柱状 / 环图 · 加载脉冲' } },
+
+  /* ── Batch 13 — Motion · LoadingStates · FormValidation ── */
+  { id: 'motion', key: 'Motion', icon: 'arrow-right', title: { en: 'Motion', zh: '动效' },
+    desc: { en: 'Token-driven spec board · durations 120 / 180 / 240ms + ease-out cubic-bezier(0.16,1,0.3,1) · live animated specimens · replay', zh: 'Token 驱动规范看板 · 时长 120 / 180 / 240ms + ease-out cubic-bezier(0.16,1,0.3,1) · 实时动画样例 · 重播' } },
+  { id: 'loadingstates', key: 'LoadingStates', icon: 'refresh', title: { en: 'Loading States', zh: '加载状态' },
+    desc: { en: 'How-to-show-loading catalogue · Spin + Skeleton + ChartEmpty · inline / full-page / skeleton / chart-blank with when-to-use', zh: '加载展示指南 · Spin + Skeleton + ChartEmpty · 行内 / 全页 / 骨架屏 / 图表空白及使用场景' } },
+  { id: 'formvalidation', key: 'FormValidation', icon: 'check-circle', title: { en: 'Form Validation', zh: '表单校验' },
+    desc: { en: 'Inline field states (success / warning / error / validating) + live blur validation via OmadaFormRules', zh: '行内字段状态（成功 / 警告 / 错误 / 校验中）+ 基于 OmadaFormRules 的实时失焦校验' } },
+
+  /* ── Batch 14 — Accessibility · Density · Responsive · Spacing ── */
+  { id: 'accessibility', key: 'Accessibility', icon: 'eye', title: { en: 'Accessibility', zh: '无障碍' },
+    desc: { en: 'Tabbable focus-ring specimens · ≥44 / ≥32px hit targets · forwarded aria-* names, roles & states — the COMPONENT_SPEC §0 floor, live', zh: '可 Tab 聚焦环样例 · ≥44 / ≥32px 点击目标 · 传递 aria-* 名称、角色与状态 —— COMPONENT_SPEC §0 底线的实时呈现' } },
+  { id: 'density', key: 'Density', icon: 'more-horizontal', title: { en: 'Density & Compact', zh: '密度与紧凑' },
+    desc: { en: 'One ConfigProvider · componentSize (small / default / large) + compact algorithm across a specimen set · no per-component overrides', zh: '一个 ConfigProvider · componentSize（小 / 默认 / 大）+ 紧凑算法作用于样例集 · 无需逐组件覆盖' } },
+  { id: 'responsive', key: 'Responsive', icon: 'dashboard', title: { en: 'Responsive', zh: '响应式' },
+    desc: { en: 'Live breakpoint chips (useBreakpoint) · xs–xxl scale · Grid Row/Col reflow + a sidebar that stacks under md', zh: '实时断点（useBreakpoint）· xs–xxl 刻度 · 栅格 Row/Col 重排 + 在 md 以下折叠的侧栏' } },
+  { id: 'spacing', key: 'Spacing', icon: 'more-vertical', title: { en: 'Spacing', zh: '间距' },
+    desc: { en: '8-grid scale as measured bars · gaps · component insets (cell / card / modal) — spacing tokens, not magic numbers', zh: '8 网格刻度量化条 · 间隔 · 组件内边距（单元格 / 卡片 / 对话框）—— 间距 token，而非随意数值' } },
+
+  /* ── Batch 15 — Content · Localization · Theming · Countdown ── */
+  { id: 'content', key: 'Content', icon: 'edit', title: { en: 'Content & Voice', zh: '内容与语态' },
+    desc: { en: 'Writing fundamentals as live do / don’t specimens · casing · product terms · numbers & units · empty / error microcopy', zh: '写作基础的实时 do / don’t 样例 · 大小写 · 产品术语 · 数字与单位 · 空状态 / 错误文案' } },
+  { id: 'localization', key: 'Localization', icon: 'languages', title: { en: 'Localization', zh: '本地化' },
+    desc: { en: 'String-expansion stress (EN / 中文 / DE) · CJK + RTL mirroring · live Intl number / date formatting per locale', zh: '文本伸缩压力测试（中 / 英 / 德）· CJK + RTL 镜像 · 各地区 Intl 数字 / 日期实时格式化' } },
+  { id: 'theming', key: 'Theming', icon: 'dashboard', title: { en: 'Theming & Tokens', zh: '主题与 Token' },
+    desc: { en: 'seed → map → component cascade read live via theme.useToken · brand-hue swap re-derives the whole map from one seed', zh: 'seed → map → component 级联（theme.useToken 实时读取）· 品牌色相切换由单一种子重新派生整套映射' } },
+  { id: 'countdown', key: 'Countdown', icon: 'clock', title: { en: 'Countdown & Timer', zh: '倒计时与计时器' },
+    desc: { en: 'Statistic.Timer / Countdown · deadline count-down · elapsed count-up · with-days format · finish callback · KPI tiles', zh: 'Statistic.Timer / Countdown · 截止倒计时 · 已用正计时 · 含天数格式 · 结束回调 · KPI 卡片' } },
+
+  /* ── Batch 16 — App · ChartTokens · FormPatterns · TablePatterns · ErrorBoundary ── */
+  { id: 'app', key: 'App', icon: 'bell', title: { en: 'App (Feedback Context)', zh: 'App（反馈上下文）' },
+    desc: { en: 'antd-6 App.useApp() — message / notification / modal that inherit theme + locale + direction · scoped defaults · the static-method replacement', zh: 'antd-6 App.useApp() — 继承主题 + 语言 + 方向的 message / notification / modal · 局部默认值 · 静态方法的替代' } },
+  { id: 'charttokens', key: 'ChartTokens', icon: 'trending-up', title: { en: 'Chart Tokens', zh: '图表 Token' },
+    desc: { en: 'Live data-viz board from omada-chart-theme.js · accent ramp · gradient / solid / stacked fill rules as ECharts previews · axis / tooltip tokens', zh: '读取 omada-chart-theme.js 的实时数据可视化看板 · 强调色阶 · 渐变 / 纯线 / 堆叠填充规则（ECharts 预览）· 坐标轴 / 提示框 token' } },
+  { id: 'formpatterns', key: 'FormPatterns', icon: 'edit', title: { en: 'Form Patterns', zh: '表单模式' },
+    desc: { en: 'Layout (vertical / horizontal / inline) · density via ConfigProvider · section grouping · dependent fields revealed with Form.useWatch', zh: '布局（垂直 / 水平 / 行内）· 通过 ConfigProvider 控制密度 · 分组分区 · 用 Form.useWatch 联动的依赖字段' } },
+  { id: 'tablepatterns', key: 'TablePatterns', icon: 'devices', title: { en: 'Table Patterns', zh: '表格模式' },
+    desc: { en: 'Sticky header · expandable detail rows · live summary footer · inline-editable cells — heavier antd Table features on one table', zh: '固定表头 · 可展开详情行 · 实时汇总底栏 · 行内可编辑单元格 —— 一张表上的进阶 antd Table 能力' } },
+  { id: 'errorboundary', key: 'ErrorBoundary', icon: 'warning', title: { en: 'Error Boundary', zh: '错误边界' },
+    desc: { en: 'Class boundary → Result composition · catches render errors · Try-again re-mounts the subtree · custom fallback · resetKeys auto-recover', zh: '类边界 → Result 组合 · 捕获渲染错误 · 重试重新挂载子树 · 自定义回退 · resetKeys 自动恢复' } },
+
+  /* ── Batch 17 — ToastPatterns · CommandPalette · VirtualList · ThemeExport · PrintExport ── */
+  { id: 'toastpatterns', key: 'ToastPatterns', icon: 'bell', title: { en: 'Toast Patterns', zh: '反馈模式' },
+    desc: { en: 'Promise toast (loading→result in place) · queue & throttle via maxCount · action toast with Undo · placement — all on App.useApp()', zh: 'Promise 提示（原地 加载→结果）· 通过 maxCount 队列与节流 · 带撤销的操作提示 · 弹出位置 —— 全部基于 App.useApp()' } },
+  { id: 'commandpalette', key: 'CommandPalette', icon: 'command', title: { en: 'Command Palette', zh: '命令面板' },
+    desc: { en: '⌘K / Ctrl+K palette · fuzzy filter · ↑↓ navigate · Enter runs · grouped commands with kbd hints · live shortcut reference', zh: '⌘K / Ctrl+K 面板 · 模糊筛选 · ↑↓ 导航 · 回车执行 · 分组命令带快捷键提示 · 实时快捷键参考' } },
+  { id: 'virtuallist', key: 'VirtualList', icon: 'list', title: { en: 'Virtual List', zh: '虚拟滚动' },
+    desc: { en: '10,000-row Table windowed with the virtual prop · live DOM-row counter proves it · flip off to compare · when / requires / costs guidance', zh: '10,000 行 Table 通过 virtual 属性窗口化 · 实时 DOM 行计数佐证 · 关闭对比 · 何时/前提/代价指南' } },
+  { id: 'themeexport', key: 'ThemeExport', icon: 'braces', title: { en: 'Theme Export', zh: 'Token 导出' },
+    desc: { en: 'Live token board from omada-theme.js · light↔dark diff with Δ markers · click-to-copy values · full token block as copyable JSON', zh: '读取 omada-theme.js 的实时 Token 看板 · 带 Δ 标记的浅色↔深色差异 · 点击复制值 · 完整 token 块可复制 JSON' } },
+  { id: 'printexport', key: 'PrintExport', icon: 'printer', title: { en: 'Print & Export', zh: '打印与导出' },
+    desc: { en: 'Paginated report sheet + Watermark · Save as PDF prints just the sheet (scoped @media print) · keep-together / repeat-headers / watermark · copyable print CSS', zh: '分页报告页 + 水印 · 另存为 PDF 仅打印报告页（限定 @media print）· 保持完整 / 重复表头 / 水印 · 可复制打印 CSS' } },
+
+  /* ── Batch 18 — SortableList, FormWizard, DataExport, NotificationCenter, Workspace ── */
+  { id: 'sortablelist', key: 'SortableList', icon: 'grip-vertical', title: { en: 'Sortable List', zh: '拖动排序' },
+    desc: { en: 'Drag-to-reorder over native HTML5 DnD · grip handle + green drop indicator · keyboard parity (↑/↓/Home/End + aria-live) · controlled or uncontrolled · rich + compact rows', zh: '基于原生 HTML5 拖放的拖动排序 · 手柄 + 绿色放置指示线 · 键盘等价（↑/↓/Home/End + aria-live）· 受控或非受控 · 丰富与紧凑行' } },
+  { id: 'formwizard', key: 'FormWizard', icon: 'check-circle', title: { en: 'Form Wizard', zh: '表单向导' },
+    desc: { en: 'Multi-step Steps + one Form · values persist across Back/Next · per-step validation gates advance · review summary before Finish · loading submit', zh: '多步骤 Steps + 单个 Form · 上/下一步间数值保留 · 逐步校验控制前进 · 完成前确认摘要 · 提交加载态' } },
+  { id: 'dataexport', key: 'DataExport', icon: 'download', title: { en: 'Data Export', zh: '数据导出' },
+    desc: { en: 'CSV / JSON / clipboard from a live Table · real Blob download + clipboard API · RFC-4180 quoting · whole-set or selected rows · live preview with row/byte count', zh: '从实时表格导出 CSV / JSON / 剪贴板 · 真实 Blob 下载 + 剪贴板 API · RFC-4180 转义 · 全量或选中行 · 带行/字节计数的实时预览' } },
+  { id: 'notificationcenter', key: 'NotificationCenter', icon: 'inbox', title: { en: 'Notification Center', zh: '通知中心' },
+    desc: { en: 'Persistent inbox Drawer · unread Badge · tone filter tabs · click-to-read / mark-all / dismiss / clear · tone discs + relative time · Empty states', zh: '常驻收件箱抽屉 · 未读徽标 · 按色调筛选标签 · 点击已读 / 全部已读 / 移除 / 清空 · 色调图标 + 相对时间 · 空状态' } },
+  { id: 'workspace', key: 'Workspace', icon: 'panel-right', title: { en: 'Workspace', zh: '三栏工作区' },
+    desc: { en: 'Three-pane list ↔ detail ↔ inspector from nested Splitters · single-select nav drives detail + inspector · collapsible inspector · draggable seams with min/max · RTL-safe', zh: '嵌套 Splitter 的三栏 列表 ↔ 详情 ↔ 检查器 · 单选导航驱动详情与检查器 · 可折叠检查器 · 带最小/最大限制的可拖拽分隔 · 支持 RTL' } },
+
+  /* ── Batch 19 — ThemeTransition, BoardView, SearchResults, BulkActions, FilterBuilder, SettingsPage, ShortcutsOverlay ── */
+  { id: 'themetransition', key: 'ThemeTransition', icon: 'moon', title: { en: 'Theme Transition', zh: '主题过渡' },
+    desc: { en: 'View Transitions API light↔dark · circular reveal grows from the toggle · graceful instant fallback when unsupported / reduced-motion · live theme swap', zh: 'View Transitions API 浅↔深 · 从开关处生长的圆形展开 · 不支持 / 减弱动效时优雅回退为即时 · 实时主题切换' } },
+  { id: 'boardview', key: 'BoardView', icon: 'columns', title: { en: 'Board (Kanban)', zh: '看板' },
+    desc: { en: 'Drag cards within AND between columns over native DnD · green drop indicator in any column · keyboard ←/→ across columns, ↑/↓ reorder · WIP limits · extends SortableList', zh: '原生拖放在列内与列间拖动卡片 · 任意列的绿色放置指示 · 键盘 ←/→ 跨列、↑/↓ 重排 · WIP 限制 · 扩展 SortableList' } },
+  { id: 'searchresults', key: 'SearchResults', icon: 'search', title: { en: 'Spotlight Search', zh: '聚焦搜索' },
+    desc: { en: '⌘/ grouped entity results (devices / sites / clients / pages) · matched-substring highlight · ↑/↓ across groups · recent on empty · beyond CommandPalette', zh: '⌘/ 分组实体结果（设备 / 站点 / 客户端 / 页面）· 匹配子串高亮 · ↑/↓ 跨组 · 空态显示最近 · CommandPalette 之上' } },
+  { id: 'bulkactions', key: 'BulkActions', icon: 'check-check', title: { en: 'Bulk Actions', zh: '批量操作' },
+    desc: { en: 'Sticky selection bar floats in over a Table on row select · live count · select-all-N / clear across pages · danger action separated · Esc clears · thin Table wrapper', zh: '行选中时浮起的常驻选择栏 · 实时计数 · 跨页全选 N / 清除 · 危险操作分隔 · Esc 清除 · 轻量 Table 封装' } },
+  { id: 'filterbuilder', key: 'FilterBuilder', icon: 'sliders', title: { en: 'Filter Builder', zh: '筛选构建器' },
+    desc: { en: 'Compound query rows [field][operator][value] · type-aware controls · ALL/ANY join · committed chips + a compiled expression · onChange for live table filtering', zh: '复合查询行 [字段][运算符][值] · 按类型自适应控件 · 全部/任一 连接 · 已提交标签 + 编译表达式 · onChange 实时筛选表格' } },
+  { id: 'settingspage', key: 'SettingsPage', icon: 'settings', title: { en: 'Settings Page', zh: '设置页' },
+    desc: { en: 'Sectioned form with a scroll-spy rail + dirty-aware sticky save bar · one Form owns all sections · Save resets baseline with a Saved pulse · Discard reverts · RTL-safe', zh: '带滚动定位侧栏的分区表单 + 感知脏值的常驻保存栏 · 单个 Form 管理全部分区 · 保存重置基线并显示已保存脉冲 · 放弃还原 · 支持 RTL' } },
+  { id: 'shortcutsoverlay', key: 'ShortcutsOverlay', icon: 'keyboard', title: { en: 'Shortcuts Overlay', zh: '快捷键浮层' },
+    desc: { en: '“Press ? for help” sheet · categorised kbd legend (Nav / Actions / View / Editing) · filter box · sequence (G then D) chords · platform-aware ⌘/Ctrl · ignored while typing', zh: '“按 ? 获取帮助”面板 · 分类快捷键图例（导航 / 操作 / 视图 / 编辑）· 筛选框 · 序列（G 然后 D）组合键 · 识别平台 ⌘/Ctrl · 输入时忽略' } },
+
+  /* ── Batch 20 — SetupChecklist, WidgetGrid, DataGrid, SavedViews, DiffView, UploadQueue, PresenceStack ── */
+  { id: 'setupchecklist', key: 'SetupChecklist', icon: 'rocket', title: { en: 'Setup Checklist', zh: '设置清单' },
+    desc: { en: 'First-run onboarding · progress meter over a step list (status disc + hint + one CTA) · current / done / optional-skip states · flips to a success illustration when every required step is done', zh: '首次引导 · 步骤列表上的进度计（状态圆点 + 提示 + 单一操作）· 当前 / 完成 / 可选跳过 状态 · 所有必需步骤完成后切换为成功插画' } },
+  { id: 'widgetgrid', key: 'WidgetGrid', icon: 'dashboard', title: { en: 'Widget Grid', zh: '部件网格' },
+    desc: { en: 'Customisable dashboard · drag tiles between cells over native DnD (SortableList in 2D) · per-tile S/M/L column span · keyboard ←/→/↑/↓ move + [ / ] resize · remove tiles · reflows to 1 column', zh: '可定制仪表盘 · 原生拖放在格间拖动磁贴（二维 SortableList）· 每磁贴 S/M/L 列宽 · 键盘 ←/→/↑/↓ 移动 + [ / ] 调整宽度 · 移除磁贴 · 重排为单列' } },
+  { id: 'datagrid', key: 'DataGrid', icon: 'table', title: { en: 'Data Grid (Inline Edit)', zh: '数据网格（行内编辑）' },
+    desc: { en: 'Spreadsheet-style bulk edit · type-per-column editors (text / number / enum / toggle) · arrow-key cell nav, type-to-edit, Enter/Tab commit, Esc cancel · per-cell validation + dirty marker · Save / Revert bar', zh: '电子表格式批量编辑 · 按列类型的编辑器（文本 / 数字 / 枚举 / 开关）· 方向键导航、输入即编辑、Enter/Tab 提交、Esc 取消 · 单元格校验 + 脏值标记 · 保存 / 还原栏' } },
+  { id: 'savedviews', key: 'SavedViews', icon: 'bookmark', title: { en: 'Saved Views', zh: '已保存视图' },
+    desc: { en: 'Filter bar with named, localStorage-persisted views over FilterBuilder · dirty-aware Update / Save-as-new / Reset · per-view rename / duplicate / delete · onChange drives the table', zh: '基于 FilterBuilder 的命名视图筛选栏（localStorage 持久化）· 感知脏值的 更新 / 另存为新 / 重置 · 逐视图重命名 / 复制 / 删除 · onChange 驱动表格' } },
+  { id: 'diffview', key: 'DiffView', icon: 'compare', title: { en: 'Diff / Compare', zh: '差异对比' },
+    desc: { en: 'Before ↔ after config review · auto-classified added / removed / changed rows with a count summary · split (two-column) ↔ unified patch toggle · changes-only filter · grouped sections', zh: '变更前 ↔ 变更后配置审查 · 自动归类 新增 / 移除 / 更改 行并汇总计数 · 分栏（双列）↔ 合并补丁 切换 · 仅显示更改 · 分组分区' } },
+  { id: 'uploadqueue', key: 'UploadQueue', icon: 'upload', title: { en: 'Upload Queue', zh: '上传队列' },
+    desc: { en: 'Multi-file firmware-push queue · aggregate progress header + per-file bars · queued / uploading / paused / done / error · pause / resume / retry / cancel per row + pause-all / resume-all / clear-completed', zh: '多文件固件推送队列 · 汇总进度头 + 单文件进度条 · 排队 / 上传 / 暂停 / 完成 / 失败 · 逐行 暂停 / 继续 / 重试 / 取消 + 全部暂停 / 全部继续 / 清除已完成' } },
+  { id: 'presencestack', key: 'PresenceStack', icon: 'clients', title: { en: 'Presence Stack', zh: '协作在线' },
+    desc: { en: 'Collaboration cue · overlapping avatars with live / idle / offline dots · editing ring on the pen-holder · hover name + status · “+N” overflow opens a roster popover · “N viewing” label', zh: '协作提示 · 重叠头像带 活跃 / 空闲 / 离线 圆点 · 编辑者绿色光环 · 悬停显示姓名 + 状态 · “+N” 溢出打开成员名单气泡 · “N 人正在查看” 标签' } },
+
+  /* ── Batch 21 — Topbar, ActivityLog, CommentThread, MetricCards, DataExplorer, Coachmarks, TopologyMap ── */
+  { id: 'topbar', key: 'Topbar', icon: 'more-horizontal', title: { en: 'Topbar', zh: '命令栏' },
+    desc: { en: 'Responsive command bar · title + text-nav lead · right action cluster that collapses into a “more” (⋮) overflow Dropdown via ResizeObserver · brand/danger tones · badges · Tooltip on icon-only · the un-branded sibling of AppShell', zh: '响应式命令栏 · 标题 + 文字导航前导 · 右侧操作簇通过 ResizeObserver 折叠进“更多”(⋮) 溢出下拉 · 品牌/危险色调 · 徽标 · 纯图标带文字提示 · AppShell 的无品牌姊妹组件' } },
+  { id: 'activitylog', key: 'ActivityLog', icon: 'list', title: { en: 'Activity Log', zh: '活动日志' },
+    desc: { en: 'Audit feed grouped by day (Today / Yesterday / date) · tone icon disc + actor·action·target chip + relative time · connector rail · load-more reveals the next page and the remaining count', zh: '按天分组的审计流（今天 / 昨天 / 日期）· 色调图标圆点 + 操作者·动作·目标标签 + 相对时间 · 连接线 · 加载更多展开下一页与剩余计数' } },
+  { id: 'commentthread', key: 'CommentThread', icon: 'docs', title: { en: 'Comment Thread', zh: '评论讨论串' },
+    desc: { en: 'Inline annotation cue · a numbered pin opens a Popover thread (anchor header + resolve toggle + comment list + composer) · ⌘↵ to post · @-mention chips · resolved state greys the pin · also usable inline in a drawer', zh: '行内批注提示 · 编号图钉打开气泡讨论串（锚点头 + 解决开关 + 评论列表 + 编辑器）· ⌘↵ 发送 · @ 提及标签 · 解决后图钉变灰 · 亦可在抽屉中内联使用' } },
+  { id: 'metriccards', key: 'MetricCards', icon: 'insights', title: { en: 'Metric Cards', zh: '指标卡片组' },
+    desc: { en: 'KPI cluster · responsive tile grid with icon + value + comparison delta (good/bad-aware, goodWhenDown flips it) + “vs last period” + inline Sparkline + min–max range · shared range Segmented switcher', zh: 'KPI 卡片组 · 响应式磁贴网格含图标 + 数值 + 对比增量（识别好坏，goodWhenDown 反转）+“较上期”+ 内联迷你趋势图 + 最小–最大区间 · 共享区间分段切换器' } },
+  { id: 'dataexplorer', key: 'DataExplorer', icon: 'panel-right', title: { en: 'Data Explorer', zh: '数据浏览器' },
+    desc: { en: 'Three-pane browse · facet checkbox rail (AND across, OR within) + themed Table + row-select preview pane (custom render or key/value) · live N-of-M count · panes collapse on narrow · illustration empty state', zh: '三栏浏览 · 分面复选框侧栏（栏间 AND，栏内 OR）+ 主题表格 + 选行预览栏（自定义渲染或键值）· 实时 N/M 计数 · 窄屏折叠 · 插画空状态' } },
+  { id: 'coachmarks', key: 'Coachmarks', icon: 'rocket', title: { en: 'Coachmarks', zh: '功能引导' },
+    desc: { en: 'Feature-spotlight sequence (lighter than Tour) · scoped to a container · box-shadow-mask spotlight + pulsing beacon + step callout (dots · Back/Next/Done · Skip) · auto-flip placement · → / ← / Esc keys · reduced-motion aware', zh: '功能聚光序列（比漫游引导更轻）· 限定于容器 · box-shadow 遮罩聚光 + 脉冲信标 + 步骤气泡（圆点 · 上/下/完成 · 跳过）· 自动翻转方位 · → / ← / Esc 键 · 识别减弱动效' } },
+  { id: 'topologymap', key: 'TopologyMap', icon: 'map', title: { en: 'Topology Map', zh: '拓扑图' },
+    desc: { en: 'Connection mini-map · device nodes over status-coloured SVG links · selectable chips (type glyph + status ring + dot) · selecting lifts a node and dims the rest · up/degraded/down/idle legend · normalised x/y layout', zh: '连接迷你图 · 设备节点叠加状态着色 SVG 链路 · 可选芯片（类型字形 + 状态环 + 圆点）· 选中抬起节点并淡化其余 · 正常/降级/中断/空闲 图例 · 归一化 x/y 布局' } },
+
+  /* ── Batch 22 — RowSelection, AutoSave, Banner, EditableField, CodeBlock, ContextMenu, KeyValueEditor ── */
+  { id: 'rowselection', key: 'RowSelection', icon: 'check-check', title: { en: 'Row Selection', zh: '行选择' },
+    desc: { en: 'Keyboard- & range-aware selection over a Table · click to select, Shift-click / Shift+↑↓ for a contiguous range, ⌘/Ctrl-click to toggle, ⌘/Ctrl+A all, Esc clear · roving active row (↑↓ + Space) · sticky count + bulk-action bar', zh: '表格上的键盘与范围选择 · 点击选择、Shift 点击 / Shift+↑↓ 选连续范围、⌘/Ctrl 点击切换、⌘/Ctrl+A 全选、Esc 清除 · 游动当前行（↑↓ + 空格）· 常驻计数 + 批量操作栏' } },
+  { id: 'autosave', key: 'AutoSave', icon: 'refresh', title: { en: 'AutoSave', zh: '自动保存' },
+    desc: { en: 'The "your work is kept" cue · inline chip cycles idle → saving → saved (ticking "saved 4s ago") + error (inline Retry) + conflict (amber Keep-mine / Use-theirs / Review bar) · companion useAutoSave hook debounces & drives status', zh: '“工作已保存”提示 · 行内状态片在 空闲 → 保存中 → 已保存（“4 秒前已保存”实时刷新）+ 错误（行内重试）+ 冲突（琥珀色 保留我的 / 使用对方 / 查看差异 栏）间切换 · 配套 useAutoSave 钩子防抖并驱动状态' } },
+  { id: 'banner', key: 'Banner', icon: 'flag', title: { en: 'Banner', zh: '公告横幅' },
+    desc: { en: 'Full-width system / announcement bar · info / success / warning / critical / brand tones with leading icon + inline action · dismissal persists to localStorage (hidden on reload) · Stack + reset · full-bleed variant', zh: '全宽系统 / 公告栏 · 信息 / 成功 / 警告 / 严重 / 品牌 色调含前置图标 + 行内操作 · 关闭状态持久化到 localStorage（刷新后隐藏）· Stack + 重置 · 通栏变体' } },
+  { id: 'editablefield', key: 'EditableField', icon: 'edit', title: { en: 'Editable Field', zh: '行内编辑字段' },
+    desc: { en: 'Inline click-to-edit a single value · text / number / select controls · Enter / blur / ✓ commits, Esc / ✕ reverts · validate() blocks commit with an inline error · empty → muted "Not set" · pencil affordance on hover', zh: '单值行内点击编辑 · 文本 / 数字 / 选择 控件 · Enter / 失焦 / ✓ 提交，Esc / ✕ 还原 · validate() 以行内错误阻止提交 · 空值 → 灰色“未设置”· 悬停显示铅笔' } },
+  { id: 'codeblock', key: 'CodeBlock', icon: 'braces', title: { en: 'Code Block', zh: '代码块' },
+    desc: { en: 'Read-only config / code viewer · filename + lang header · copy (→ "Copied") + line numbers + wrap toggle · diff mode tints added / removed rows with +/− gutter marks and an added/removed count · no syntax engine (calm)', zh: '只读配置 / 代码查看器 · 文件名 + 语言头 · 复制（→“已复制”）+ 行号 + 换行开关 · 差异模式为新增 / 移除行着色并带 +/− 标记与计数 · 无语法高亮引擎（克制）' } },
+  { id: 'contextmenu', key: 'ContextMenu', icon: 'more-vertical', title: { en: 'Context Menu', zh: '右键菜单' },
+    desc: { en: 'Right-click menu over any target · opens the Omada Dropdown surface at the cursor · antd menu-item model (icon / danger / divider / submenu / disabled) · onSelect(key) · selectable target gets a focus ring · RTL-mirrored', zh: '任意目标的右键菜单 · 在光标处打开 Omada 下拉面 · antd 菜单项模型（图标 / 危险 / 分割 / 子菜单 / 禁用）· onSelect(key) · 可选目标带聚焦环 · RTL 镜像' } },
+  { id: 'keyvalueeditor', key: 'KeyValueEditor', icon: 'list', title: { en: 'Key-Value Editor', zh: '键值编辑器' },
+    desc: { en: 'Add / edit / remove / reorder key→value pairs (headers, env vars, tag maps) · grip drag (native DnD) + ↑↓ keyboard reorder · empty keys ignored on emit, duplicate keys flagged inline · controlled value / onChange', zh: '增 / 改 / 删 / 重排 键→值 对（HTTP 头、环境变量、标签映射）· 手柄拖拽（原生 DnD）+ ↑↓ 键盘重排 · 空键不计入，重复键行内标记 · 受控 value / onChange' } },
+
+  /* ── Batch 23 — UndoToast, ApprovalFlow, WhatsNew, PresetPicker, FieldArray, NotificationMatrix, HintPopover ── */
+  { id: 'undotoast', key: 'UndoToast', icon: 'refresh', title: { en: 'Undo Toast', zh: '撤销提示' },
+    desc: { en: 'Global undo snackbar after a destructive / bulk action · single Undo action + a countdown hairline that auto-commits · hover pauses · sticky (duration 0) variant · stack capped at 3 · useUndo() hook + imperative push/clear', zh: '破坏性 / 批量操作后的全局撤销提示条 · 单个撤销操作 + 自动提交的倒计时细线 · 悬停暂停 · 常驻（duration 0）变体 · 最多堆叠 3 条 · useUndo() 钩子 + 命令式 push/clear' } },
+  { id: 'approvalflow', key: 'ApprovalFlow', icon: 'check-check', title: { en: 'Approval Flow', zh: '审批流' },
+    desc: { en: 'A request as a vertical timeline · submitted → reviewing → approved / rejected with actor, time + note per stage · current stage pulses, tone rail + spine · header outcome pill · inline Approve / Reject composer (reason required to reject) → onAction', zh: '请求的纵向时间线 · 已提交 → 审核中 → 已批准 / 已拒绝，每阶段含操作人、时间与备注 · 当前阶段脉冲、色调轨道 + 连线 · 头部结果药丸 · 行内批准 / 拒绝撰写框（拒绝需填原因）→ onAction' } },
+  { id: 'whatsnew', key: 'WhatsNew', icon: 'rocket', title: { en: "What's New", zh: '更新内容' },
+    desc: { en: 'Changelog drawer behind an unread-badged trigger · reverse-chronological release entries grouped by new / improved / fixed tags · unread = newer than last opened, persisted to localStorage · opening marks seen · Trigger / Panel split for custom placement', zh: '带未读徽标触发器的更新日志抽屉 · 倒序版本条目，按 新增 / 优化 / 修复 标签分组 · 未读 = 比上次打开更新，持久化到 localStorage · 打开即标记已读 · Trigger / Panel 拆分以自定义放置' } },
+  { id: 'presetpicker', key: 'PresetPicker', icon: 'calendar', title: { en: 'Preset Picker', zh: '时间预设选择器' },
+    desc: { en: 'Dashboard time-window control · Segmented quick presets (24h / 7d / 30d / 90d) + Custom revealing a RangePicker · presets resolve a concrete [start, end] from now · inline resolved-span summary · controlled / uncontrolled · onChange({ preset, range })', zh: '仪表盘时间窗控件 · 分段快捷预设（24小时 / 7天 / 30天 / 90天）+ 自定义展开 RangePicker · 预设以当前时间解析为具体 [开始, 结束] · 行内解析跨度摘要 · 受控 / 非受控 · onChange({ preset, range })' } },
+  { id: 'fieldarray', key: 'FieldArray', icon: 'list', title: { en: 'Field Array', zh: '可重复字段组' },
+    desc: { en: 'Repeatable form-row group (port forwards, static routes, reservations) · typed column schema (text / number / select) · Add appends, per-row trash removes to min · required cells flag inline · min / max bounds · controlled value / onChange', zh: '可重复的表单行组（端口转发、静态路由、保留地址）· 类型化列模式（文本 / 数字 / 选择）· 添加追加、逐行删除至 min · 必填单元格行内标记 · min / max 边界 · 受控 value / onChange' } },
+  { id: 'notificationmatrix', key: 'NotificationMatrix', icon: 'bell', title: { en: 'Notification Matrix', zh: '通知矩阵' },
+    desc: { en: 'Channel × event preference grid · a Switch per cell, column headers bulk-toggle a whole channel (all / some / none state) · inapplicable cells locked to a dash · "{n} of {total} on" footer · flat "event:channel" value map / onChange', zh: '渠道 × 事件 偏好网格 · 每格一个开关，列标题批量切换整列渠道（全 / 部分 / 无 状态）· 不适用单元格锁定为短横线 · “{total} 中 {n} 项开启”页脚 · 扁平 “event:channel” 值映射 / onChange' } },
+  { id: 'hintpopover', key: 'HintPopover', icon: 'help-circle', title: { en: 'Hint Popover', zh: '提示气泡' },
+    desc: { en: 'Popover wrapper for the hard cases · long content (cap width + scroll body) · follow-cursor bubble for maps / charts · controlled open via open / onOpenChange · nested independent triggers · wrapDisabled so a disabled control still triggers', zh: '处理疑难场景的气泡封装 · 长内容（限宽 + 正文滚动）· 用于地图 / 图表的跟随光标气泡 · 通过 open / onOpenChange 受控显隐 · 嵌套且独立的触发器 · wrapDisabled 使被禁用控件仍可触发' } },
+
+  /* ── Batch 24 — CommandBar, Cheatsheet, TableInlineCreate, Inspector, ComparisonTable, UsageMeter, ImageField ── */
+  { id: 'commandbar', key: 'CommandBar', icon: 'check-check', title: { en: 'Command Bar', zh: '浮动操作栏' },
+    desc: { en: 'Floating contextual selection toolbar — rises from the bottom-centre of a positioned stage when a multi-select exists, shows a count chip + actions, collapses extras into a ⋮ More menu, and tucks away on clear · distinct from the sticky BulkActions bar · danger-toned actions · onAction / onClear', zh: '浮动情境选择工具栏 — 存在多选时从区域底部居中升起，显示计数标签 + 操作，将多余项收入 ⋮ 更多 菜单，取消选择时收起 · 区别于常驻的 BulkActions 栏 · 危险色操作 · onAction / onClear' } },
+  { id: 'cheatsheet', key: 'Cheatsheet', icon: 'keyboard', title: { en: 'Cheatsheet', zh: '快捷键速查表' },
+    desc: { en: 'Keyboard-shortcut cheatsheet GENERATED from a registered shortcut map — register from anywhere with useShortcuts (opt-in bind wires real handlers), grouped legend + search, platform-aware keys (⌘ vs Ctrl), ? to open · distinct from the static ShortcutsOverlay', zh: '由已注册快捷键映射生成的速查表 — 可在任意位置用 useShortcuts 注册（可选 bind 绑定真实处理函数），分组图例 + 搜索，平台感知按键（⌘ 与 Ctrl），按 ? 打开 · 区别于静态的 ShortcutsOverlay' } },
+  { id: 'tableinlinecreate', key: 'TableInlineCreate', icon: 'table', title: { en: 'Table Inline Create', zh: '表格行内新增' },
+    desc: { en: 'A read-only table with one collapsed "+ Add row" affordance that expands into a typed inline editor (text / number / select) aligned with the columns · required cells flag on a blocked save · Enter saves, Esc cancels · keepOpen to add several · distinct from DataGrid / FieldArray', zh: '只读表格配一个折叠的“+ 添加行”入口，展开为与列对齐的类型化行内编辑器（文本 / 数字 / 选择）· 保存被拦截时必填单元格标记 · 回车保存、Esc 取消 · keepOpen 连续添加 · 区别于 DataGrid / FieldArray' } },
+  { id: 'inspector', key: 'Inspector', icon: 'braces', title: { en: 'Inspector', zh: '配置检视器' },
+    desc: { en: 'Read-only JSON / config tree — collapsible type-coloured nodes, {…} / […] summaries, click a row to COPY ITS PATH (vlans[2].id), copy value, search filters + force-expands matches, expand-all / collapse-all · distinct from Tree / CodeBlock', zh: '只读 JSON / 配置树 — 可折叠的类型着色节点，{…} / […] 摘要，点击行复制其路径（vlans[2].id），复制值，搜索筛选并强制展开匹配项，全部展开 / 折叠 · 区别于 Tree / CodeBlock' } },
+  { id: 'comparisontable', key: 'ComparisonTable', icon: 'compare', title: { en: 'Comparison Table', zh: '对比表格' },
+    desc: { en: 'Side-by-side spec / plan comparison with a STICKY first column — labels stay pinned while product columns scroll sideways, grouped attribute rows, boolean check / dash cells, a highlighted "recommended" column + ribbon, and a "differences only" toggle · distinct from DiffView', zh: '并排规格 / 套餐对比，首列固定 — 产品列横向滚动时标签保持固定，分组属性行，布尔 勾 / 横 单元格，高亮“推荐”列 + 缎带，以及“仅显示差异”开关 · 区别于 DiffView' } },
+  { id: 'usagemeter', key: 'UsageMeter', icon: 'insights', title: { en: 'Usage Meter', zh: '用量计量' },
+    desc: { en: 'Quota / usage meter cluster with THRESHOLD tones — colours ok → warning → critical → over as it fills, reads out used / total in real units, accepts a stacked breakdown (accent ramp + legend) or a compact conic ring · distinct from Progress / Gauge', zh: '带阈值色调的配额 / 用量计量组 — 随填充着色 正常 → 警告 → 危急 → 超额，以真实单位读出 已用 / 总量，支持堆叠分解（强调色阶 + 图例）或紧凑环形 · 区别于 Progress / Gauge' } },
+  { id: 'imagefield', key: 'ImageField', icon: 'eye', title: { en: 'Image Field', zh: '图片字段' },
+    desc: { en: 'Preview-first image input — drop or pick images and see them at once, as a round avatar (set / change / remove) or a reorderable gallery (per-tile remove, drag to reorder, primary tag) · validates type + size · local data-URL previews, no transfer · distinct from Upload / UploadQueue', zh: '预览优先的图片输入 — 拖入或选择图片即时可见，作为圆形头像（设置 / 更换 / 移除）或可重排相册（逐图移除、拖动重排、主图标记）· 校验类型 + 大小 · 本地 data-URL 预览，不传输 · 区别于 Upload / UploadQueue' } },
+
+  /* ── Batch 25 — DiffViewer, AuditTrail, SchedulePicker, PortPanel, ConflictDialog, TrafficSparkline, DependencyHint, MaintenanceBanner ── */
+  { id: 'diffviewer', key: 'DiffViewer', icon: 'file-text', title: { en: 'Diff Viewer', zh: '差异查看器' },
+    desc: { en: 'Line-level text / config diff (LCS) — added / removed highlighting, dual line-number gutters, +n/−n readout, unified ⇄ split toggle, long unchanged runs fold into an expandable row · code panes stay LTR · distinct from DiffView, which compares field values', zh: '行级文本 / 配置差异（LCS）— 新增 / 删除高亮，双行号栏，+n/−n 读数，统一 ⇄ 并排切换，较长未更改段折叠为可展开行 · 代码区保持 LTR · 区别于按字段对比的 DiffView' } },
+  { id: 'audittrail', key: 'AuditTrail', icon: 'shield', title: { en: 'Audit Trail', zh: '安全审计日志' },
+    desc: { en: 'Day-grouped security audit log — time · actor · action · target with IP chip + result pill (success / failed / denied), failed & denied rows tinted, result filter · absolute mono timestamps · distinct from the live ActivityLog feed', zh: '按日分组的安全审计日志 — 时间 · 操作者 · 动作 · 对象，带 IP 标签 + 结果胶囊（成功 / 失败 / 拒绝），失败与拒绝行着色，结果筛选 · 绝对等宽时间戳 · 区别于实时事件流 ActivityLog' } },
+  { id: 'schedulepicker', key: 'SchedulePicker', icon: 'calendar', title: { en: 'Schedule Picker', zh: '排程选择器' },
+    desc: { en: 'Week × hour drag-paint grid for maintenance / access windows — multi-state palette (Allow / Limit / Block) + eraser, one-click presets, human-readable per-day summary, controlled 7×24 value · distinct from the boolean Schedule grid', zh: '用于维护 / 访问窗口的 周 × 小时 拖动绘制网格 — 多状态调色板（允许 / 限速 / 阻止）+ 擦除，一键预设，按日可读摘要，受控 7×24 值 · 区别于布尔开/关网格 Schedule' } },
+  { id: 'portpanel', key: 'PortPanel', icon: 'switch', title: { en: 'Port Panel', zh: '端口面板' },
+    desc: { en: 'Switch faceplate visualization — RJ45 ports in real switch order (odd over even), SFP cages at the end, status tones + PoE dot + uplink mark per tile, click to inspect name · status · speed · VLAN · PoE draw · TX/RX · distinct from TopologyMap', zh: '交换机面板视图 — RJ45 端口按真实顺序排列（奇上偶下），SFP 笼位居末，每个端口带状态色调 + PoE 圆点 + 上联标记，点击查看 名称 · 状态 · 速率 · VLAN · PoE 功耗 · TX/RX · 区别于 TopologyMap' } },
+  { id: 'conflictdialog', key: 'ConflictDialog', icon: 'merge', title: { en: 'Conflict Dialog', zh: '冲突对话框' },
+    desc: { en: 'Concurrent-edit resolution — each conflicting field shows both values as selectable cards (mine | theirs), bulk keep-all / take-all, live tally, Resolve returns the merged object · distinct from ApprovalFlow / AutoSave', zh: '并发编辑解决 — 每个冲突字段以可选卡片展示两个值（我的 | 对方），批量保留 / 采用，实时计数，“解决”返回合并对象 · 区别于 ApprovalFlow / AutoSave' } },
+  { id: 'trafficsparkline', key: 'TrafficSparkline', icon: 'trending-up', title: { en: 'Traffic Sparkline', zh: '流量趋势行' },
+    desc: { en: 'Inline mini-trend rows for tables — label · sparkline · current · Δ chip on one aligned grid, rising green / falling red / flat neutral, shared-scale toggle for honest magnitude comparison · lightweight inline SVG, no chart instances · distinct from Sparkline', zh: '表格行内迷你趋势 — 标签 · 趋势线 · 当前值 · Δ 标签 在同一对齐网格，上升绿 / 下降红 / 持平中性，统一比例开关使量级对比真实 · 轻量行内 SVG，无图表实例 · 区别于 Sparkline' } },
+  { id: 'dependencyhint', key: 'DependencyHint', icon: 'settings-2', title: { en: 'Dependency Hint', zh: '依赖提示' },
+    desc: { en: 'Setting-dependency callout — enabling A requires B: lists each prerequisite with live On/Off state and one-click Enable (+ Enable all), flips to a success note when met, disable variant warns what turns off too · distinct from HintPopover / FormValidation', zh: '设置依赖提示 — 启用 A 需要 B：列出每个前置条件的实时开/关状态与一键启用（含全部启用），满足后转为成功提示，禁用变体提示连带关闭项 · 区别于 HintPopover / FormValidation' } },
+  { id: 'maintenancebanner', key: 'MaintenanceBanner', icon: 'wrench', title: { en: 'Maintenance Banner', zh: '维护公告栏' },
+    desc: { en: 'Scheduled-window countdown bar — info-toned “starts in 2h 14m” before the window, warning-toned “in progress · ends in…” during, success once complete; dismiss applies to the current phase only · distinct from the static Banner', zh: '计划窗口倒计时公告栏 — 窗口前为信息色“2 小时 14 分后开始”，进行中为警告色“进行中 · …后结束”，完成后为成功色；关闭仅对当前阶段生效 · 区别于静态 Banner' } },
+
+  /* ── Batch 26 — FirmwareRollout, SpeedTest, ClientFingerprint, AlarmRules, TwoFactorSetup, LicenseCard, NetworkSelector, HeatCalendar ── */
+  { id: 'firmwarerollout', key: 'FirmwareRollout', icon: 'rocket', title: { en: 'Firmware Rollout', zh: '固件分批发布' },
+    desc: { en: 'Staged rollout tracker — ordered waves (lab ring → canary → regional → all) with device counts, live progress, state pills and per-wave pause / resume / retry · device-weighted overall % in the header · a failed wave blocks later waves · distinct from UploadQueue / Steps', zh: '分阶段发布跟踪器 — 按序波次（实验环 → 金丝雀 → 区域 → 全部）显示设备数、实时进度、状态胶囊及按波次暂停 / 继续 / 重试 · 头部按设备数加权汇总总进度 · 失败波次阻塞后续波次 · 区别于 UploadQueue / Steps' } },
+  { id: 'speedtest', key: 'SpeedTest', icon: 'gauge', title: { en: 'Speed Test', zh: '测速面板' },
+    desc: { en: 'WAN speed-test result panel — run state machine (latency → download → upload), the active metric cell pulses while its value climbs, finished runs append to an inline-SVG history sparkline (download solid / upload dashed) · presentational simulation built in', zh: 'WAN 测速结果面板 — 运行状态机（延迟 → 下载 → 上传），进行中的指标格脉动且数值实时攀升，完成的测速追加到行内 SVG 历史趋势线（下载实线 / 上传虚线）· 内置演示用模拟' } },
+  { id: 'clientfingerprint', key: 'ClientFingerprint', icon: 'fingerprint', title: { en: 'Client Fingerprint', zh: '客户端指纹' },
+    desc: { en: 'Device-identity card — detected OS / vendor / category with the fingerprinting method, a confidence meter (high / medium / low tones), and a category override Select with a “Manually set” flag + one-click reset to auto · distinct from Descriptions', zh: '设备身份卡片 — 识别出的操作系统 / 厂商 / 类别及指纹识别方式，置信度计量条（高 / 中 / 低色调），及带“手动设定”标记与一键恢复自动的类别覆盖下拉 · 区别于 Descriptions' } },
+  { id: 'alarmrules', key: 'AlarmRules', icon: 'bell', title: { en: 'Alarm Rules', zh: '告警规则' },
+    desc: { en: 'Threshold-rule builder — sentence rows: when [metric] is above/below [value unit] for [n min] → [severity], unit follows the metric, coloured-dot severity Select, per-row enable switch + delete, dashed empty state · distinct from FilterBuilder (which filters a table)', zh: '阈值规则构建器 — 句式行：当 [指标] 高于/低于 [数值单位] 持续 [n 分钟] → [严重级别]，单位跟随指标，带色点的级别下拉，每行启用开关 + 删除，虚线空状态 · 区别于筛选表格的 FilterBuilder' } },
+  { id: 'twofactorsetup', key: 'TwoFactorSetup', icon: 'key', title: { en: 'Two-Factor Setup', zh: '两步验证设置' },
+    desc: { en: 'Three-step 2FA enrolment — otpauth QR (theme-toned, copyable manual key) → 6-digit segmented code input (auto-advance, paste, shake on reject — try 000000) → recovery-codes sheet with copy-all + client-side .txt download → success state', zh: '三步两步验证设置 — otpauth 二维码（跟随主题色调，含可复制手动密钥）→ 6 位分格验证码输入（自动跳格、支持粘贴、错误抖动 — 可试 000000）→ 恢复代码表（全部复制 + 客户端 .txt 下载）→ 成功状态' } },
+  { id: 'licensecard', key: 'LicenseCard', icon: 'star', title: { en: 'License Card', zh: '许可证卡片' },
+    desc: { en: 'Seat/term license tile — activation-state pill (active / expiring / expired / not activated), seat-usage meter (red ≥ 90%), term dates + days-left chip, masked key with reveal + copy, state-appropriate CTA (Activate / Renew / Manage) · distinct from UsageMeter', zh: '席位/期限许可证卡片 — 激活状态胶囊（已激活 / 即将到期 / 已过期 / 未激活），席位用量计量条（≥ 90% 转红），期限日期 + 剩余天数标签，可显示并复制的掩码密钥，随状态的操作按钮（激活 / 续订 / 管理）· 区别于 UsageMeter' } },
+  { id: 'networkselector', key: 'NetworkSelector', icon: 'building', title: { en: 'Network Selector', zh: '网络切换器' },
+    desc: { en: 'Hierarchical site / network switcher — trigger shows site › network; popover with autofocused search, a Recents group (last 3 picks) and the full site → network tree with VLAN chips + current marker · distinct from the global ⌘K CommandPalette', zh: '层级式站点 / 网络切换器 — 触发器显示 站点 › 网络；弹层含自动聚焦搜索、最近使用分组（最近 3 次）及带 VLAN 标签与当前标记的完整站点 → 网络树 · 区别于全局 ⌘K 命令面板' } },
+  { id: 'heatcalendar', key: 'HeatCalendar', icon: 'calendar', title: { en: 'Heat Calendar', zh: '热力日历' },
+    desc: { en: 'GitHub-style day × week activity heat map ending today — five quantised levels of the brand-green ramp, hover shows value · date, month-boundary labels, Less → More legend + localized total · read-only, distinct from the editable SchedulePicker', zh: 'GitHub 风格的 日 × 周 活动热力图，截至今日 — 品牌绿色阶五个量化等级，悬停显示 数值 · 日期，月界标签，少 → 多 图例 + 本地化总计 · 只读，区别于可编辑的 SchedulePicker' } },
+
+  /* ── Batch 27 — VoucherPrinter, PacketCapture, VlanMatrix, RadiusProfileForm, DnsTable, CertManager, WanFailover, ChannelScanner ── */
+  { id: 'voucherprinter', key: 'VoucherPrinter', icon: 'ticket', title: { en: 'Voucher Printer', zh: '凭证打印' },
+    desc: { en: 'Hotspot voucher batch — code grid (used tickets dimmed + struck) ⇄ miniature-A4 print-sheet preview, duration/data/network meta, idle → printing → queued stub · distinct from LicenseCard', zh: '热点凭证批次 — 凭证码网格（已用票券置灰加删除线）⇄ 迷你 A4 打印页预览，时长/流量/网络元信息，空闲 → 打印中 → 已入队演示 · 区别于 LicenseCard' } },
+  { id: 'packetcapture', key: 'PacketCapture', icon: 'activity', title: { en: 'Packet Capture', zh: '抓包测试' },
+    desc: { en: 'Capture session — interface + BPF-style filter + start/stop, rolling packet/byte/duration/file-size counters with a pulsing live dot, client-side .pcap download stub · distinct from SpeedTest', zh: '抓包会话 — 接口 + BPF 风格过滤器 + 启停控制，运行时滚动的 数据包/字节/时长/文件大小 计数器与脉冲实况点，客户端 .pcap 下载占位 · 区别于 SpeedTest' } },
+  { id: 'vlanmatrix', key: 'VlanMatrix', icon: 'table', title: { en: 'VLAN Matrix', zh: 'VLAN 矩阵' },
+    desc: { en: 'Port × VLAN membership paint grid — click cycles excluded → untagged (U) → tagged (T), drag paints, one untagged VLAN per port enforced · distinct from SchedulePicker and PortPanel', zh: '端口 × VLAN 成员关系绘制网格 — 点击在 非成员 → 未标记（U）→ 已标记（T）间循环，拖动连续绘制，强制每端口仅一个未标记 VLAN · 区别于 SchedulePicker 与 PortPanel' } },
+  { id: 'radiusprofileform', key: 'RadiusProfileForm', icon: 'server', title: { en: 'RADIUS Profile', zh: 'RADIUS 配置' },
+    desc: { en: 'RADIUS profile cluster — auth server/port/secret, accounting switch expanding a second pair, test-connection with idle → testing → reachable / no-response states; editing resets the result', zh: 'RADIUS 配置集群 — 认证服务器/端口/密钥，计费开关展开第二组，测试连接含 空闲 → 测试中 → 可达 / 无响应 状态；编辑会重置结果' } },
+  { id: 'dnstable', key: 'DnsTable', icon: 'globe', title: { en: 'DNS Table', zh: 'DNS 表格' },
+    desc: { en: 'Record-type-aware editable DNS table — type chips toned per class, the type drives the value editor placeholder + validation (A/AAAA/CNAME/MX/TXT), invalid values block save · distinct from DataGrid', zh: '区分记录类型的可编辑 DNS 表格 — 类型芯片按类别着色，类型驱动记录值编辑器的占位与校验（A/AAAA/CNAME/MX/TXT），非法值阻止保存 · 区别于 DataGrid' } },
+  { id: 'certmanager', key: 'CertManager', icon: 'certificate', title: { en: 'Cert Manager', zh: '证书管理' },
+    desc: { en: 'Controller certificate inventory — type chips (server/CA/client), SHA-256 fingerprint copy, expiry-derived valid / expiring ≤ 30 d / expired chips, per-row renew + upload stub · distinct from LicenseCard', zh: '控制器证书清单 — 类型芯片（服务器/CA/客户端），SHA-256 指纹复制，按到期推导的 有效 / ≤30 天将到期 / 已过期 芯片，逐行续期 + 上传演示 · 区别于 LicenseCard' } },
+  { id: 'wanfailover', key: 'WanFailover', icon: 'cloud', title: { en: 'WAN Failover', zh: 'WAN 故障切换' },
+    desc: { en: 'Primary/backup link cards + live failover state machine — simulate → detecting → failed over (backup active) → restore, locale-timestamped events newest-first · distinct from SpeedTest and FirmwareRollout', zh: '主/备链路卡片 + 实时故障切换状态机 — 模拟 → 检测中 → 已切换（备用活跃）→ 恢复，本地化时间戳事件最新在前 · 区别于 SpeedTest 与 FirmwareRollout' } },
+  { id: 'channelscanner', key: 'ChannelScanner', icon: 'wifi', title: { en: 'Channel Scanner', zh: '信道扫描' },
+    desc: { en: '2.4 / 5 GHz channel-utilization bars — lowest-utilization channel flagged recommended in brand green, current channel outlined, tooltip channel · % · APs, rescan shimmer · no chart engine', zh: '2.4 / 5 GHz 信道利用率柱条 — 利用率最低的信道以品牌绿星标推荐，当前信道描边标注，悬停显示 信道 · % · AP 数，重扫闪烁 · 无图表引擎' } },
+  /* ── Batch 28 — PoeBudget, CaptivePortalEditor, RateLimitProfile, DeviceAdoption, FirewallRules, DhcpReservation, BackupRestore, PortMirror ── */
+  { id: 'poebudget', key: 'PoeBudget', icon: 'zap', title: { en: 'PoE Budget', zh: 'PoE 功率预算' },
+    desc: { en: 'Per-port PoE power ledger — editable budget over the Figma-matched Remaining-PoE-power header (value pair + 6px bar), 802.3 class chips, priority select; oversubscription preempts lowest-priority ports first (dimmed + struck watts) · distinct from PortPanel', zh: '逐端口 PoE 功率台账 — 可编辑预算配合 Figma“剩余 PoE 功率”头部（数值对 + 6px 进度条）、802.3 类别芯片、优先级选择；超额时优先抢占最低优先级端口（置灰 + 瓦数划线）· 区别于 PortPanel' } },
+  { id: 'captiveportaleditor', key: 'CaptivePortalEditor', icon: 'smartphone', title: { en: 'Captive Portal', zh: '门户认证页' },
+    desc: { en: 'Splash/login page builder — welcome copy, auth-method radio (none / password / voucher), curated OMADA-ramp accent swatches, logo + terms switches → live phone-frame preview per keystroke · distinct from VoucherPrinter', zh: '认证页构建器 — 欢迎文案、认证方式单选（无 / 密码 / 凭证）、OMADA 色板精选强调色、Logo + 条款开关 → 每次输入实时驱动手机框预览 · 区别于 VoucherPrinter' } },
+  { id: 'ratelimitprofile', key: 'RateLimitProfile', icon: 'sliders', title: { en: 'Rate Limit', zh: '带宽限速' },
+    desc: { en: 'Bandwidth profiles — pill rail summarising ↓/↑ caps + SSID counts, Mbps editors, burst switch expanding a burst-size field, apply-to-SSID chips with one-owner semantics (clicking moves) · distinct from UsageMeter', zh: '带宽配置 — 配置栏汇总 ↓/↑ 上限与 SSID 数量，Mbps 编辑、展开突发大小的突发开关、单一归属语义的 SSID 芯片（点击即移入）· 区别于 UsageMeter' } },
+  { id: 'deviceadoption', key: 'DeviceAdoption', icon: 'adopt', title: { en: 'Device Adoption', zh: '设备接入' },
+    desc: { en: 'Pending-device adopt flow — discovered → adopting → provisioning → connected per device with three-dot progress + status chips, one device fails first provisioning (Retry re-runs it), Adopt all staggers · distinct from FirmwareRollout', zh: '待接入设备流程 — 每台设备经历 已发现 → 接入中 → 配置下发中 → 在线，三点进度 + 状态芯片，一台设备首次下发失败（重试重跑），全部接入错峰触发 · 区别于 FirmwareRollout' } },
+  { id: 'firewallrules', key: 'FirewallRules', icon: 'shield', title: { en: 'Firewall Rules', zh: '防火墙规则' },
+    desc: { en: 'Ordered ACL — src/dst/port/protocol/action rows, drag-reorder priority with live renumbering, per-row enable, allow in brand green / deny in red, pinned dashed default-policy row · distinct from FilterBuilder and AlarmRules', zh: '有序 ACL — 源/目的/端口/协议/动作行，拖动调序实时重排编号，逐行启用，允许为品牌绿 / 拒绝为红，底部固定虚线默认策略行 · 区别于 FilterBuilder 与 AlarmRules' } },
+  { id: 'dhcpreservation', key: 'DhcpReservation', icon: 'server', title: { en: 'DHCP Reservation', zh: 'DHCP 保留地址' },
+    desc: { en: 'DHCP scope + MAC → IP reservation table — editable pool start/end with subnet validation, inline row editing where bad MACs, out-of-subnet IPs and duplicate IP/MAC conflicts block save; in-pool IPs get a warning chip · distinct from DnsTable', zh: 'DHCP 作用域 + MAC → IP 保留表 — 可编辑地址池起止含子网校验，行内编辑中非法 MAC、子网外 IP 与重复 IP/MAC 冲突均阻止保存；位于池内的 IP 显示警示芯片 · 区别于 DnsTable' } },
+  { id: 'backuprestore', key: 'BackupRestore', icon: 'save', title: { en: 'Backup & Restore', zh: '备份与恢复' },
+    desc: { en: 'Config backup list — auto/manual chips, locale timestamps + sizes, client-side .cfg download stub, restore behind a danger confirm with a progress fill + restored banner, Back-up-now prepends an entry · distinct from CertManager', zh: '配置备份列表 — 自动/手动芯片、本地化时间戳与大小、客户端 .cfg 下载占位、恢复经危险确认并带进度与“已恢复”横幅，立即备份在顶部插入条目 · 区别于 CertManager' } },
+  { id: 'portmirror', key: 'PortMirror', icon: 'compare', title: { en: 'Port Mirror', zh: '端口镜像' },
+    desc: { en: 'Mirror session — click the port strip to multi-select sources (direction glyphs follow Tx / Rx / Both), destination select mutually exclusive with sources (DST ring), enable gated on validity, edits disarm · distinct from PortPanel', zh: '镜像会话 — 点击端口条带多选源端口（方向标记跟随 发送/接收/双向），目的端口与源互斥（DST 环标），有效才可启用，修改即解除 · 区别于 PortPanel' } },
+];
+
+function Section({ s, lang }) {
+  const Demo = window.OmadaDemos[s.key];
+  return (
+    <section className="section" id={s.id}>
+      <h2><span className="ix"><Icon name={s.icon} size={18} /></span>{s.title[lang] || s.title.en}</h2>
+      <div className="desc">{s.desc[lang] || s.desc.en}</div>
+      {Demo ? <Demo /> : <div style={{ color: '#999' }}>—</div>}
+    </section>
+  );
+}
+
+function Toolbar() {
+  const { mode, setMode, lang, setLang, dir, setDir } = window.useOmada();
+  const L = (en, zh) => (lang === 'zh' ? zh : en);
+  return (
+    <div className="toolbar">
+      <span className="tl">
+        <Icon name={mode === 'dark' ? 'moon' : 'sun'} size={14} />
+        {L('Theme', '主题')}
+        <Radio.Group value={mode} onChange={(e) => setMode(e.target.value)} buttonStyle="solid" size="small">
+          <Radio.Button value="light">{L('Light', '浅色')}</Radio.Button>
+          <Radio.Button value="dark">{L('Dark', '深色')}</Radio.Button>
+        </Radio.Group>
+      </span>
+      <span className="tl">
+        <Icon name="languages" size={14} />
+        {L('Language', '语言')}
+        <Radio.Group value={lang} onChange={(e) => setLang(e.target.value)} size="small">
+          <Radio.Button value="en">EN</Radio.Button>
+          <Radio.Button value="zh">中文</Radio.Button>
+        </Radio.Group>
+      </span>
+      <span className="tl">
+        <Icon name="globe" size={14} />
+        {L('Direction', '方向')}
+        <Radio.Group value={dir} onChange={(e) => setDir(e.target.value)} buttonStyle="solid" size="small">
+          <Radio.Button value="ltr">LTR</Radio.Button>
+          <Radio.Button value="rtl">RTL</Radio.Button>
+        </Radio.Group>
+      </span>
+    </div>
+  );
+}
+
+function Gallery() {
+  const { lang } = window.useOmada();
+  const L = (en, zh) => (lang === 'zh' ? zh : en);
+  return (
+    <div className="page">
+      <Toolbar />
+
+      <div className="hero">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+          <img src="../assets/omada-app-icon.png" alt="Omada" style={{ width: 60, height: 60, borderRadius: 14 }} />
+          <div>
+            <h1>antd × Omada</h1>
+            <p>{L(
+              'Batches 1–28 — Foundations through navigation, advanced/pro, charts and feedback, plus containers, RTL, the Anchor→Tour utility set, live token boards, List→Flex, standalone Spin & Skeleton, ConfigProvider, Link, the original Omada illustration set (now with function & status scenes), a searchable icon specimen board, the frame-only chart empty-state pattern, a token-driven motion spec board, a loading-state catalogue, a form-validation board, Accessibility, Density/compact, Responsive breakpoint and Spacing spec boards, and now a Content & voice board, a Localization stress board, a Theming token-architecture board (live brand-hue swap) and the Countdown / Timer primitive, and now the antd-6 App feedback-context wrapper (App.useApp), a live Chart-token board, and Form-patterns, Table-patterns and Error-boundary boards, and now Toast-patterns (promise/queue/action toasts on App context), a ⌘K Command palette, a Virtual-list (10k-row windowing) board, a Theme-export token-diff board and a Print/Export board, and now a drag-to-reorder Sortable list, a multi-step Form wizard, a CSV/JSON/clipboard Data-export board, a persistent Notification-center inbox and a three-pane nested-Splitter Workspace, and now a View-Transitions theme-switch board, a drag-between-columns Board (kanban), a grouped-entity Spotlight search, a sticky Bulk-actions bar over a Table, a compound Filter-builder, a sectioned Settings page with a sticky save bar and a keyboard Shortcuts overlay, and now a first-run Setup checklist, a drag-and-resize Widget grid, a spreadsheet-style inline-edit Data grid, a Saved-views filter bar (FilterBuilder + persistence), a before↔after Diff/compare view, a multi-file Upload queue and a collaboration Presence stack, and now a responsive Topbar command bar (overflow → ⋮), a grouped Activity-log feed, an inline Comment-thread cue, a comparison Metric-cards cluster, a three-pane Data-explorer, a feature-spotlight Coachmark sequence and a connection Topology map, and now a keyboard range-select Row-selection layer, an AutoSave status cue (saving / saved / conflict), a persistent system Banner bar, an inline Editable-field, a copy/diff Code-block, a right-click Context-menu and an add/reorder Key-value editor, and now a global Undo toast, a multi-step Approval flow, a What’s-new changelog drawer, a date-range Preset picker, a repeatable Field-array, a Notification preferences matrix and an edge-case Hint popover, and now a floating Command bar (contextual multi-select), a registry-generated keyboard Cheatsheet, a typed Table inline-create row, a JSON Inspector with copy-path, a sticky-first-column Comparison table, a threshold-toned Usage meter and a preview-first Image field, and now a line-level config Diff viewer, a day-grouped security Audit trail, a multi-state week × hour Schedule picker, a switch-faceplate Port panel, a concurrent-edit Conflict dialog, inline Traffic-sparkline rows, a setting Dependency hint and a countdown Maintenance banner, and now a staged Firmware-rollout tracker, a WAN Speed-test panel, a Client-fingerprint identity card, a threshold Alarm-rules builder, a three-step Two-factor setup, a seat/term License card, a hierarchical Network selector and a GitHub-style Heat calendar, and now a hotspot Voucher printer, a Packet-capture session, a port×VLAN paint Matrix, a RADIUS profile form, a type-aware DNS table, a Certificate manager, a WAN-failover state view and an RF Channel scanner, and now a PoE power budget, a captive-portal splash builder, bandwidth rate-limit profiles, a device-adoption flow, ordered firewall rules, DHCP reservations, configuration backup/restore and a port-mirror session. Ant Design 6 wrapped thinly, re-tokenised with the Omada visual language. Light + dark + EN/中文 + LTR/RTL from day one.',
+              'Batch 1–28 — 从基础到导航、高级/Pro、图表与反馈，以及容器、RTL、锚点至漫游引导工具集、实时 Token 看板、列表至弹性布局、独立的加载与骨架屏、ConfigProvider、Link、原创 Omada 插画集（现含功能与状态场景）、可搜索图标规范看板、仅框架的图表空状态模式、Token 驱动的动效规范看板、加载状态目录、表单校验看板，以及现在的无障碍、密度/紧凑、响应式断点与间距规范看板，以及内容与语态看板、本地化压力看板、主题 Token 架构看板（品牌色相实时切换）与倒计时 / 计时器原生组件，以及 antd-6 App 反馈上下文封装（App.useApp）、实时图表 Token 看板，以及表单模式、表格模式与错误边界看板，以及现在的反馈模式（基于 App 上下文的 promise/队列/操作提示）、⌘K 命令面板、虚拟滚动（万行窗口化）看板、主题导出 Token 差异看板与打印/导出看板，以及现在的拖动排序列表、多步表单向导、CSV/JSON/剪贴板数据导出看板、常驻通知中心收件箱与嵌套 Splitter 的三栏工作区，以及现在的 View Transitions 主题切换看板、列间拖拽看板（Kanban）、分组实体聚焦搜索、表格上方的常驻批量操作栏、复合筛选构建器、带常驻保存栏的分区设置页与键盘快捷键浮层，以及现在的首次设置清单、可拖拽可调整大小的部件网格、电子表格式行内编辑数据网格、已保存视图筛选栏（FilterBuilder + 持久化）、变更前↔后差异对比视图、多文件上传队列与协作在线名单，以及现在的响应式 Topbar 命令栏（溢出 → ⋮）、分组活动日志流、行内评论讨论串提示、对比指标卡片组、三栏数据浏览器、功能聚光引导序列与连接拓扑图，以及现在的键盘范围选择行选择层、自动保存状态提示（保存中 / 已保存 / 冲突）、常驻系统公告横幅、行内编辑字段、复制/差异代码块、右键菜单与增删重排键值编辑器，以及现在的全局撤销提示、多步审批流、更新内容抽屉、时间预设选择器、可重复字段组、通知偏好矩阵与疑难场景提示气泡，以及现在的浮动命令栏（情境多选）、注册表生成的键盘速查表、类型化表格行内新增、带复制路径的 JSON 检视器、首列固定的对比表格、阈值色调用量计量与预览优先图片字段，以及现在的行级配置差异查看器、按日分组安全审计日志、多状态 周×小时 排程选择器、交换机面板端口视图、并发编辑冲突对话框、行内流量趋势行、设置依赖提示与倒计时维护公告栏，以及现在的分阶段固件发布跟踪器、WAN 测速面板、客户端指纹身份卡片、阈值告警规则构建器、三步两步验证设置、席位/期限许可证卡片、层级式网络切换器与 GitHub 风格热力日历，以及现在的热点凭证打印、抓包会话、端口×VLAN 绘制矩阵、RADIUS 配置表单、区分类型的 DNS 表格、证书管理、WAN 故障切换状态视图与射频信道扫描，以及现在的 PoE 功率预算、门户认证页构建器、带宽限速配置、设备接入流程、有序防火墙规则、DHCP 保留地址、配置备份与恢复和端口镜像会话。基于 Omada 视觉语言对 Ant Design 6 做轻量封装。浅色 + 深色 + 中英文 + LTR/RTL 一应俱全。'
+            )}</p>
+          </div>
+        </div>
+        <div className="stats">
+          <div className="s"><div className="n">v6.4</div><div className="l">antd</div></div>
+          <div className="s"><div className="n">#00A870</div><div className="l">brand</div></div>
+          <div className="s"><div className="n">Manrope</div><div className="l">type</div></div>
+        </div>
+      </div>
+
+      <nav className="toc">
+        <strong style={{ marginRight: 4 }}>{L('Jump to', '跳转到')}</strong>
+        {SECTIONS.map((s) => (
+          <a key={s.id} href={`#${s.id}`}>{s.title[lang] || s.title.en}</a>
+        ))}
+      </nav>
+
+      {SECTIONS.map((s) => <Section key={s.id} s={s} lang={lang} />)}
+
+      <div style={{ textAlign: 'center', color: 'var(--fg-tertiary)', fontSize: 12, marginTop: 32 }}>
+        antd-omada · Batch 1 (Foundations & primitives) + Batch 2 (Data display) + Batch 3 (Forms & overlays) + Batch 4 (Navigation & layout) + Batch 5 (Advanced / Pro) + Batch 6 (Charts) + Batch 7 (Progress, feedback & misc) + Batch 8 (Card, Divider, Typography, Space, Grid, Mask & RTL) + Batch 9 (Anchor, Affix, FloatButton, Watermark, QRCode, Splitter, Image, Timeline, Tour & token boards) + Batch 10 (List, AutoComplete, Mentions, Carousel & Flex) + Batch 11 (Spin, Skeleton, ConfigProvider, Link & Illustration) + Batch 12 (IconBoard & ChartEmpty) + Batch 13 (Motion, LoadingStates & FormValidation) + Batch 14 (Accessibility, Density, Responsive & Spacing) + Batch 15 (Content, Localization, Theming & Countdown) + Batch 16 (App feedback-context, ChartTokens, FormPatterns, TablePatterns & ErrorBoundary) + Batch 17 (ToastPatterns, CommandPalette, VirtualList, ThemeExport & PrintExport) + Batch 18 (SortableList, FormWizard, DataExport, NotificationCenter & Workspace) + Batch 19 (ThemeTransition, BoardView, SearchResults, BulkActions, FilterBuilder, SettingsPage & ShortcutsOverlay) + Batch 20 (SetupChecklist, WidgetGrid, DataGrid, SavedViews, DiffView, UploadQueue & PresenceStack) + Batch 21 (Topbar, ActivityLog, CommentThread, MetricCards, DataExplorer, Coachmarks & TopologyMap) + Batch 22 (RowSelection, AutoSave, Banner, EditableField, CodeBlock, ContextMenu & KeyValueEditor) + Batch 23 (UndoToast, ApprovalFlow, WhatsNew, PresetPicker, FieldArray, NotificationMatrix & HintPopover) + Batch 24 (CommandBar, Cheatsheet, TableInlineCreate, Inspector, ComparisonTable, UsageMeter & ImageField) + Batch 25 (DiffViewer, AuditTrail, SchedulePicker, PortPanel, ConflictDialog, TrafficSparkline, DependencyHint & MaintenanceBanner) + Batch 26 (FirmwareRollout, SpeedTest, ClientFingerprint, AlarmRules, TwoFactorSetup, LicenseCard, NetworkSelector & HeatCalendar) + Batch 27 (VoucherPrinter, PacketCapture, VlanMatrix, RadiusProfileForm, DnsTable, CertManager, WanFailover & ChannelScanner) + Batch 28 (PoeBudget, CaptivePortalEditor, RateLimitProfile, DeviceAdoption, FirewallRules, DhcpReservation, BackupRestore & PortMirror) · derived from Ant Design 6.4 · Omada Design System v1
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <window.OmadaThemeProvider>
+      <Gallery />
+    </window.OmadaThemeProvider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

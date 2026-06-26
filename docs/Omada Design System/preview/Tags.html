@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Tags & Status Pills" subtitle="Status, pill, closeable, BETA/NEW/PRO" viewport="700x230" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tags &amp; Status Pills</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 22px 24px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .lab { font-family: var(--font-mono); font-size: 10px; color: var(--fg-tertiary); width: 96px; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-sans); font-weight: 500; font-size: 12px; line-height: 1;
+    padding: 4px 8px; border-radius: 4px;
+  }
+  .tag .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .pill { border-radius: 999px; padding: 3px 10px; }
+  .tag.success { background: #E5F6EE; color: #008055; }
+  .tag.info    { background: #E0EFFB; color: #0069CB; }
+  .tag.warning { background: #FFF1E0; color: #C46315; }
+  .tag.danger  { background: #FCE0E6; color: #C82748; }
+  .tag.neutral { background: #F4F4F4; color: #636363; }
+  .tag.beta    { background: #FF8C27; color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; }
+  .closeable { padding-right: 4px; }
+  .closeable .x {
+    width: 14px; height: 14px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.05); margin-left: 2px; cursor: pointer; font-size: 10px;
+  }
+</style>
+</head>
+<body>
+  <div class="row"><span class="lab">status</span>
+    <span class="tag success"><span class="dot"></span>Connected</span>
+    <span class="tag warning"><span class="dot"></span>Pending</span>
+    <span class="tag danger"><span class="dot"></span>Disconnected</span>
+    <span class="tag info"><span class="dot"></span>Adopting</span>
+    <span class="tag neutral"><span class="dot"></span>Skipped</span>
+  </div>
+  <div class="row"><span class="lab">pill</span>
+    <span class="tag success pill">Online</span>
+    <span class="tag warning pill">Offline</span>
+    <span class="tag danger pill">Error</span>
+    <span class="tag info pill">2.4G + 5G</span>
+    <span class="tag neutral pill">WAN1</span>
+  </div>
+  <div class="row"><span class="lab">closeable</span>
+    <span class="tag neutral closeable">tab adding <span class="x">×</span></span>
+    <span class="tag success closeable">filter: site=NY <span class="x">×</span></span>
+  </div>
+  <div class="row"><span class="lab">badge</span>
+    <span class="tag beta pill">BETA</span>
+    <span class="tag beta pill" style="background:#0069CB">NEW</span>
+    <span class="tag beta pill" style="background:#2B2B2B">PRO</span>
+  </div>
+</body>
+</html>

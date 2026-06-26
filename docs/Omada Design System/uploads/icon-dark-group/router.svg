@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="88" height="72" fill="none" viewBox="0 0 88 72">
+  <path fill="#727272" fill-rule="evenodd" d="M24.56 12.6h2.76v27.6h-2.76V12.6Z" clip-rule="evenodd"></path>
+  <path fill="#383838" fill-rule="evenodd" d="M24.68 12.6h1.8v27.6h-1.8V12.6Z" clip-rule="evenodd"></path>
+  <path fill="#727272" fill-rule="evenodd" d="M61.1 12.6h2.76v27.6H61.1V12.6Z" clip-rule="evenodd"></path>
+  <path fill="#383838" fill-rule="evenodd" d="M62 12.6h1.8v27.6H62V12.6Z" clip-rule="evenodd"></path>
+  <path fill="url(#a)" d="M15.2 49.073h57.6v6.063H15.2z"></path>
+  <path fill="url(#b)" d="M15.579 49.312H72.42v5.585H15.579v-5.585Z"></path>
+  <path fill="url(#c)" d="M20.126 39.6 15.2 49.074h57.6L67.874 39.6H20.126Z"></path>
+  <mask id="f" width="58" height="11" x="15" y="39" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+    <path fill="url(#d)" d="M20.126 39.6 15.2 49.074h57.6L67.874 39.6H20.126Z"></path>
+  </mask>
+  <g filter="url(#e)" mask="url(#f)">
+    <ellipse cx="11.056" cy="3.977" fill="#D6D6D6" rx="11.056" ry="3.977" transform="rotate(-29.637 110.73 -58.476) skewX(-.002)"></ellipse>
+  </g>
+  <path fill="url(#g)" d="M43.1 49.32h1.8v1.8h-1.8z"></path>
+  <path fill="url(#h)" d="M47.6 49.32h1.8v1.8h-1.8z"></path>
+  <path fill="url(#i)" d="M38.6 49.32h1.8v1.8h-1.8z"></path>
+  <defs>
+    <linearGradient id="a" x1="44.758" x2="44.758" y1="49.073" y2="55.136" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5C5C5C"></stop>
+      <stop offset="1" stop-color="#747578"></stop>
+    </linearGradient>
+    <linearGradient id="b" x1="44" x2="44" y1="49.312" y2="54.897" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#383838"></stop>
+      <stop offset="1" stop-color="#494A4D"></stop>
+    </linearGradient>
+    <linearGradient id="c" x1="15.2" x2="72.8" y1="44.337" y2="44.337" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1D1E21"></stop>
+      <stop offset="1" stop-color="#8C8C90"></stop>
+    </linearGradient>
+    <linearGradient id="d" x1="15.2" x2="72.8" y1="44.337" y2="44.337" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1D1E21"></stop>
+      <stop offset="1" stop-color="#8C8C90"></stop>
+    </linearGradient>
+    <linearGradient id="g" x1="44" x2="44" y1="49.32" y2="51.12" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#282828"></stop>
+      <stop offset="1" stop-color="#6F6F6F"></stop>
+    </linearGradient>
+    <linearGradient id="h" x1="48.5" x2="48.5" y1="49.32" y2="51.12" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#282828"></stop>
+      <stop offset="1" stop-color="#6F6F6F"></stop>
+    </linearGradient>
+    <linearGradient id="i" x1="39.5" x2="39.5" y1="49.32" y2="51.12" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#282828"></stop>
+      <stop offset="1" stop-color="#6F6F6F"></stop>
+    </linearGradient>
+    <filter id="e" width="38.721" height="32.038" x="35.618" y="29.076" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+      <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend>
+      <feGaussianBlur result="effect1_foregroundBlur_25947_14554" stdDeviation="4.775"></feGaussianBlur>
+    </filter>
+  </defs>
+</svg>
