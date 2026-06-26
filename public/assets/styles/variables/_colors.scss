@@ -60,10 +60,11 @@ $light-colors: (
     "100": #fee2e2,
     "50": #fef2f2,
   ),
+  // Omada brand green — see docs/Omada Design System (green-500/200/700)
   "primary": (
-    "light": var(--primary-color-light, #c2c4ff),
-    "base": var(--primary-color, #2d57ed),
-    "dark": var(--primary-color-dark, #03308a),
+    "light": var(--primary-color-light, #8dd6b0),
+    "base": var(--primary-color, #00a870),
+    "dark": var(--primary-color-dark, #008055),
   ),
   "white": #fff,
   "black": #262225,

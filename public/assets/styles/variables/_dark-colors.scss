@@ -59,10 +59,11 @@ $dark-colors: (
     "900": #fecaca,
     "50": #4a1a1a,
   ),
+  // Omada brand green (dark mode) — see docs/Omada Design System (green-300/400/600)
   "primary": (
-    "light": var(--primary-color-light, #9eacfc),
-    "base": var(--primary-color, #7aa8ff),
-    "dark": var(--primary-color-dark, #6893e3),
+    "light": var(--primary-color-light, #4bc68c),
+    "base": var(--primary-color, #18b782),
+    "dark": var(--primary-color-dark, #009765),
   ),
   "white": #1a1a1a,
   "black": #d3d3d3,

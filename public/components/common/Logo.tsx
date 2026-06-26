@@ -2,6 +2,7 @@ import React from "react"
 import { uploadedImageURL } from "@fider/services"
 import { useFider } from "@fider/hooks"
 import { Tenant } from "@fider/models"
+import { omadaLogoDataUri } from "./omadaLogo"
 
 type Size = 24 | 50 | 100 | 200
 
@@ -24,7 +25,7 @@ export const TenantLogo = ({ size, useFiderIfEmpty = false }: TenantLogoProps) =
   if (tenant && tenant.logoBlobKey) {
     return <img src={TenantLogoURL(fider.session.tenant, size)} alt={tenant.name} />
   } else if (useFiderIfEmpty) {
-    return <img src="https://login.fider.io/static/assets/logo.png" alt="Fider" height={size} width={size} />
+    return <img src={omadaLogoDataUri} alt="Omada" height={size} width={size} />
   }
   return null
 }
