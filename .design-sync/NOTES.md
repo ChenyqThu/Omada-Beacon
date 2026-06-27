@@ -67,9 +67,35 @@ three macro specifiers to a passthrough shim via the design-sync tsconfig `paths
 ## Provider
 
 `.design-sync/preview-providers.tsx` → `cfg.provider = { component: "PreviewProvider" }`.
-The scoped components don't need `useFider()` context, so the provider is minimal. If you
-later scope in components that call `useFider()` (TagsSelect, SignInControl, Logo, DevBanner,
-Legal), layer a mock `FiderContext.Provider` into PreviewProvider.
+It initializes the Fider singleton with a mock tenant/user (Ada Lovelace @ Omada) and wraps
+children in `FiderContext.Provider`, and creates a `#root-modal` portal target at module load.
+
+⚠️ **Module-load DOM mutation must be null-safe.** preview-providers ships in the bundle IIFE
+via `cfg.extraEntries`. The validate `[BUNDLE_EXPORT]` smoke-check evaluates the bundle in a
+page where `<body>` doesn't exist yet, so a bare `document.body.appendChild(...)` THROWS there
+and aborts the whole IIFE → `window.OmadaBeacon` never assigns → `[BUNDLE_EXPORT] N/N not a
+component` (even for components that otherwise render fine). Fixed with
+`(document.body || document.documentElement).appendChild(el)`. Keep any future module-load DOM
+work equally null-safe. (This bug stayed latent at 25 components — esbuild happened to order
+the IIFE so the throw landed after the global assign — and only surfaced when the 4 pages
+shifted module order.)
+
+## Pages group (example screens)
+
+`.design-sync/pages/*.tsx` — four full-screen compositions of the primitives (`FeedbackBoard`,
+`PostDetail`, `SignIn`, `Settings`), re-exported from `scope-entry.tsx`, so they're importable
+bundle exports AND discovered components. Grouped under "Pages" via `cfg.docsMap` stubs in
+`.design-sync/pagedocs/*.md` (frontmatter `category: Pages`). Per-screen `cfg.overrides`:
+`cardMode: single` + a large `viewport` so the whole screen shows in one card.
+
+- They take no props → `cfg.dtsPropsFor.<Name> = ""` (emits an empty props interface).
+- They are **compositions, not new components** — only real primitives, styled with shipped
+  utility classes + inline layout glue, `var(--token, #hexfallback)` for colors.
+- `Moment` relative dates use `Date.now()` offsets (see Moment note). Comment avatars use
+  gravatar identicons with a `UserName` always alongside (so a failed image still reads).
+- To add a screen: write `pages/<Name>.tsx`, re-export from `scope-entry.tsx`, add to
+  `componentSrcMap` + `dtsPropsFor` (`""`) + a `pagedocs/<Name>.md` stub + an `overrides` viewport,
+  and author `previews/<Name>.tsx` (`export const Screen = () => <Name />`).
 
 ## Per-component preview notes
 

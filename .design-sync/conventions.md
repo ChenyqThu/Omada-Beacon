@@ -64,3 +64,19 @@ function NewIdea() {
   )
 }
 ```
+
+## Page templates
+
+The "Pages" group ships full-screen compositions of the primitives above —
+import them as starting points and adapt, rather than assembling a screen from
+scratch. Each takes no props:
+
+- `FeedbackBoard` — idea board: header + idea cards (vote, status pill, author, time) + pagination
+- `PostDetail` — single post: vote tally, Markdown body, comment thread, comment composer
+- `SignIn` — centered auth panel: social providers + email form
+- `Settings` — workspace settings form: inputs, select, toggles
+
+```tsx
+import { FeedbackBoard } from "omada-beacon"
+// render <FeedbackBoard /> as-is, or copy its structure and swap in your data
+```

@@ -26,3 +26,10 @@ export { SocialSignInButton } from "@fider/components/common/SocialSignInButton"
 export { Money } from "@fider/components/common/Money"
 export { Moment } from "@fider/components/common/Moment"
 export { PageTitle } from "@fider/components/common/PageTitle"
+
+// Example screens (group "Pages") — full-page compositions of the primitives
+// above, authored for the design system. Importable as layout templates.
+export { FeedbackBoard } from "./pages/FeedbackBoard"
+export { PostDetail } from "./pages/PostDetail"
+export { SignIn } from "./pages/SignIn"
+export { Settings } from "./pages/Settings"

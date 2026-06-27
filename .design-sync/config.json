@@ -12,7 +12,11 @@
   "provider": { "component": "PreviewProvider" },
   "readmeHeader": ".design-sync/conventions.md",
   "overrides": {
-    "Modal": { "cardMode": "single", "viewport": "640x460" }
+    "Modal": { "cardMode": "single", "viewport": "640x460" },
+    "FeedbackBoard": { "cardMode": "single", "viewport": "820x780" },
+    "PostDetail": { "cardMode": "single", "viewport": "780x860" },
+    "SignIn": { "cardMode": "single", "viewport": "520x560" },
+    "Settings": { "cardMode": "single", "viewport": "700x640" }
   },
   "componentSrcMap": {
     "Button": "public/components/common/Button.tsx",
@@ -39,7 +43,11 @@
     "SocialSignInButton": "public/components/common/SocialSignInButton.tsx",
     "Money": "public/components/common/Money.tsx",
     "Moment": "public/components/common/Moment.tsx",
-    "PageTitle": "public/components/common/PageTitle.tsx"
+    "PageTitle": "public/components/common/PageTitle.tsx",
+    "FeedbackBoard": ".design-sync/pages/FeedbackBoard.tsx",
+    "PostDetail": ".design-sync/pages/PostDetail.tsx",
+    "SignIn": ".design-sync/pages/SignIn.tsx",
+    "Settings": ".design-sync/pages/Settings.tsx"
   },
   "dtsPropsFor": {
     "Button": "children?: React.ReactNode; className?: string; disabled?: boolean; href?: string; rel?: \"nofollow\"; target?: \"_self\" | \"_blank\" | \"_parent\" | \"_top\"; type?: \"button\" | \"submit\"; variant?: \"primary\" | \"danger\" | \"secondary\" | \"tertiary\" | \"link\"; size?: \"small\" | \"default\" | \"large\" | \"no-padding\"; style?: React.CSSProperties; onClick?: (event: any) => Promise<any> | void",
@@ -66,6 +74,16 @@
     "SocialSignInButton": "option: { displayName: string; provider?: string; url?: string; logoBlobKey?: string; logoURL?: string }; className?: string; redirectTo?: string; onClick?: () => void",
     "Money": "locale: string; amount: number; currency: string",
     "Moment": "locale: string; date: Date | string; className?: string; format?: \"relative\" | \"full\" | \"short\" | \"date\"",
-    "PageTitle": "title: string; subtitle?: string; className?: string"
+    "PageTitle": "title: string; subtitle?: string; className?: string",
+    "FeedbackBoard": "",
+    "PostDetail": "",
+    "SignIn": "",
+    "Settings": ""
+  },
+  "docsMap": {
+    "FeedbackBoard": ".design-sync/pagedocs/FeedbackBoard.md",
+    "PostDetail": ".design-sync/pagedocs/PostDetail.md",
+    "SignIn": ".design-sync/pagedocs/SignIn.md",
+    "Settings": ".design-sync/pagedocs/Settings.md"
   }
 }

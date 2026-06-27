@@ -3,11 +3,15 @@ import { Fider, FiderContext } from "@fider/services/fider"
 
 // Modal.Window portals into #root-modal; create it at module load (before any
 // component renders) so the dialog has a portal target in preview cards.
-// Append to <body> (NOT #root — React clears #root's children on mount).
+// Append to <body> (NOT #root — React clears #root's children on mount), but
+// fall back to <html> when body isn't parsed yet: this module is part of the
+// bundle IIFE, which the validate smoke-check evaluates before <body> exists —
+// a bare document.body.appendChild would throw there and abort the whole
+// bundle (leaving window.<global> unassigned).
 if (typeof document !== "undefined" && !document.getElementById("root-modal")) {
   const el = document.createElement("div")
   el.id = "root-modal"
-  document.body.appendChild(el)
+  ;(document.body || document.documentElement).appendChild(el)
 }
 
 // Initialize the Fider singleton with mock data BEFORE any component mounts.
