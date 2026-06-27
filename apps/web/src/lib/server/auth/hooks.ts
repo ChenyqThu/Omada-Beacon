@@ -20,6 +20,7 @@
  */
 
 import { APIError, createAuthMiddleware } from 'better-auth/api'
+import { generateId } from '@quackback/ids'
 import {
   findProviderForDomainEmail,
   isRegisteredOidcProvider,
@@ -448,6 +449,10 @@ export function shouldBootstrapPromote(
  *  - Only upgrades from `role='user'`; `admin` and `member` are left
  *    alone unless `attributeMapping.syncOnEverySignIn` is set. The special
  *    `autoProvisionRole='user'` disables default-role promotion entirely.
+ *  - A returning user with no principal row (soft-removed via "Remove from
+ *    portal", which keeps the auth identity) is treated as a fresh sign-in:
+ *    the principal is recreated in-band with the provisioned role rather than
+ *    updating zero rows and falling back to a plain `'user'`.
  *  - `autoCreateUsers=false` short-circuits — the admin opted out.
  *  - Bootstrap-admin from `handleSsoCallbackAfter` runs first; if
  *    that promoted the user to `admin`, the role-check here skips.
@@ -484,7 +489,7 @@ export async function handleAutoProvisionAfter(
   if (!provider) return
   if (!provider.autoCreateUsers) return
 
-  const { db, principal: principalTable, eq } = await import('@/lib/server/db')
+  const { db, principal: principalTable, user: userTable, eq } = await import('@/lib/server/db')
   type UserId = `user_${string}`
   const userIdTyped = userId as UserId
 
@@ -513,22 +518,51 @@ export async function handleAutoProvisionAfter(
     columns: { role: true },
   })
 
+  // A missing principal is a returning user whose row was soft-removed
+  // ("Remove from portal" deletes the principal, not the auth identity, so the
+  // user.create hook never re-fires). Treat it as a fresh first sign-in so the
+  // role still applies — otherwise the UPDATE below would touch zero rows and
+  // the lazy getOptionalAuth path would recreate them as a plain 'user'.
+  const currentRole = p?.role ?? 'user'
+
   // Sync mode: re-apply on every sign-in, including for existing
-  // admin/member users. Without sync, JIT semantics — only first
-  // sign-in (role='user') gets touched.
+  // admin/member users. Without sync, JIT semantics — only a fresh
+  // first sign-in (role='user') gets touched.
   const syncOnEverySignIn = provider.attributeMapping?.syncOnEverySignIn === true
-  if (!syncOnEverySignIn && p?.role !== 'user') return
+  if (!syncOnEverySignIn && currentRole !== 'user') return
 
   // 'user' as the target is the explicit no-promote choice — only
   // demote an existing team-role user to 'user' under sync mode.
   if (targetRole === 'user' && !syncOnEverySignIn) return
 
-  if (p?.role === targetRole) return // no-op, save the update
+  if (currentRole === targetRole) return // no-op, save the write
 
-  await db
-    .update(principalTable)
-    .set({ role: targetRole })
-    .where(eq(principalTable.userId, userIdTyped))
+  if (p) {
+    await db
+      .update(principalTable)
+      .set({ role: targetRole })
+      .where(eq(principalTable.userId, userIdTyped))
+  } else {
+    // Recreate the soft-removed principal in-band with the provisioned role.
+    // Display fields come from the auth user so the rebuilt principal matches
+    // what the lazy creation path would have produced.
+    const u = await db.query.user.findFirst({
+      where: eq(userTable.id, userIdTyped),
+      columns: { name: true, image: true },
+    })
+    await db.insert(principalTable).values({
+      id: generateId('principal'),
+      userId: userIdTyped,
+      role: targetRole,
+      displayName: u?.name ?? null,
+      avatarUrl: u?.image ?? null,
+      // This runs in the OIDC callback, so the user is signing in via SSO right
+      // now. Stamp lastSsoSignInAt on the rebuilt row — handleSsoCallbackAfter's
+      // UPDATE ran first and missed it while the principal didn't exist.
+      lastSsoSignInAt: new Date(),
+      createdAt: new Date(),
+    })
+  }
 
   if (p?.role && p.role !== targetRole) {
     const { recordAuditEvent } = await import('@/lib/server/audit/log')
