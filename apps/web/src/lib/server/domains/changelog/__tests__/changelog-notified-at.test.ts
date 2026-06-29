@@ -1,17 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { ChangelogId, PrincipalId } from '@quackback/ids'
+import type { EventActor } from '@/lib/server/events/dispatch'
+
+const ENTRY_ID = 'changelog_01test' as ChangelogId
+const AUTHOR = { principalId: 'principal_01author' as PrincipalId, name: 'Author' }
+const ACTOR: EventActor = { type: 'service', displayName: 'test' }
 
 const mockEntryFindFirst = vi.fn()
 const mockUpdateSet = vi.fn()
 const mockInsertValues = vi.fn()
 const mockChangelogEntryPostsFindMany = vi.fn()
 
+// Rows the claim UPDATE...RETURNING yields (a single row = claim won, [] = lost),
+// and the due-entry rows the reconciler's select returns. Mutated per test.
+let mockClaimResult: unknown[] = []
+let mockDueRows: unknown[] = []
+
 vi.mock('@/lib/server/db', () => ({
   db: {
     query: {
-      changelogEntries: {
-        findFirst: (...args: unknown[]) => mockEntryFindFirst(...args),
-      },
+      changelogEntries: { findFirst: (...args: unknown[]) => mockEntryFindFirst(...args) },
       changelogEntryPosts: {
         findMany: (...args: unknown[]) => mockChangelogEntryPostsFindMany(...args),
       },
@@ -29,12 +37,27 @@ vi.mock('@/lib/server/db', () => ({
     update: () => ({
       set: (values: unknown) => {
         mockUpdateSet(values)
-        return { where: vi.fn().mockResolvedValue(undefined) }
+        // `.where()` is both awaitable (plain UPDATE / release) and carries
+        // `.returning()` (the atomic claim), mirroring drizzle's builder.
+        const p = Promise.resolve(mockClaimResult) as Promise<unknown[]> & {
+          returning: () => Promise<unknown[]>
+        }
+        p.returning = () => Promise.resolve(mockClaimResult)
+        return { where: () => p }
       },
+    }),
+    select: () => ({
+      from: () => ({ where: () => ({ limit: () => Promise.resolve(mockDueRows) }) }),
     }),
     delete: () => ({ where: vi.fn().mockResolvedValue(undefined) }),
   },
-  changelogEntries: { id: 'id', publishedAt: 'published_at', deletedAt: 'deleted_at' },
+  changelogEntries: {
+    id: 'id',
+    publishedAt: 'published_at',
+    notifiedAt: 'notified_at',
+    deletedAt: 'deleted_at',
+    principalId: 'principal_id',
+  },
   changelogEntryPosts: { changelogEntryId: 'changelog_entry_id', postId: 'post_id' },
   posts: { id: 'posts.id' },
   principal: { id: 'principal.id' },
@@ -42,6 +65,8 @@ vi.mock('@/lib/server/db', () => ({
   eq: vi.fn(),
   and: vi.fn(),
   isNull: vi.fn(),
+  isNotNull: vi.fn(),
+  lte: vi.fn(),
   inArray: vi.fn(),
 }))
 
@@ -56,9 +81,6 @@ vi.mock('@/lib/server/events/scheduler', () => ({
   scheduleDispatch: vi.fn().mockResolvedValue(undefined),
   cancelScheduledDispatch: vi.fn().mockResolvedValue(undefined),
 }))
-
-const ENTRY_ID = 'changelog_01test' as ChangelogId
-const AUTHOR = { principalId: 'principal_01author' as PrincipalId, name: 'Author' }
 
 function baseEntry(overrides: Record<string, unknown> = {}) {
   return {
@@ -78,25 +100,92 @@ function baseEntry(overrides: Record<string, unknown> = {}) {
   }
 }
 
+// Flush detached fire-and-forget notify() chains from create/update.
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
+
 beforeEach(() => {
   vi.clearAllMocks()
+  mockClaimResult = []
+  mockDueRows = []
   mockChangelogEntryPostsFindMany.mockResolvedValue([])
   mockEntryFindFirst.mockResolvedValue(baseEntry())
 })
 
-describe('notifiedAt - createChangelog', () => {
-  it('stamps notifiedAt and dispatches when published immediately', async () => {
+describe('notifyChangelogPublished (atomic claim)', () => {
+  it('dispatches and returns true when the claim wins', async () => {
+    mockClaimResult = [baseEntry()]
+    const { notifyChangelogPublished } = await import('../changelog.service')
+    const { dispatchChangelogPublished } = await import('@/lib/server/events/dispatch')
+
+    const result = await notifyChangelogPublished(ENTRY_ID, ACTOR)
+
+    expect(result).toBe(true)
+    expect(dispatchChangelogPublished).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not dispatch and returns false when the claim matches nothing', async () => {
+    mockClaimResult = [] // already notified / not live
+    const { notifyChangelogPublished } = await import('../changelog.service')
+    const { dispatchChangelogPublished } = await import('@/lib/server/events/dispatch')
+
+    const result = await notifyChangelogPublished(ENTRY_ID, ACTOR)
+
+    expect(result).toBe(false)
+    expect(dispatchChangelogPublished).not.toHaveBeenCalled()
+  })
+
+  it('releases the claim (notifiedAt back to null) when dispatch fails', async () => {
+    mockClaimResult = [baseEntry()]
+    const { notifyChangelogPublished } = await import('../changelog.service')
+    const { dispatchChangelogPublished } = await import('@/lib/server/events/dispatch')
+    vi.mocked(dispatchChangelogPublished).mockRejectedValueOnce(new Error('queue down'))
+
+    const result = await notifyChangelogPublished(ENTRY_ID, ACTOR)
+
+    expect(result).toBe(false)
+    // Second set() call resets notifiedAt so the reconciler can retry.
+    expect(mockUpdateSet).toHaveBeenCalledWith({ notifiedAt: null })
+  })
+})
+
+describe('reconcileChangelogNotifications', () => {
+  it('notifies each due entry and returns the count', async () => {
+    mockDueRows = [{ id: ENTRY_ID, principalId: null }]
+    mockClaimResult = [baseEntry()]
+    const { reconcileChangelogNotifications } = await import('../changelog.service')
+    const { dispatchChangelogPublished } = await import('@/lib/server/events/dispatch')
+
+    const count = await reconcileChangelogNotifications()
+
+    expect(count).toBe(1)
+    expect(dispatchChangelogPublished).toHaveBeenCalledTimes(1)
+  })
+
+  it('does nothing when no entries are due', async () => {
+    mockDueRows = []
+    const { reconcileChangelogNotifications } = await import('../changelog.service')
+    const { dispatchChangelogPublished } = await import('@/lib/server/events/dispatch')
+
+    const count = await reconcileChangelogNotifications()
+
+    expect(count).toBe(0)
+    expect(dispatchChangelogPublished).not.toHaveBeenCalled()
+  })
+})
+
+describe('createChangelog wiring', () => {
+  it('announces an immediately-published entry', async () => {
+    mockClaimResult = [baseEntry()]
     const { createChangelog } = await import('../changelog.service')
     const { dispatchChangelogPublished } = await import('@/lib/server/events/dispatch')
 
     await createChangelog({ title: 'X', content: 'Y', publishState: { type: 'published' } }, AUTHOR)
+    await flush()
 
-    const inserted = mockInsertValues.mock.calls[0]![0] as Record<string, unknown>
-    expect(inserted.notifiedAt).toBeInstanceOf(Date)
     expect(dispatchChangelogPublished).toHaveBeenCalledTimes(1)
   })
 
-  it('leaves notifiedAt unset and does not dispatch when scheduled', async () => {
+  it('schedules (not announces) a scheduled entry', async () => {
     const { createChangelog } = await import('../changelog.service')
     const { dispatchChangelogPublished } = await import('@/lib/server/events/dispatch')
     const { scheduleDispatch } = await import('@/lib/server/events/scheduler')
@@ -109,53 +198,47 @@ describe('notifiedAt - createChangelog', () => {
       },
       AUTHOR
     )
+    await flush()
 
-    const inserted = mockInsertValues.mock.calls[0]![0] as Record<string, unknown>
-    expect(inserted.notifiedAt).toBeUndefined()
     expect(dispatchChangelogPublished).not.toHaveBeenCalled()
     expect(scheduleDispatch).toHaveBeenCalledTimes(1)
   })
 
-  it('leaves notifiedAt unset and does not dispatch when draft', async () => {
+  it('does not announce a draft', async () => {
     const { createChangelog } = await import('../changelog.service')
     const { dispatchChangelogPublished } = await import('@/lib/server/events/dispatch')
 
     await createChangelog({ title: 'X', content: 'Y', publishState: { type: 'draft' } }, AUTHOR)
+    await flush()
 
-    const inserted = mockInsertValues.mock.calls[0]![0] as Record<string, unknown>
-    expect(inserted.notifiedAt).toBeUndefined()
     expect(dispatchChangelogPublished).not.toHaveBeenCalled()
   })
 })
 
-describe('notifiedAt - updateChangelog', () => {
-  it('stamps notifiedAt and dispatches on first publish', async () => {
+describe('updateChangelog wiring', () => {
+  it('announces on first publish', async () => {
+    mockEntryFindFirst.mockResolvedValue(baseEntry({ publishedAt: null, notifiedAt: null }))
+    mockClaimResult = [baseEntry()]
     const { updateChangelog } = await import('../changelog.service')
     const { dispatchChangelogPublished } = await import('@/lib/server/events/dispatch')
 
-    // Existing entry is a draft that has never been notified.
-    mockEntryFindFirst.mockResolvedValue(baseEntry({ publishedAt: null, notifiedAt: null }))
-
     await updateChangelog(ENTRY_ID, { publishState: { type: 'published' } })
+    await flush()
 
-    const updatePayload = mockUpdateSet.mock.calls[0]![0] as Record<string, unknown>
-    expect(updatePayload.notifiedAt).toBeInstanceOf(Date)
     expect(dispatchChangelogPublished).toHaveBeenCalledTimes(1)
   })
 
-  it('does not re-notify an already-notified entry', async () => {
-    const { updateChangelog } = await import('../changelog.service')
-    const { dispatchChangelogPublished } = await import('@/lib/server/events/dispatch')
-
-    // Already published and announced previously.
+  it('does not re-announce an already-notified entry (claim matches nothing)', async () => {
     mockEntryFindFirst.mockResolvedValue(
       baseEntry({ notifiedAt: new Date('2025-06-01T12:00:00Z') })
     )
+    mockClaimResult = [] // notifiedAt already set, so the claim's WHERE excludes it
+    const { updateChangelog } = await import('../changelog.service')
+    const { dispatchChangelogPublished } = await import('@/lib/server/events/dispatch')
 
     await updateChangelog(ENTRY_ID, { publishState: { type: 'published' } })
+    await flush()
 
-    const updatePayload = mockUpdateSet.mock.calls[0]![0] as Record<string, unknown>
-    expect(updatePayload).not.toHaveProperty('notifiedAt')
     expect(dispatchChangelogPublished).not.toHaveBeenCalled()
   })
 })

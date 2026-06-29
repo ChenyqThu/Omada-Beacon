@@ -18,13 +18,19 @@ import {
   eq,
   and,
   isNull,
+  isNotNull,
+  lte,
   inArray,
 } from '@/lib/server/db'
 import type { ChangelogId, PrincipalId, PostId } from '@quackback/ids'
 import { NotFoundError, ValidationError } from '@/lib/shared/errors'
 import { markdownToTiptapJson } from '@/lib/server/markdown-tiptap'
 import { rehostExternalImages } from '@/lib/server/content/rehost-images'
-import { buildEventActor, dispatchChangelogPublished } from '@/lib/server/events/dispatch'
+import {
+  buildEventActor,
+  dispatchChangelogPublished,
+  type EventActor,
+} from '@/lib/server/events/dispatch'
 import { scheduleDispatch, cancelScheduledDispatch } from '@/lib/server/events/scheduler'
 import { logger } from '@/lib/server/logger'
 
@@ -103,7 +109,6 @@ export async function createChangelog(
       principalId: author.principalId,
       publishedAt,
       ...(displayDate != null && { displayDate }),
-      ...(input.publishState.type === 'published' && { notifiedAt: new Date() }),
     })
     .returning()
 
@@ -115,13 +120,9 @@ export async function createChangelog(
   // Dispatch event or schedule delayed job based on publish state
   const actor = buildEventActor({ principalId: author.principalId })
   if (input.publishState.type === 'published') {
-    dispatchChangelogPublished(actor, {
-      id: entry.id,
-      title: entry.title,
-      contentPreview: entry.content.slice(0, 200),
-      publishedAt: publishedAt!,
-      linkedPostCount: input.linkedPostIds?.length ?? 0,
-    }).catch((err) => log.error({ err }, 'failed to dispatch changelog published event'))
+    notifyChangelogPublished(entry.id, actor).catch((err) =>
+      log.error({ err }, 'failed to dispatch changelog published event')
+    )
   } else if (input.publishState.type === 'scheduled' && publishedAt) {
     const delayMs = publishedAt.getTime() - Date.now()
     if (delayMs > 0) {
@@ -172,11 +173,6 @@ export async function updateChangelog(
     }
   }
 
-  // A publish notification fires (and notifiedAt is stamped) only the first
-  // time an entry goes live. Re-saves of an already-announced entry never
-  // re-notify, and the reconciler skips anything that already has notifiedAt.
-  const willNotify = input.publishState?.type === 'published' && existing.notifiedAt == null
-
   // Build update data
   const updateData: Record<string, unknown> = {
     updatedAt: new Date(),
@@ -206,10 +202,6 @@ export async function updateChangelog(
     updateData.publishedAt = getPublishedAtFromState(input.publishState)
   }
 
-  if (willNotify) {
-    updateData.notifiedAt = new Date()
-  }
-
   // Update the entry
   await db.update(changelogEntries).set(updateData).where(eq(changelogEntries.id, id))
 
@@ -232,19 +224,12 @@ export async function updateChangelog(
       : { type: 'service' as const, displayName: 'system' }
 
     if (input.publishState.type === 'published') {
-      // Cancel any pending scheduled job, then dispatch immediately, but only
-      // on the first publish so re-saves of a live entry don't re-notify.
+      // Cancel any pending scheduled job, then announce. The helper's atomic
+      // claim makes this a no-op if the entry was already announced.
       cancelScheduledDispatch(jobId).catch(() => {})
-      if (willNotify) {
-        const updated = await getChangelogById(id)
-        dispatchChangelogPublished(actor, {
-          id,
-          title: updated.title,
-          contentPreview: updated.content.slice(0, 200),
-          publishedAt: new Date(),
-          linkedPostCount: updated.linkedPosts.length,
-        }).catch((err) => log.error({ err }, 'failed to dispatch changelog published event'))
-      }
+      notifyChangelogPublished(id, actor).catch((err) =>
+        log.error({ err }, 'failed to dispatch changelog published event')
+      )
     } else if (input.publishState.type === 'scheduled') {
       const newPublishedAt = getPublishedAtFromState(input.publishState)
       if (newPublishedAt) {
@@ -379,6 +364,99 @@ export async function getChangelogById(id: ChangelogId): Promise<ChangelogEntryW
     linkedPosts,
     status: computeStatus(entry.publishedAt),
   }
+}
+
+// ============================================================================
+// Publish notification
+// ============================================================================
+
+/**
+ * Announce a published changelog entry exactly once.
+ *
+ * Atomically claims the entry by flipping `notifiedAt` from null, and only
+ * for an entry that is actually live (published, not future-dated, not
+ * soft-deleted). Only the caller whose UPDATE matched a row dispatches, so
+ * concurrent publish paths and the reconciler never double-notify. If the
+ * dispatch fails the claim is released so the reconciler retries later.
+ *
+ * Returns true when this call sent the announcement, false otherwise.
+ */
+export async function notifyChangelogPublished(
+  id: ChangelogId,
+  actor: EventActor
+): Promise<boolean> {
+  const [claimed] = await db
+    .update(changelogEntries)
+    .set({ notifiedAt: new Date() })
+    .where(
+      and(
+        eq(changelogEntries.id, id),
+        isNull(changelogEntries.notifiedAt),
+        isNotNull(changelogEntries.publishedAt),
+        lte(changelogEntries.publishedAt, new Date()),
+        isNull(changelogEntries.deletedAt)
+      )
+    )
+    .returning()
+
+  if (!claimed) return false
+
+  try {
+    const linkedPosts = await db.query.changelogEntryPosts.findMany({
+      where: eq(changelogEntryPosts.changelogEntryId, id),
+      columns: { postId: true },
+    })
+    await dispatchChangelogPublished(actor, {
+      id: claimed.id,
+      title: claimed.title,
+      contentPreview: claimed.content.slice(0, 200),
+      publishedAt: claimed.publishedAt!,
+      linkedPostCount: linkedPosts.length,
+    })
+    return true
+  } catch (err) {
+    // Release the claim so the reconciler retries; nothing went out.
+    await db
+      .update(changelogEntries)
+      .set({ notifiedAt: null })
+      .where(eq(changelogEntries.id, id))
+      .catch(() => {})
+    log.error({ err, changelog_id: id }, 'failed to dispatch changelog published event')
+    return false
+  }
+}
+
+/**
+ * Safety net for publish notifications. Finds entries that are live but were
+ * never announced (a dropped delayed-publish job, or a dispatch that failed
+ * after the synchronous publish) and notifies each via {@link
+ * notifyChangelogPublished}. Idempotent via that helper's atomic claim;
+ * intended to run on an interval under a cross-instance sweep lock.
+ *
+ * @returns the number of entries announced this pass.
+ */
+export async function reconcileChangelogNotifications(): Promise<number> {
+  const due = await db
+    .select({ id: changelogEntries.id, principalId: changelogEntries.principalId })
+    .from(changelogEntries)
+    .where(
+      and(
+        isNull(changelogEntries.notifiedAt),
+        isNotNull(changelogEntries.publishedAt),
+        lte(changelogEntries.publishedAt, new Date()),
+        isNull(changelogEntries.deletedAt)
+      )
+    )
+    .limit(100)
+
+  let notified = 0
+  for (const entry of due) {
+    const actor = entry.principalId
+      ? buildEventActor({ principalId: entry.principalId })
+      : { type: 'service' as const, displayName: 'scheduler' }
+    if (await notifyChangelogPublished(entry.id, actor)) notified++
+  }
+  return notified
 }
 
 // ============================================================================
