@@ -25,6 +25,7 @@
 |---|---|
 | [自定义表单 + 双 Site + Notion 双向同步](./design/custom-forms-and-notion-sync.md) | 可配置表单字段系统、对内(sales)/对外(customer)双租户、Notion 需求池/标案池字段映射与 comment 同步方案 |
 | [内容站架构（Landing + 101 文档 + Blog）](./design/content-site-architecture.md) | 独立 Astro + Starlight 内容站，与反馈应用分离；landing / 文档 / blog 规划 |
+| [用户调研投票（Poll / 方案 PK）](./design/poll-voting.md) | 多方案单选投票 + 讨论，可关联反馈帖；独立实体、对现有代码零侵入，分 MVP/增强落地 |
 
 ## 与其他文档的关系
 
@@ -37,5 +38,5 @@
 ## 上游信息
 
 - 上游仓库：[github.com/getfider/fider](https://github.com/getfider/fider)（AGPL-3.0）
-- 本 fork：[github.com/ChenyqThu/fider](https://github.com/ChenyqThu/fider)
+- 本 fork：[github.com/ChenyqThu/Omada-Beacon](https://github.com/ChenyqThu/Omada-Beacon)
 - 官方文档：[docs.fider.io](https://docs.fider.io) ｜ 自部署：[docs.fider.io/hosting-instance](https://docs.fider.io/hosting-instance) ｜ API：[docs.fider.io/api/overview](https://docs.fider.io/api/overview)

@@ -19,3 +19,20 @@
   - 待验证：中文体验、OAuth 登录、多租户分站点。
 
 > 下一步进入 P1 前，先把 P0 的「中文 + OAuth + 多租户」三项体验验证完整。品牌化与 SSO 属 P1，不在 P0 范围。
+
+## 功能模块规划
+
+P0–P4 是「平台能力演进主线」；下面是横切多个阶段的**功能模块**，各有独立设计提案，按依赖关系挂靠阶段：
+
+| 功能模块 | 建议阶段 | 依赖 | 设计提案 |
+|---|---|---|---|
+| 自定义表单 + 双 Site + Notion 同步 | P1（双 site/表单）→ P2（同步）→ P3（AI 复用字段） | 平台就绪 | [custom-forms-and-notion-sync](./design/custom-forms-and-notion-sync.md) |
+| **用户调研投票（Poll / 方案 PK）** | **P2 · 产品功能增强**（MVP 可在 P1 后启动） | 平台就绪，不依赖集成/AI | [poll-voting](./design/poll-voting.md) |
+
+> 调研投票与「反馈帖点赞」是不同交互（多方案单选 PK vs 单帖支持度），为**新增独立实体**，对现有代码零侵入。详见设计提案。
+
+## 品牌改名（Fider → Omada Beacon）
+
+属 P1「品牌化」的一部分。GitHub 仓库已更名 `ChenyqThu/Omada-Beacon`，README/docs 已用 Omada Beacon；代码层的品牌展示名替换、构建标识、本地路径/remote 同步等执行清单见 [rename-to-omada-beacon](./design/rename-to-omada-beacon.md)。
+
+**已确认决策**：品牌展示名 = Omada Beacon；Go module path `github.com/getfider/fider` **保留不改**（仅内部 import 标识，避免改动 302 个文件）；本地文件夹 + git remote 同步为 Omada-Beacon。

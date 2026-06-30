@@ -62,3 +62,11 @@
 4. **实现 service**（`app/services/`）：`bus.AddHandler` 注册，内部直写 SQL。
 
 > 代码示例（含前端 `http.get` 调用、CSS BEM 约定、迁移写法）详见根目录 `CLAUDE.md`。
+
+## 规划中的领域扩展
+
+新功能优先以「**新增独立领域**」方式接入，借力 Bus 的插件式注册，尽量不改现有代码、保持上游 merge 干净：
+
+- **用户调研投票（Poll）**：新增 `entity.Poll / PollOption`、`poll_votes` 表、`poll.go` service（`bus.AddHandler` 注册）、`/api/v1/polls` 路由、前端 `ShowPoll` 页 —— 全为新增文件，零侵入。唯一侵入点是讨论复用 `comments` 表（加 `poll_id` 列）。设计详见 [设计提案 · 用户调研投票](./design/poll-voting.md)。
+
+> 接入范式仍是「加端点四步套路」+ `tenant_id` 多租户隔离 + `post_votes` 式幂等投票，不引入新架构。
