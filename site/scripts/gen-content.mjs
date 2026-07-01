@@ -9,11 +9,30 @@ const SITE = path.resolve(__dirname, "..")
 const SRC = path.resolve(SITE, "../docs") // 主仓 docs/
 const DST = path.resolve(SITE, "src/content/docs")
 
+// 把正文里指向 .md 的相对交叉链接重写为 Starlight 路由（构建期，不改源，保 GitHub 兼容）
+// relDir: 源文件相对 docs/ 的目录（顶层传 ""，design 文件传 "design"）
+function rewriteMdLinks(body, relDir) {
+  // 先按 ``` 围栏切分，只重写代码块外的段落（奇数段是代码块，原样保留）
+  return body
+    .split(/(```[\s\S]*?```)/g)
+    .map((seg, i) => {
+      if (i % 2 === 1) return seg
+      return seg.replace(/\]\(([^)\s#]+\.md)(#[^)\s]*)?\)/g, (m, target, anchor = "") => {
+        if (/^(https?:|mailto:|\/)/.test(target)) return m // 外链/绝对，不动
+        const absFromDocsRoot = path.posix.normalize(path.posix.join("/", relDir, target)).slice(1)
+        const slug = absFromDocsRoot.replace(/\.md$/, "")
+        return `](/${slug}/${anchor})`
+      })
+    })
+    .join("")
+}
+
 // 提取首个 H1 作 title，删掉正文里的该 H1（Starlight 用 frontmatter title 渲染页头，避免重复）
-function migrate(raw, fallback) {
+function migrate(raw, fallback, relDir = "") {
   const m = raw.match(/^#[ \t]+(.+?)[ \t]*$/m)
   const title = (m ? m[1] : fallback).replace(/\\/g, "\\\\").replace(/"/g, '\\"')
-  const body = m ? raw.replace(m[0], "").replace(/^\s*\n/, "") : raw
+  let body = m ? raw.replace(m[0], "").replace(/^\s*\n/, "") : raw
+  body = rewriteMdLinks(body, relDir)
   return `---\ntitle: "${title}"\n---\n\n${body}`
 }
 
@@ -25,7 +44,7 @@ async function run() {
   const top = entries.filter((e) => e.isFile() && /^0.*\.md$/.test(e.name)).map((e) => e.name)
   for (const f of top) {
     const raw = await readFile(path.join(SRC, f), "utf8")
-    await writeFile(path.join(DST, f), migrate(raw, f.replace(/\.md$/, "")))
+    await writeFile(path.join(DST, f), migrate(raw, f.replace(/\.md$/, ""), ""))
   }
 
   // design/*.md
@@ -37,7 +56,7 @@ async function run() {
   }
   for (const f of design) {
     const raw = await readFile(path.join(SRC, "design", f), "utf8")
-    await writeFile(path.join(DST, "design", f), migrate(raw, f.replace(/\.md$/, "")))
+    await writeFile(path.join(DST, "design", f), migrate(raw, f.replace(/\.md$/, ""), "design"))
   }
 
   console.log(`✓ gen-content: ${top.length} 篇文档 + ${design.length} 篇 design → src/content/docs/`)

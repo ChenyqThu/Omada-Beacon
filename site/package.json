@@ -1,5 +1,5 @@
 {
-  "name": "omada-beacon-docs",
+  "name": "omada-beacon-site",
   "version": "1.0.0",
   "description": "Omada Beacon 文档站（Astro + Starlight，构建期从主仓 docs/ 生成内容）",
   "type": "commonjs",
