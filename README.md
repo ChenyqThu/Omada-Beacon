@@ -1,125 +1,53 @@
 <p align="center">
-  <a href="https://quackback.io">
-    <img src=".github/logo.svg" alt="Quackback Logo" width="80" height="80" />
-  </a>
-</p>
-
-<h1 align="center">Quackback</h1>
-
-<p align="center">
-  <strong>Open source feedback for teams that ship.</strong>
+  <strong>Omada Beacon</strong>
 </p>
 
 <p align="center">
-  The open-source alternative to Canny, UserVoice, and Productboard.<br />
-  Collect feedback. Prioritize what matters. Close the loop.
+  Omada 多产品线（Controller / Fusion / VIGI / MSP）内部产品反馈平台<br/>
+  基于开源项目 <a href="https://github.com/QuackbackIO/quackback">Quackback</a> 改造 · 内部自部署自用
 </p>
 
-<p align="center">
-  <a href="https://quackback.io">Website</a> &middot;
-  <a href="https://quackback.io/docs">Docs</a> &middot;
-  <a href="#get-started">Get Started</a>
-</p>
+---
 
-<p align="center">
-  <a href="https://github.com/QuackbackIO/quackback/stargazers"><img src="https://img.shields.io/github/stars/QuackbackIO/quackback?style=flat&color=f5a623" alt="GitHub stars" /></a>
-  <a href="https://github.com/QuackbackIO/quackback/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License" /></a>
-  <a href="https://github.com/QuackbackIO/quackback/actions"><img src="https://img.shields.io/github/actions/workflow/status/QuackbackIO/quackback/ci.yml?label=CI" alt="CI" /></a>
-  <a href="https://github.com/QuackbackIO/quackback/issues"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome" /></a>
-</p>
+## 这是什么
 
-<p align="center">
-  <img src=".github/screenshot.png" alt="Quackback feedback portal" width="800" />
-</p>
+**Omada Beacon** 是 [Quackback](https://github.com/QuackbackIO/quackback)（AGPL-3.0）的 fork，目标是 Omada 多产品线的内部产品反馈 / 需求采集平台。
 
-## Get Started
+> ⚠️ **上游切换说明**: 本项目已从原 Fider (Go+React) 架构全面切换至 Quackback (全栈 TypeScript)。原 Fider 代码已归档至 `fider-archive` 分支。
 
-**Cloud** — start free at [app.quackback.io](https://app.quackback.io/signup). We host, scale, and maintain it for you. No setup required.
+Quackback 提供了我们所需的现代化技术栈和核心基建：
+- **TanStack Start + React 18 + Tailwind v4 + Shadcn UI**（极简风格，高度可定制）
+- **Board 隔离与权限矩阵**（支持外部客户与内部 Sales 的隔离）
+- **内置 AI 能力**（重复检测、摘要、情感分析）
+- **丰富的第三方集成**（Notion、Slack、Jira 等）
 
-**Self-hosted** anywhere with [Docker](#docker) or [one click on Railway](#one-click-deploy).
+我们将在此基础上，集中精力开发 Omada 差异化功能：**自定义表单字段、Poll 调研投票、以及 Omada 品牌化定制**。
 
-## Why Quackback?
+## 文档
 
-Most feedback tools are expensive, closed-source, and lock you in. Quackback gives you a modern feedback system you actually own.
+完整的项目文档在 [`docs/`](./docs/README.md)：
 
-- **Self-host for free.** Run on your own infrastructure. No per-seat pricing.
-- **Own your data.** Your feedback lives in your own database. No vendor lock-in.
-- **AI-powered.** Automatic duplicate detection, AI summaries, feedback extraction from external sources, and an [MCP server](https://quackback.io/docs/mcp) that lets AI agents search, triage, and act on feedback directly.
-- **24 integrations.** Slack, Linear, Jira, GitHub, Intercom, Zendesk, and [more](#integrations) out of the box.
+- [项目总览](./docs/01-overview.md) · [技术架构](./docs/02-architecture.md) · [路线图](./docs/03-roadmap.md)
+- 设计提案：[自定义表单](./docs/design/custom-forms.md)
 
-## Features
-
-- **Feedback boards.** Let users vote, comment, and track status on feature requests. Vote on behalf of customers and see a full activity timeline on every post.
-- **AI-powered.** Automatically detect duplicates, summarize key themes, and ingest feedback from Slack, email, and other sources so nothing slips through the cracks.
-- **Embeddable widget.** Collect feedback right inside your app with a [drop-in widget](https://quackback.io/docs/widget/installation). Works on desktop and mobile, with native SDKs for [iOS](https://github.com/QuackbackIO/quackback-ios) and [Android](https://github.com/QuackbackIO/quackback-android).
-- **Admin inbox.** Triage incoming feedback in one place. Filter, group, dismiss, and restore deleted posts.
-- **Roadmap & changelog.** Show users what's planned, in progress, and shipped. Publish updates and schedule posts for later.
-- **Integrations.** [24 integrations](#integrations) including Slack, Linear, Jira, GitHub, Intercom, Zendesk, and two-way issue tracker sync.
-- **API, webhooks & MCP.** Automate workflows with the REST API, outbound webhooks, and a 23-tool [MCP server](https://quackback.io/docs/mcp) for AI agents.
-- **Internationalization.** Portal and widget available in English, French, German, Spanish, and Arabic with full RTL support. Auto-detects browser language.
-- **Flexible auth.** Password, email OTP, Google, GitHub, and SSO with providers like Okta and Auth0.
-- **SEO-ready.** Auto-generated sitemap and social sharing previews on every portal page.
-
-## Integrations
-
-Slack, Linear, Jira, GitHub, GitLab, Asana, ClickUp, Monday, Trello, Notion, Shortcut, Azure DevOps, Intercom, Zendesk, Freshdesk, HubSpot, Salesforce, Stripe, Discord, Teams, Segment, Zapier, Make, and n8n.
-
-## Self-Hosted
-
-### One-Click Deploy
-
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/quackback?referralCode=ez8Slg&utm_source=github&utm_medium=readme&utm_campaign=deploy-button)
-
-### Docker
+## 快速开始
 
 ```bash
-git clone https://github.com/QuackbackIO/quackback.git
-cd quackback
-cp .env.example .env   # Edit with your configuration
-docker build -t quackback -f apps/web/Dockerfile .
-docker run -p 3000:3000 --env-file .env quackback
+bun run setup              # 一次性初始化 (依赖, Docker, migrations, seed)
+bun run dev                # 启动本地开发服务器 http://localhost:3000
 ```
 
-Requires PostgreSQL and a Redis-compatible store. Set `DATABASE_URL` and `REDIS_URL` in `.env`. Migrations run automatically on startup.
+详见 `CLAUDE.md` 中的开发指南。
 
-## Contributing
+## 技术栈
 
-See the [Contributing Guide](CONTRIBUTING.md) to get started.
+- **全栈框架**: TanStack Start + React 18
+- **路由**: TanStack Router
+- **数据库 & ORM**: PostgreSQL (需 pgvector) + Drizzle ORM
+- **样式**: Tailwind CSS v4 + Shadcn UI
+- **认证**: Better Auth
+- **后台任务**: BullMQ + Redis
 
-- [GitHub Discussions](https://github.com/QuackbackIO/quackback/discussions) — ask questions, share ideas
+## 许可证
 
-### Local Development
-
-Prerequisites: [Bun](https://bun.sh/) v1.3.7+ and [Docker](https://docker.com/)
-
-```bash
-git clone https://github.com/QuackbackIO/quackback.git
-cd quackback
-bun run setup    # Install deps, start Docker, run migrations
-bun run db:seed  # Optional: seed demo data
-bun run dev      # http://localhost:3000
-```
-
-Log in with `demo@example.com` / `password`.
-
-### Tech Stack
-
-- [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) · Full-stack React framework
-- [PostgreSQL](https://www.postgresql.org/) + [Drizzle ORM](https://orm.drizzle.team/) · Database and type-safe ORM
-- [BullMQ](https://docs.bullmq.io/) · Background job processing
-- [Better Auth](https://www.better-auth.com/) · Authentication
-- [Tailwind CSS v4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) · Styling
-- [Bun](https://bun.sh/) · Runtime and package manager
-
-<a href="https://github.com/QuackbackIO/quackback/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=QuackbackIO/quackback" alt="Contributors" />
-</a>
-
-## License
-
-[AGPL-3.0](LICENSE).
-
-- **Self-hosting** — free and fully functional, no limits
-- **Modifications** — if you distribute or run a modified version as a service, open-source your changes under AGPL-3.0
-
-Contributions require signing our [CLA](CLA.md).
+本项目基于 [**Quackback**](https://github.com/QuackbackIO/quackback) 构建，遵循 **AGPL-3.0** 许可证。
