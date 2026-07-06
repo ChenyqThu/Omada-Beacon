@@ -1,38 +1,56 @@
 # 01 · 项目总览
 
-## 最终技术选型
+## 概述
 
-> ✅ **基于开源项目 Fider 改造，内部自部署自用。**
-> - **部署方式**：`git clone` + 本地 build（放弃官方 Docker 镜像，换取完整可定制性）。
-> - **数据库**：PostgreSQL 12+（本地 Postgres 容器 或 自托管 Supabase 二选一，详见 [04 · 数据库方案](./04-database.md)）。
-> - **许可证**：AGPL-3.0 — 内部自用无障碍，无商用限制。
+Omada Beacon 是基于开源项目 **Fider**(AGPL-3.0) 改造的 **Omada 多产品线内部产品反馈 / 需求采集平台**，内部自部署自用。
 
-## 为什么选 Fider
+目标是让 Fider 承担「反馈采集 + 投票 + 评论 + 多租户 + 权限」这层通用基建，把研发精力集中投入到 Fider 原生不具备、且构成我们差异化价值的能力上——**AI 舆情 / 分类 / 摘要，以及与 Notion 需求池 / 标案池的双向同步**。
 
-- **成熟可靠**：2017 年起步，约 4.4k stars、近 2000 次提交，社区活跃，是经过验证的反馈/投票平台。
-- **省基建**：自带反馈采集、投票、评论、标签、用户/权限、**多租户**、OAuth、REST API，免去大量从零搭地基的工作。
-- **多租户天然契合 Omada 多产品线**（Controller / Fusion / VIGI / MSP 等），可一套实例分租户运营。
-- **二开友好**：Go + TypeScript 全量类型覆盖，代码分层约定严格，仓库自带 `CLAUDE.md` 开发指南，适合 AI 辅助开发。
+平台面向 Omada 各产品线（Controller / Fusion / VIGI / MSP 等），每条产品线以独立的反馈站点（site）运营，站点之间数据与用户相互隔离。
 
-## 技术栈
+> 🏷️ **命名约束**: 仅**展示名**由 Fider 改为 **Omada Beacon**；Go module path 保留 `github.com/getfider/fider`（约 302 处 import 不动），严格区分「上游 Fider」与「本产品」，禁止全局替换。
+
+## 目标
+
+### 短期目标
+- 本地跑通 Fider fork，验证多租户、OAuth / 企业 SSO、中英双语、公开/私有站点等核心能力
+- 完成品牌化定制，按产品线建立独立反馈站点，支持内部试用
+- 明确并落地身份与权限体系，满足「内部建站 + 访客提反馈 + 官方答复」闭环
+
+### 长期目标
+- 打通反馈数据与 Notion（需求池 / 标案池）双向同步，形成「外部反馈 → 内部需求」的自动流转
+- 叠加 AI 能力层：反馈自动分类 / 摘要 / 舆情聚合，构建差异化的产品反馈中枢
+- 沉淀为可迁移的内部产品运营方法论与工具资产
+
+## 核心系统与技术栈
 
 | 层 | 技术 | 说明 |
 |---|---|---|
-| 后端 | **Go**（约 65%） | CQRS 读写分离 + Bus 依赖注入分发；**无 ORM，直写 SQL**；需 Go 1.22+ |
-| 前端 | **React 18 + TypeScript**（约 29%） | SSR + hydration、懒加载代码分割、全量 TS 类型；需 Node 21/22 |
-| 国际化 | **LinguiJS** | 多语言开箱即用，适合中英双语 |
-| 样式 | **SCSS**（BEM + 自有 utility classes） | **未使用 Tailwind**，改样式优先复用 utility 类 |
-| 数据库 | **PostgreSQL 12+** | 编号 SQL 迁移文件，`make migrate` 执行 |
-| 构建 | esbuild + webpack + Makefile | `make watch`（热重载）/ `make build`（生产构建）/ `make lint` / `make test` |
+| 后端 | Go (CQRS + Bus，无 ORM，直写 SQL) | 需 Go 1.22+；`app/cmd/routes.go` 集中定义路由 |
+| 前端 | React 18 + TypeScript (SSR + hydration) | 懒加载代码分割，全量 TS 类型；需 Node 21/22 |
+| 国际化 | LinguiJS | 中英双语开箱即用 |
+| 样式 | SCSS (BEM + 自建 utility，**无 Tailwind**) | 改样式优先复用 utility 类 |
+| 数据库 | PostgreSQL 12+ | 编号 SQL 迁移文件，`make migrate` 执行 |
+| 构建 | esbuild + webpack + Makefile | `make watch` / `make build` / `make lint` / `make test` |
 
-技术架构的详细解读见 [02 · 技术架构](./02-architecture.md)。
+## 仓库分层（源码导航）
 
-## 许可证说明（已确认可接受）
+- `app/handlers/` — HTTP 处理器 ｜ `app/services/` — 业务逻辑 ｜ `app/models/`（`entity` / `action` / `cmd` / `query` / `dto` 严格分层）
+- `app/cmd/routes.go` — 所有路由集中定义（追踪请求入口）
+- `migrations/` — 数据库迁移（仅 up migration，命名 `YYYYMMDDHHMMSS_desc.sql`）
+- `public/pages/` — 页面组件 ｜ `public/components/` — 复用组件 ｜ `public/assets/styles/` — 样式
 
-> 📜 Fider 采用 **AGPL-3.0**（强 Copyleft）。AGPL 的义务是「**对外提供网络服务时需开源衍生代码**」，**对商用没有任何限制**。本项目为**内部自用**，即使衍生代码开源也可接受，因此**许可证不构成约束**。
+## 多租户架构核心
 
-## 核心策略
+- **一个 site 完全等价于一个 tenant**。每个 tenant 拥有独立的：用户表、站点设置、品牌化、OAuth 配置、标签、隐私策略、posts / votes / comments。
+- **子域名区分**：多租户模式下，每个 tenant 通过子域名区分（如 `controller.beacon.example.com`）。
+- **逻辑隔离**：共享数据库 + 共享 schema + 行级租户隔离（每张表带 `tenant_id`）。靠 tenant 中间件在查询层按 `tenant_id` 过滤。
 
-> 🎯 让 Fider 承担「反馈采集 + 投票 + 多租户 + 权限」这层基建，把精力集中投到它没有、且正是我们差异化价值的 **AI 舆情 / 分类 / 摘要 + 内部系统打通** 上，ROI 最高。
+## 身份与权限体系
 
-可定制范围的细分（哪些零代码、哪些需二开、哪些要自建）见 [05 · 可定制范围](./05-customization.md)；分阶段落地见 [03 · 路线图](./03-roadmap.md)。
+三级角色（按 site 隔离）：
+1. **Visitor（访客）**：提反馈 / 投票 / 评论讨论
+2. **Collaborator（协作者）**：改 ticket 状态 / 以官方身份回复（Response）/ 编辑 post / 管理标签
+3. **Administrator（管理员）**：管理成员、分配角色、改 site 设置 / OAuth / 隐私、删除
+
+> 🎯 **平台层 Owner/SuperAdmin 与 Site Admin 分离**：Site Administrator 只是「某个具体 site 的最高权限」，不能创建 site、删除 site、跨 site 查看数据或管理其他 site。Site 创建 / 管理 / 删除属于平台层 Owner/SuperAdmin 权限。

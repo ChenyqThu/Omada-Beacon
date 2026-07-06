@@ -1,38 +1,26 @@
 # 03 · 路线图
 
-分阶段落地计划。核心策略：先让 Fider 把基建撑起来，再把资源投到差异化的 AI 能力层。
+本产品路线图分为四大阶段（P1-P4），但在工程执行上，为了避免 P1 过重，拆分成了更小的 Milestone（P0, P1a-c, P2a-c, P3, P4）。
 
-## 阶段总览
+## 阶段大主题与价值
 
-| 阶段 | 目标 | 关键动作 | 产出 |
+| 阶段 | 大主题 | 概要价值 |
+|---|---|---|
+| P1 | 可配置化基座 | 一套代码撑多形态 site，把「配置」变成产品能力；同时落地基础用户档案与帖子指标 |
+| P2 | 同步与协同 | 打通外部反馈 → 内部需求流转（Notion 双向）+ 群体决策（Poll） |
+| P3 | 用户成长与社区互动 | 用声望（karma）与徽章 / 等级激励用户，沉淀活跃社区，为 AI 备好数据 |
+| P4 | AI 能力层 | 在活跃社区与高质量数据上叠加分类 / 摘要 / 舆情，构建差异化反馈中枢 |
+
+## 执行分期收敛（Milestones）
+
+| Milestone | 目标 | 范围 | 明确不做 |
 |---|---|---|---|
-| **P0 · 可行性验证** | 本地跑通 | `git clone` → 配 `.env` → `make migrate` → `make watch`；接本地 Postgres；验证中文体验、OAuth、多租户 | 本地可运行实例 + 可行性结论 |
-| **P1 · 基础定制** | 「像我们自己的产品」 | 品牌化（Logo/配色/域名）、企业 SSO 接入、中英双语、按产品线建租户 | 可内部试用的定制版 |
-| **P2 · 数据与集成** | 打通内部系统 | 梳理 API v1 能力；反馈数据与 Notion / Jira 等内部系统打通；按需切换 Supabase 方案 | 数据流打通 + 集成方案 |
-| **P3 · AI 能力层** | 差异化价值 | 在 Fider 之上叠加 AI：反馈自动分类 / 摘要 / 舆情聚合；评估实时/Roadmap 视图需求 | AI 增强版反馈平台 |
-| **P4 · 上线运营** | 稳定运行 | 生产部署、备份与监控、迭代机制、内部推广 | 正式投入使用 |
-
-## 当前进度
-
-- **P0 进行中** ✅ —— 本地环境已搭建并跑通（详见 [07 · 本地开发指南](./07-local-development.md)）。
-  - 已完成：Go/Node/Docker 环境就绪、本地 Postgres 容器、`.env` 配置、`make build` / `make migrate` / `make run` 走通。
-  - 待验证：中文体验、OAuth 登录、多租户分站点。
-
-> 下一步进入 P1 前，先把 P0 的「中文 + OAuth + 多租户」三项体验验证完整。品牌化与 SSO 属 P1，不在 P0 范围。
-
-## 功能模块规划
-
-P0–P4 是「平台能力演进主线」；下面是横切多个阶段的**功能模块**，各有独立设计提案，按依赖关系挂靠阶段：
-
-| 功能模块 | 建议阶段 | 依赖 | 设计提案 |
-|---|---|---|---|
-| 自定义表单 + 双 Site + Notion 同步 | P1（双 site/表单）→ P2（同步）→ P3（AI 复用字段） | 平台就绪 | [custom-forms-and-notion-sync](./design/custom-forms-and-notion-sync.md) |
-| **用户调研投票（Poll / 方案 PK）** | **P2 · 产品功能增强**（MVP 可在 P1 后启动） | 平台就绪，不依赖集成/AI | [poll-voting](./design/poll-voting.md) |
-
-> 调研投票与「反馈帖点赞」是不同交互（多方案单选 PK vs 单帖支持度），为**新增独立实体**，对现有代码零侵入。详见设计提案。
-
-## 品牌改名（Fider → Omada Beacon）
-
-属 P1「品牌化」的一部分。GitHub 仓库已更名 `ChenyqThu/Omada-Beacon`，README/docs 已用 Omada Beacon；代码层的品牌展示名替换、构建标识、本地路径/remote 同步等执行清单见 [rename-to-omada-beacon](./design/rename-to-omada-beacon.md)。
-
-**已确认决策**：品牌展示名 = Omada Beacon；Go module path `github.com/getfider/fider` **保留不改**（仅内部 import 标识，避免改动 302 个文件）；本地文件夹 + git remote 同步为 Omada-Beacon。
+| **P0 · Feasibility Smoke** | 验证 Fider fork 可运行 | 本地 build / Postgres / migration / HOST_MODE=multi / 原生反馈闭环 | 不做自定义字段、Notion 同步、Poll、AI |
+| **P1a · Omada Beacon Minimum Runtime** | 最小可用子站 | 展示名 / 品牌化 / 主域名注册关闭 / 创建测试 site / 原生角色验证 | 不做平台 UI、不做动态表单 |
+| **P1b · Tenant Access Control** | 站点准入与权限闭环 | public/private、邀请制、邮箱后缀白名单、SSO、权限测试矩阵 | 不做跨 site dashboard |
+| **P1c · Structured Feedback Foundation** | 结构化反馈基座 | 动态字段、字段生命周期、状态展示配置、Roadmap 显隐、基础 profile / view_count | 不做完整自定义状态机、不做 karma |
+| **P2a · Notion Sync MVP** | 反馈进入 Notion | 手动 / 半自动 Fider→Notion 单向、sync_links、sync_events、失败可诊断 | 不做自动双向同步、不做入站轮询 |
+| **P2b · Poll Collaboration** | 调研投票协同 | Poll 列表 / 详情 / 单选投票 / 评论复用 | 不与 P2a 强耦合 |
+| **P2c · Platform Admin Lite** | 平台 Owner 管站 | Owner/SuperAdmin 创建 / 管理 / 删除 site、分配域名、指定 Site Admin | 跨 site 总览可继续后置 |
+| **P3 · Community Growth** | 用户成长体系 | karma、徽章、等级；internal site 默认可关闭或弱化 | 不阻塞 P1/P2 主链路 |
+| **P4 · AI Layer** | 智能分类 / 摘要 / 舆情 | 基于已沉淀的结构化反馈与评论数据做异步 AI 能力 | 不在数据基座成熟前抢跑 |
