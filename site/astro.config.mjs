@@ -26,11 +26,7 @@ export default defineConfig({
             { label: "01 · 项目总览", slug: "01-overview" },
             { label: "02 · 技术架构", slug: "02-architecture" },
             { label: "03 · 路线图", slug: "03-roadmap" },
-            { label: "04 · 数据库方案", slug: "04-database" },
-            { label: "05 · 可定制范围", slug: "05-customization" },
-            { label: "06 · 部署方案", slug: "06-deployment" },
-            { label: "07 · 本地开发", slug: "07-local-development" },
-            { label: "08 · 原始方案存档", slug: "08-original-proposal" },
+            { label: "04 · 前端页面框架", slug: "04-frontend-pages" },
           ],
         },
         {
