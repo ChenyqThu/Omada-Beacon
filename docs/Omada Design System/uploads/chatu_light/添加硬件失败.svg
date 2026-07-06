@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="160" fill="none" viewBox="0 0 300 160">
+  <path stroke="#0A5A5A" stroke-width="1.2" d="M86.5 83.102h128v27.057h-128z"></path>
+  <path fill="#B7EE00" d="M100.028 91.114h20.813v2.081h-20.813z"></path>
+  <path stroke="#999" stroke-width=".6" d="M87.126 69.573H214.5M87.126 71.654H214.5M87.126 101.833H214.5m-127.374 2.082H214.5"></path>
+  <path fill="#00E195" d="M100.028 59.167h20.813v2.081h-20.813z"></path>
+  <path stroke="#0A5A5A" stroke-width="1.2" d="M86.5 50.842h128v27.057h-128z"></path>
+  <path fill="#00E195" stroke="#636363" stroke-linecap="square" stroke-width=".464" d="M181.199 62.289h4.163v4.163h-4.163zm6.244 0h4.163v4.163h-4.163zm6.244 0h4.163v4.163h-4.163zm6.244 0h4.163v4.163h-4.163z"></path>
+  <path fill="#B7EE00" stroke="#636363" stroke-linecap="square" stroke-width=".464" d="M181.199 94.549h4.163v4.163h-4.163zm6.244 0h4.163v4.163h-4.163zm6.244 0h4.163v4.163h-4.163zm6.244 0h4.163v4.163h-4.163z"></path>
+  <path fill="#EE385C" fill-rule="evenodd" d="M205.428 94.905c5.207-5.207 13.649-5.207 18.856 0 5.207 5.207 5.207 13.649 0 18.856-5.207 5.207-13.649 5.207-18.856 0-5.207-5.207-5.207-13.649 0-18.856Z" clip-rule="evenodd"></path>
+  <path stroke="#fff" stroke-width="1.529" d="m209.789 109.637 10.606-10.607m0 10.607L209.788 99.03"></path>
+</svg>

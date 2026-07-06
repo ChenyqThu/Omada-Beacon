@@ -1,0 +1,23 @@
+<svg width="88" height="64" viewBox="0 0 88 64" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<rect x="29.24" y="11.84" width="29.5199" height="40.3199" rx="3.05999" fill="url(#paint0_linear_28254_112973)" stroke="#B5B5B5" stroke-width="0.719998"></rect>
+<mask id="mask0_28254_112973" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="31" y="14" width="26" height="36">
+<rect x="31.4" y="14" width="25.1999" height="35.9999" rx="1.26" fill="url(#pattern0_28254_112973)"></rect>
+</mask>
+<g mask="url(#mask0_28254_112973)">
+<rect x="31.4" y="14" width="25.1999" height="34.1999" fill="url(#pattern1_28254_112973)"></rect>
+</g>
+<defs>
+<pattern id="pattern0_28254_112973" patternContentUnits="objectBoundingBox" width="1" height="1">
+<use xlink:href="#image0_28254_112973" transform="matrix(0.00152439 0 0 0.00106707 0 -0.00579265)"></use>
+</pattern>
+<pattern id="pattern1_28254_112973" patternContentUnits="objectBoundingBox" width="1" height="1">
+<use xlink:href="#image1_28254_112973" transform="matrix(0.00135986 0 0 0.001002 -0.015388 0)"></use>
+</pattern>
+<linearGradient id="paint0_linear_28254_112973" x1="43.9999" y1="12.2" x2="43.9999" y2="51.7999" gradientUnits="userSpaceOnUse">
+<stop stop-color="#3D3D3D"></stop>
+<stop offset="1"></stop>
+</linearGradient>
+<image id="image0_28254_112973" width="656" height="948" preserveAspectRatio="none"></image>
+<image id="image1_28254_112973" width="758" height="998" preserveAspectRatio="none"></image>
+</defs>
+</svg>

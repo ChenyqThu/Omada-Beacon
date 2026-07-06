@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="160" fill="none" viewBox="0 0 200 160">
+  <path fill="#242424" stroke="#999" stroke-linecap="square" stroke-width="1.2" d="M22 71h80v64H22z"></path>
+  <path fill="#242424" stroke="#fff" stroke-linecap="square" stroke-opacity=".64" stroke-width=".598" d="M25.049 74.049h73.905v57.905H25.049z"></path>
+  <path fill="#2D3633" d="M31 80h27v23H31z"></path>
+  <path fill="#242424" stroke="#fff" stroke-opacity=".5" stroke-width=".775" d="M98.293 111.095h85.305v5.17H98.293z"></path>
+  <path fill="#242424" stroke="#999" stroke-linecap="square" stroke-width="1.2" d="M97 116.473h88v18.602H97v-18.602Z"></path>
+  <path stroke="#fff" stroke-opacity=".5" stroke-width=".6" d="M97.777 129.341h86.446m-86.446 1.444h86.446"></path>
+  <path fill="#242424" stroke="#999" stroke-linecap="square" stroke-width="1.2" d="M97 93h88v18.602H97V93Z"></path>
+  <path stroke="#fff" stroke-opacity=".5" stroke-width=".6" d="M97.772 105.875h86.457m-86.457 1.433h86.457"></path>
+  <path fill="#00E195" d="M106.305 98.725h14.309v1.431h-14.309z"></path>
+  <path fill="#00E195" stroke="#fff" stroke-linecap="square" stroke-opacity=".64" stroke-width=".319" d="M162.104 100.876h2.862v2.862h-2.862zm4.297 0h2.862v2.862h-2.862zm4.292 0h2.862v2.862h-2.862zm4.291 0h2.862v2.862h-2.862z"></path>
+  <path fill="#B7EE00" stroke="#fff" stroke-linecap="square" stroke-opacity=".64" stroke-width=".319" d="M162.106 124.345h2.862v2.862h-2.862zm4.293 0h2.862v2.862h-2.862zm4.292 0h2.862v2.862h-2.862zm4.293 0h2.862v2.862h-2.862z"></path>
+  <path fill="#242424" stroke="#999" stroke-linecap="square" stroke-width="1.2" d="M55 39.5h96v76.8H55z"></path>
+  <path fill="#2D3633" stroke="#fff" stroke-linecap="square" stroke-opacity=".64" stroke-width=".6" d="M58.657 43.157h88.686v69.486H58.657z"></path>
+  <path fill="#0069CB" d="M63.5 48.899h7v7h-7z"></path>
+  <path fill="#05C178" d="M63.5 61.899h7v7h-7zm0 13h7v7h-7z"></path>
+  <path fill="#586963" d="M75.5 48.9h66v7h-66v-7Zm0 26h29v7h-29v-7Zm0-13h29v7h-29v-7Zm36 0h30v7h-30v-7Z"></path>
+</svg>

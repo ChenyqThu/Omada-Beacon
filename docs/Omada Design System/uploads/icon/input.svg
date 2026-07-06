@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="194" height="56" fill="none" viewBox="0 0 194 56">
+  <rect width="193" height="55" x=".5" y=".5" stroke="#9747FF" stroke-dasharray="10 5" rx="4.5"></rect>
+  <path stroke="#2B2B2B" d="M22 28h12m-6 6V22"></path>
+  <path stroke="#999" d="m116 32 8-8m0 8-8-8"></path>
+  <g clip-path="url(#a)">
+    <circle cx="143" cy="28" r="7" stroke="#999"></circle>
+    <path stroke="#999" d="M143 23.5v5h4.5"></path>
+  </g>
+  <circle cx="165.458" cy="26.917" r="5.958" stroke="#999"></circle>
+  <path stroke="#999" d="m169.25 31.792 3.25 3.25"></path>
+  <path stroke="#2B2B2B" d="M45 28h12"></path>
+  <g clip-path="url(#b)">
+    <path stroke="#2B2B2B" stroke-linecap="round" stroke-linejoin="round" d="M72.482 26.761a1.833 1.833 0 0 0 2.635 2.548"></path>
+    <path stroke="#2B2B2B" stroke-linecap="square" d="M68.648 25.8A14.403 14.403 0 0 0 66.5 28s3.283 4.4 7.333 4.4a6.06 6.06 0 0 0 1.467-.186m-2.922-8.43c.47-.117.957-.184 1.455-.184 4.05 0 7.334 4.4 7.334 4.4s-.821 1.1-2.148 2.2"></path>
+    <path stroke="#2B2B2B" stroke-linecap="square" stroke-linejoin="round" d="M79.5 33.5 68 22"></path>
+  </g>
+  <g clip-path="url(#c)">
+    <path stroke="#2B2B2B" d="M97.167 33.133c4.05 0 7.333-5.133 7.333-5.133s-3.283-5.133-7.333-5.133c-4.05 0-7.334 5.133-7.334 5.133s3.284 5.133 7.334 5.133Z"></path>
+    <path stroke="#2B2B2B" stroke-linejoin="round" d="M97.167 29.833a1.833 1.833 0 1 0 0-3.666 1.833 1.833 0 0 0 0 3.666Z"></path>
+  </g>
+  <defs>
+    <clipPath id="a">
+      <path fill="#fff" d="M135 20h16v16h-16z"></path>
+    </clipPath>
+    <clipPath id="b">
+      <path fill="#fff" d="M66 20h16v16H66z"></path>
+    </clipPath>
+    <clipPath id="c">
+      <path fill="#fff" d="M89 20h16v16H89z"></path>
+    </clipPath>
+  </defs>
+</svg>

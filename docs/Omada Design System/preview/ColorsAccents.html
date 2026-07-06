@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Accent Colors" subtitle="Lime, Blue, Magenta, Orange, Red, Teal — charts only" viewport="700x230" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Accent Colors</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 22px 24px; }
+  .row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+  .a { display: flex; flex-direction: column; gap: 8px; }
+  .a .chip {
+    width: 100%; aspect-ratio: 1.2 / 1; border-radius: 8px; border: 1px solid rgba(0,0,0,0.04);
+    display: flex; align-items: flex-end; padding: 10px; color: #fff;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  }
+  .a .name { font-size: 11px; font-weight: 700; color: var(--fg-primary); }
+  .a .hex  { font-size: 10px; font-family: var(--font-mono); color: var(--fg-tertiary); }
+  .caption { font-size: 11px; color: var(--fg-tertiary); margin-top: 14px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="a"><div class="chip" style="background:#A6EF00;color:#2B2B2B">#A6EF00</div><div class="name">Lime</div><div class="hex">--omada-lime</div></div>
+    <div class="a"><div class="chip" style="background:#0069CB">#0069CB</div><div class="name">Blue</div><div class="hex">--omada-blue</div></div>
+    <div class="a"><div class="chip" style="background:#F476FF">#F476FF</div><div class="name">Magenta</div><div class="hex">--omada-magenta</div></div>
+    <div class="a"><div class="chip" style="background:#FF8C27">#FF8C27</div><div class="name">Orange</div><div class="hex">--omada-orange</div></div>
+    <div class="a"><div class="chip" style="background:#EE385C">#EE385C</div><div class="name">Red</div><div class="hex">--omada-red</div></div>
+    <div class="a"><div class="chip" style="background:#0A5A5A">#0A5A5A</div><div class="name">Teal</div><div class="hex">--omada-teal-700</div></div>
+  </div>
+  <div class="caption">Chart series and category tags only. Never as page chrome. Lime pairs only with dark text.</div>
+</body>
+</html>

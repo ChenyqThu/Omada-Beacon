@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="none" viewBox="0 0 64 64">
+  <g clip-path="url(#a)">
+    
+    <path fill="#FF8C27" d="M32 63.5c17.397 0 31.5-14.103 31.5-31.5S49.397.5 32 .5.5 14.603.5 32 14.603 63.5 32 63.5Z" data-figma-bg-blur-radius="14.588" opacity=".16"></path>
+    
+    <path fill="#FF8C27" d="M32 49.667c9.757 0 17.667-7.91 17.667-17.667 0-9.757-7.91-17.667-17.667-17.667-9.757 0-17.667 7.91-17.667 17.667 0 9.757 7.91 17.667 17.667 17.667Z" data-figma-bg-blur-radius="14.588" opacity=".24"></path>
+    
+    <path fill="#FF8C27" d="M32 39.333a7.333 7.333 0 1 0 0-14.666 7.333 7.333 0 0 0 0 14.666Z" data-figma-bg-blur-radius="14.588"></path>
+  </g>
+  <defs>
+    <clipPath id="b">
+      <path d="M32 63.5c17.397 0 31.5-14.103 31.5-31.5S49.397.5 32 .5.5 14.603.5 32 14.603 63.5 32 63.5Z"></path>
+    </clipPath>
+    <clipPath id="c">
+      <path d="M32 49.667c9.757 0 17.667-7.91 17.667-17.667 0-9.757-7.91-17.667-17.667-17.667-9.757 0-17.667 7.91-17.667 17.667 0 9.757 7.91 17.667 17.667 17.667Z"></path>
+    </clipPath>
+    <clipPath id="d">
+      <path d="M32 39.333a7.333 7.333 0 1 0 0-14.666 7.333 7.333 0 0 0 0 14.666Z"></path>
+    </clipPath>
+    <clipPath id="a">
+      <path fill="#fff" d="M0 0h64v64H0z"></path>
+    </clipPath>
+  </defs>
+</svg>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Omada Icons (real)" subtitle="291 real Figma icons by category — mono→currentColor, coloured kept" viewport="920x900" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Omada Icons — real set</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { width: 920px; padding: 22px 24px; }
+  .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .bar .t { font-size: 13px; font-weight: 700; color: var(--fg-primary); margin-right: 6px; }
+  .bar button {
+    font: inherit; font-size: 11px; padding: 5px 11px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--border-default, #ECECEC); background: #fff; color: var(--fg-secondary);
+  }
+  .bar button.on { background: var(--omada-green-500, #00A870); color: #fff; border-color: transparent; }
+  .bar .count { font-size: 11px; color: var(--fg-tertiary); margin-left: auto; font-family: var(--font-mono); }
+  .grid { display: block; }
+  .sec { margin-bottom: 18px; }
+  .sec h4 { font-size: 11px; font-weight: 700; color: var(--fg-secondary); margin: 0 0 9px; text-transform: uppercase; letter-spacing: .04em; }
+  .sec h4 span { color: var(--fg-tertiary); font-weight: 500; font-family: var(--font-mono); }
+  .sec .g { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
+  body.dark .sec h4 { color: #aeb6bb; }
+  .cell {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 13px 4px; border: 1px solid var(--border-default, #ECECEC); border-radius: 8px;
+    min-width: 0;
+  }
+  .cell svg { width: 24px; height: 24px; flex: none; }
+  .cell .nm {
+    font-size: 9px; color: var(--fg-tertiary); font-family: var(--font-mono);
+    text-align: center; line-height: 1.25; word-break: break-word; max-width: 100%;
+  }
+  .cell.col-dot { position: relative; }
+  .cell.col-dot::after {
+    content: ''; position: absolute; top: 6px; right: 6px; width: 5px; height: 5px;
+    border-radius: 50%; background: var(--omada-green-500, #00A870);
+  }
+  /* recolor modes apply to the grid via currentColor; coloured icons keep their own fills */
+  #grid { color: #2B2B2B; }
+  #grid.green { color: #00A870; }
+  #grid.grey  { color: #9b9b9b; }
+  body.dark { background: #1D2529; }
+  body.dark .cell { border-color: #2F3A40; }
+  body.dark #grid { color: #E8E8E8; }
+  body.dark .bar .t { color: #E8E8E8; }
+  body.dark .bar button { background: #232E33; border-color: #2F3A40; color: #aeb6bb; }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <span class="t">Real Omada icons</span>
+    <button data-c="ink" class="on">ink</button>
+    <button data-c="green">green</button>
+    <button data-c="grey">grey</button>
+    <button data-c="dark">dark bg</button>
+    <span class="count" id="count">…</span>
+  </div>
+  <div class="grid" id="grid"></div>
+
+  <script src="../antd-omada/components/Icon/icons-omada.js"></script>
+  <script>
+    const set = window.OMADA_ICON_SET || {};
+    const keys = Object.keys(set).sort();
+    const grid = document.getElementById('grid');
+    const CATORDER = ['general','sidebar','table','action','topbar','button','tabler'];
+    const CATLABEL = { general:'General / status / arrows', sidebar:'Sidebar nav', table:'Table actions', action:'Actions (CJK-named)', topbar:'Top bar', button:'Buttons', tabler:'Tabler (interaction)' };
+    const byCat = {};
+    keys.forEach(k => { const c = set[k].cat || 'general'; (byCat[c] = byCat[c] || []).push(k); });
+    const cell = k => {
+      const e = set[k];
+      return `<div class="cell${e.colored ? ' col-dot' : ''}">`
+           + `<svg viewBox="${e.viewBox}" fill="none" xmlns="http://www.w3.org/2000/svg">${e.inner}</svg>`
+           + `<span class="nm">${k}</span></div>`;
+    };
+    grid.innerHTML = CATORDER.filter(c => byCat[c]).map(c =>
+      `<div class="sec"><h4>${CATLABEL[c]} <span>${byCat[c].length}</span></h4>`
+      + `<div class="g">${byCat[c].sort().map(cell).join('')}</div></div>`
+    ).join('');
+    document.getElementById('count').textContent = keys.length + ' icons · ' +
+      keys.filter(k => set[k].colored).length + ' coloured (●)';
+
+    document.querySelectorAll('.bar button').forEach(b => b.addEventListener('click', () => {
+      const c = b.dataset.c;
+      if (c === 'dark') { document.body.classList.toggle('dark'); b.classList.toggle('on'); return; }
+      document.querySelectorAll('.bar button[data-c="ink"],.bar button[data-c="green"],.bar button[data-c="grey"]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      grid.className = 'grid' + (c === 'ink' ? '' : ' ' + c);
+    }));
+  </script>
+</body>
+</html>

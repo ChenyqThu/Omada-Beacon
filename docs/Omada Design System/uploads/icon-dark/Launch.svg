@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 20 20">
+  <path fill="#fff" fill-opacity=".01" d="M0 0h20v20H0z"></path>
+  <path stroke="#00A870" stroke-linecap="square" stroke-width="1.2" d="m2.5 7.5 7.5-5 7 5"></path>
+  <path stroke="#00A870" stroke-linecap="square" stroke-width="1.2" d="M10 16.5H4V7m11.5 0v4"></path>
+  <path stroke="#00A870" stroke-width="1.05" d="M10.5 11.438h7v6.125h-7z"></path>
+  <path stroke="#00A870" stroke-linecap="square" stroke-width="1.2" d="M11.5 14.5h5"></path>
+</svg>

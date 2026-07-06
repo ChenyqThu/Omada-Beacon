@@ -1,0 +1,54 @@
+/* Shared card CSS for preview/ specimens.  Loaded by every card. */
+@import url('../colors_and_type.css');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: #FFFFFF;
+  color: var(--fg-primary);
+  font-family: var(--font-sans);
+}
+
+body {
+  padding: 24px;
+  width: 700px;
+}
+
+.card-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.swatch {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.swatch .chip {
+  width: 100%;
+  aspect-ratio: 1.6 / 1;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.04);
+}
+.swatch .label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-primary);
+  letter-spacing: 0;
+}
+.swatch .hex {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--fg-tertiary);
+  text-transform: uppercase;
+}
+
+.meta {
+  font-size: 11px;
+  color: var(--fg-tertiary);
+  margin-bottom: 12px;
+}

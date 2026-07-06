@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="88" height="68" fill="none" viewBox="0 0 88 68">
+  <path fill="url(#a)" d="M20.2 17c0-.47.38-.85.85-.85h45.9c.47 0 .85.38.85.85v31.45H20.2V17Z"></path>
+  <mask id="b" width="46" height="31" x="21" y="17" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+    <path fill="#323232" d="M21.051 17.85c0-.47.38-.85.85-.85h44.2c.47 0 .85.38.85.85v28.9c0 .47-.38.85-.85.85h-44.2a.85.85 0 0 1-.85-.85v-28.9Z"></path>
+  </mask>
+  <g mask="url(#b)">
+    <path fill="#323232" d="M21.051 21.25c0-.47.38-.85.85-.85h44.2c.47 0 .85.38.85.85v25.5c0 .47-.38.85-.85.85h-44.2a.85.85 0 0 1-.85-.85v-25.5Z"></path>
+    <path fill="url(#c)" d="M20.2 16.15h47.6v32.3H20.2z"></path>
+    <path fill="url(#d)" d="M18.5 16.15h52.7v34H18.5z"></path>
+  </g>
+  <path fill="#3D3D3F" d="M21.9 49.64H27v1.7h-5.1zm39.1 0h5.1v1.7H61z"></path>
+  <path fill="url(#e)" d="M15.1 48.45h57.8v.85a1.7 1.7 0 0 1-1.7 1.7H16.8a1.7 1.7 0 0 1-1.7-1.7v-.85Z"></path>
+  <path fill="url(#f)" fill-opacity=".2" d="M15.1 48.45h57.8v.85a1.7 1.7 0 0 1-1.7 1.7H16.8a1.7 1.7 0 0 1-1.7-1.7v-.85Z"></path>
+  <g filter="url(#g)">
+    <path fill="#D8D8D8" d="M39.58 48.45h8.84l-.068.16a1.7 1.7 0 0 1-1.563 1.03h-5.578a1.7 1.7 0 0 1-1.563-1.03l-.068-.16Z"></path>
+  </g>
+  <defs>
+    <linearGradient id="a" x1="44" x2="44" y1="19.55" y2="48.45" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C7C7C7"></stop>
+      <stop offset="1" stop-color="#9D9D9D"></stop>
+    </linearGradient>
+    <linearGradient id="e" x1="15.1" x2="72.9" y1="49.725" y2="49.725" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7C7D81"></stop>
+      <stop offset=".023" stop-color="#BEBFC3"></stop>
+      <stop offset=".048" stop-color="#5E5F63"></stop>
+      <stop offset=".952" stop-color="#5E5F63"></stop>
+      <stop offset=".974" stop-color="#C1C2C6"></stop>
+      <stop offset="1" stop-color="#737373"></stop>
+    </linearGradient>
+    <linearGradient id="f" x1="44" x2="44" y1="48.45" y2="51" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9FA0A4"></stop>
+      <stop offset=".482" stop-color="#919296"></stop>
+      <stop offset=".805"></stop>
+      <stop offset="1" stop-color="#636468"></stop>
+    </linearGradient>
+    <pattern id="c" width="1" height="1" patternContentUnits="objectBoundingBox">
+      <use href="#h" transform="matrix(.0017 0 0 .00251 -.008 0)"></use>
+    </pattern>
+    <pattern id="d" width="1" height="1" patternContentUnits="objectBoundingBox">
+      <use href="#i" transform="matrix(.0006 0 0 .00092 -.205 -.118)"></use>
+    </pattern>
+    <image id="h" width="596" height="398" data-name="image.png" preserveAspectRatio="none"></image>
+    <image id="i" width="2270" height="1400" data-name="image.png" preserveAspectRatio="none"></image>
+    <filter id="g" width="8.84" height="1.36" x="39.58" y="48.45" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+      <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend>
+      <feColorMatrix in="SourceAlpha" result="hardAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"></feColorMatrix>
+      <feOffset dy=".17"></feOffset>
+      <feGaussianBlur stdDeviation=".85"></feGaussianBlur>
+      <feComposite in2="hardAlpha" k2="-1" k3="1" operator="arithmetic"></feComposite>
+      <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.9 0"></feColorMatrix>
+      <feBlend in2="shape" result="effect1_innerShadow_25947_14534"></feBlend>
+    </filter>
+  </defs>
+</svg>

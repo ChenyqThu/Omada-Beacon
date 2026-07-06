@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Type Families" subtitle="Manrope · PingFang SC · SF Mono" viewport="700x280" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Type Families</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 22px 24px; }
+  .fam { padding: 14px 0; border-bottom: 1px solid var(--border-default); }
+  .fam:last-child { border-bottom: 0; }
+  .fam .head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+  .fam .name { font-size: 12px; font-weight: 700; color: var(--fg-primary); font-family: var(--font-mono); }
+  .fam .use { font-size: 11px; color: var(--fg-tertiary); }
+  .fam .spec { font-size: 24px; color: var(--fg-primary); letter-spacing: 0; }
+  .fam .weights { font-size: 12px; color: var(--fg-secondary); margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="fam">
+    <div class="head"><span class="name">Manrope</span><span class="use">primary — product, marketing</span></div>
+    <div class="spec" style="font-family: 'Manrope', sans-serif; font-weight: 700">The quick brown fox jumps over the lazy dog 0123456789</div>
+    <div class="weights" style="font-family:Manrope">Regular 400 · Medium 500 · SemiBold 600 · Bold 700 · ExtraBold 800</div>
+  </div>
+  <div class="fam">
+    <div class="head"><span class="name">PingFang SC</span><span class="use">Chinese strings, marketing 中文</span></div>
+    <div class="spec" style="font-family: var(--font-cn); font-weight: 600">你好世界 · 商用 WEB 组件库 · 中性色 · 仪表板</div>
+    <div class="weights">Regular · Medium · Semibold</div>
+  </div>
+  <div class="fam">
+    <div class="head"><span class="name">SF Mono / monospace</span><span class="use">MACs, IPs, ports, hex</span></div>
+    <div class="spec" style="font-family: var(--font-mono); font-size: 18px;color:var(--fg-secondary)">AA:BB:CC:DD:EE:FF &nbsp; 192.168.1.1 &nbsp; #00A870</div>
+  </div>
+</body>
+</html>

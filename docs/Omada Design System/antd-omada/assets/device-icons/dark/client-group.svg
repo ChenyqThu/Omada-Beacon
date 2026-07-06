@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="88" height="70" fill="none" viewBox="0 0 88 70">
+  <mask id="a" width="59" height="40" x="12" y="15" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+    <path fill="#D9D9D9" fill-rule="evenodd" d="M12.5 15.75h57.75v10.5H61.5a3.5 3.5 0 0 0-3.5 3.5v24.5H12.5v-38.5Z" clip-rule="evenodd"></path>
+  </mask>
+  <g mask="url(#a)">
+    <path fill="url(#b)" d="M19.5 17.5c0-.483.392-.875.875-.875h47.25c.483 0 .875.392.875.875v32.375h-49V17.5Z"></path>
+    <mask id="c" width="48" height="33" x="20" y="17" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+      <path fill="#323232" d="M20.376 18.375c0-.483.391-.875.875-.875h45.5c.483 0 .875.392.875.875v29.75a.875.875 0 0 1-.875.875h-45.5a.875.875 0 0 1-.875-.875v-29.75Z"></path>
+    </mask>
+    <g mask="url(#c)">
+      <path fill="#323232" d="M20.376 21.875c0-.483.391-.875.875-.875h45.5c.483 0 .875.392.875.875v26.25a.875.875 0 0 1-.875.875h-45.5a.875.875 0 0 1-.875-.875v-26.25Z"></path>
+      <path fill="url(#d)" d="M19.5 16.625h49v33.25h-49z"></path>
+      <path fill="url(#e)" d="M17.75 16.625H72v35H17.75z"></path>
+    </g>
+    <path fill="#3D3D3F" d="M21.25 51.1h5.25v1.75h-5.25zm40.25 0h5.25v1.75H61.5z"></path>
+    <path fill="url(#f)" d="M14.25 49.875h59.5v.875A1.75 1.75 0 0 1 72 52.5H16a1.75 1.75 0 0 1-1.75-1.75v-.875Z"></path>
+    <path fill="url(#g)" fill-opacity=".2" d="M14.25 49.875h59.5v.875A1.75 1.75 0 0 1 72 52.5H16a1.75 1.75 0 0 1-1.75-1.75v-.875Z"></path>
+    <g filter="url(#h)">
+      <path fill="#D8D8D8" d="M39.45 49.875h9.1l-.07.164a1.75 1.75 0 0 1-1.609 1.06h-5.742a1.75 1.75 0 0 1-1.609-1.06l-.07-.164Z"></path>
+    </g>
+    <rect width="17.5" height="31.5" x="58" y="26.25" fill="#fff" rx="3.5"></rect>
+  </g>
+  <path fill="#CCC" d="M59.75 30.8a2.8 2.8 0 0 1 2.8-2.8h8.4a2.8 2.8 0 0 1 2.8 2.8v22.984a2.8 2.8 0 0 1-2.8 2.8h-8.4a2.8 2.8 0 0 1-2.8-2.8V30.8Z"></path>
+  <mask id="i" width="14" height="28" x="60" y="28" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+    <path fill="#323232" d="M60.494 30.742c0-1.063.862-1.925 1.925-1.925h8.663c1.063 0 1.925.862 1.925 1.925v23.1a1.925 1.925 0 0 1-1.925 1.925h-8.663a1.925 1.925 0 0 1-1.925-1.925v-23.1Z"></path>
+  </mask>
+  <g mask="url(#i)">
+    <path fill="#959595" d="M60.013 29.572c0-.417.337-.755.754-.755h11.965c.417 0 .755.338.755.755v25.44a.755.755 0 0 1-.754.755H60.767a.755.755 0 0 1-.755-.755v-25.44Z"></path>
+    <path fill="url(#j)" fill-opacity=".76" d="M60.013 28.817h13.475v28.875H60.013z"></path>
+  </g>
+  <defs>
+    <linearGradient id="b" x1="44" x2="44" y1="20.125" y2="49.875" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C7C7C7"></stop>
+      <stop offset="1" stop-color="#9D9D9D"></stop>
+    </linearGradient>
+    <linearGradient id="f" x1="14.25" x2="73.75" y1="51.187" y2="51.187" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7C7D81"></stop>
+      <stop offset=".023" stop-color="#BEBFC3"></stop>
+      <stop offset=".048" stop-color="#5E5F63"></stop>
+      <stop offset=".952" stop-color="#5E5F63"></stop>
+      <stop offset=".974" stop-color="#C1C2C6"></stop>
+      <stop offset="1" stop-color="#737373"></stop>
+    </linearGradient>
+    <linearGradient id="g" x1="44" x2="44" y1="49.875" y2="52.5" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9FA0A4"></stop>
+      <stop offset=".482" stop-color="#919296"></stop>
+      <stop offset=".805"></stop>
+      <stop offset="1" stop-color="#636468"></stop>
+    </linearGradient>
+    <pattern id="d" width="1" height="1" patternContentUnits="objectBoundingBox">
+      <use href="#k" transform="matrix(.0017 0 0 .00251 -.008 0)"></use>
+    </pattern>
+    <pattern id="e" width="1" height="1" patternContentUnits="objectBoundingBox">
+      <use href="#l" transform="matrix(.0006 0 0 .00092 -.205 -.118)"></use>
+    </pattern>
+    <pattern id="j" width="1" height="1" patternContentUnits="objectBoundingBox">
+      <use href="#m" transform="matrix(.00203 0 0 .00095 0 -.012)"></use>
+    </pattern>
+    <image id="k" width="596" height="398" data-name="image.png" preserveAspectRatio="none"></image>
+    <image id="l" width="2270" height="1400" data-name="image.png" preserveAspectRatio="none"></image>
+    <image id="m" width="492" height="1080" data-name="image.png" preserveAspectRatio="none"></image>
+    <filter id="h" width="9.1" height="1.4" x="39.45" y="49.875" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+      <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend>
+      <feColorMatrix in="SourceAlpha" result="hardAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"></feColorMatrix>
+      <feOffset dy=".175"></feOffset>
+      <feGaussianBlur stdDeviation=".875"></feGaussianBlur>
+      <feComposite in2="hardAlpha" k2="-1" k3="1" operator="arithmetic"></feComposite>
+      <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.9 0"></feColorMatrix>
+      <feBlend in2="shape" result="effect1_innerShadow_25947_14536"></feBlend>
+    </filter>
+  </defs>
+</svg>

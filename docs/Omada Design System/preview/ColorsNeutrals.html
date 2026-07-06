@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Neutrals" subtitle="Warm-grey ramp — Soft Black #2B2B2B is the body text" viewport="700x280" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Neutrals</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 22px 24px; }
+  .row { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; }
+  .a { display: flex; flex-direction: column; gap: 6px; }
+  .a .chip { width: 100%; aspect-ratio: 1 / 1; border-radius: 6px; border: 1px solid rgba(0,0,0,0.06); }
+  .a .name { font-size: 10px; font-weight: 700; color: var(--fg-primary); font-family: var(--font-mono); text-align: center;}
+  .a .hex  { font-size: 9px; font-family: var(--font-mono); color: var(--fg-tertiary); text-align: center; }
+
+  .text-demo { margin-top: 18px; display: flex; flex-direction: column; gap: 6px; }
+  .text-demo p { font-size: 13px; }
+  .text-demo .lab { font-family: var(--font-mono); font-size: 10px; color: var(--fg-tertiary); width: 70px; display: inline-block; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="a"><div class="chip" style="background:#FFFFFF"></div><div class="name">White</div><div class="hex">#FFFFFF</div></div>
+    <div class="a"><div class="chip" style="background:#F7F7F7"></div><div class="name">50</div><div class="hex">#F7F7F7</div></div>
+    <div class="a"><div class="chip" style="background:#F4F4F4"></div><div class="name">100</div><div class="hex">#F4F4F4</div></div>
+    <div class="a"><div class="chip" style="background:#ECECEC"></div><div class="name">200</div><div class="hex">#ECECEC</div></div>
+    <div class="a"><div class="chip" style="background:#CCCCCC"></div><div class="name">400</div><div class="hex">#CCCCCC</div></div>
+    <div class="a"><div class="chip" style="background:#999999"></div><div class="name">500</div><div class="hex">#999999</div></div>
+    <div class="a"><div class="chip" style="background:#636363"></div><div class="name">600</div><div class="hex">#636363</div></div>
+    <div class="a"><div class="chip" style="background:#2B2B2B"></div><div class="name">800</div><div class="hex">#2B2B2B</div></div>
+    <div class="a"><div class="chip" style="background:#1A1A1A"></div><div class="name">950</div><div class="hex">#1A1A1A</div></div>
+  </div>
+  <div class="text-demo">
+    <p><span class="lab">#2B2B2B</span><span style="color:#2B2B2B;font-weight:500">Primary text — headings, labels, table cells</span></p>
+    <p><span class="lab">#636363</span><span style="color:#636363">Secondary text — descriptions and helpers</span></p>
+    <p><span class="lab">#999999</span><span style="color:#999999">Tertiary — disabled, placeholder (upgraded to 636 in a11y mode)</span></p>
+  </div>
+</body>
+</html>

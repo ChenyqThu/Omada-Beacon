@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16">
+  <g clip-path="url(#a)">
+    <rect width="16" height="16" fill="url(#b)" rx="8"></rect>
+  </g>
+  <defs>
+    <clipPath id="a">
+      <path fill="#fff" d="M0 0h16v16H0z"></path>
+    </clipPath>
+    <pattern id="b" width="1" height="1" patternContentUnits="objectBoundingBox">
+      <use href="#c" transform="translate(-.071 -.071) scale(.00143)"></use>
+    </pattern>
+    <image id="c" width="800" height="800" data-name="image.png" preserveAspectRatio="none"></image>
+  </defs>
+</svg>

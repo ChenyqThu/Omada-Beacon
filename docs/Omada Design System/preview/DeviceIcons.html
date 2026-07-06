@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Device Icons (vector)" subtitle="Real Omada device, client, model & dashboard icons — light/dark, from Figma" viewport="880x720" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Device Icons — vector</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { width: 880px; padding: 22px 24px; }
+  .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .bar .t { font-size: 13px; font-weight: 700; margin-right: 6px; }
+  .bar button { font: inherit; font-size: 11px; padding: 5px 12px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border-default,#ECECEC); background:#fff; color: var(--fg-secondary); }
+  .bar button.on { background: var(--omada-green-500,#00A870); color:#fff; border-color: transparent; }
+  .sec { margin-bottom: 16px; }
+  .sec h4 { font-size: 11px; font-weight: 700; color: var(--fg-secondary); margin: 0 0 9px; text-transform: uppercase; letter-spacing: .04em; }
+  .g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .c { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 13px 4px; border: 1px solid var(--border-default,#ECECEC); border-radius: 8px; }
+  .c img { height: 40px; width: auto; max-width: 64px; object-fit: contain; }
+  .c span { font-size: 9px; color: var(--fg-tertiary); font-family: var(--font-mono,monospace); text-align: center; line-height: 1.25; }
+  body.dark { background:#1D2529; }
+  body.dark .c { border-color:#2F3A40; }
+  body.dark .sec h4, body.dark .bar .t { color:#aeb6bb; }
+  body.dark .bar button { background:#232E33; border-color:#2F3A40; color:#aeb6bb; }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <span class="t">Device icons</span>
+    <button id="bl" class="on">light</button>
+    <button id="bd">dark</button>
+  </div>
+  <div class="sec"><h4>Infrastructure</h4><div class="g" id="infra"></div></div>
+  <div class="sec"><h4>Clients</h4><div class="g" id="client"></div></div>
+  <div class="sec"><h4>Hardware models</h4><div class="g" id="model"></div></div>
+  <div class="sec"><h4>Dashboard / network</h4><div class="g" id="dash"></div></div>
+  <script>
+    const B = '../antd-omada/assets/device-icons/';
+    const infra = ['ap','ap-group','switch','l3-switch','gateway','router','controller','internet','stack','nvr','ipc','camera-group','child-ipc'];
+    const client = ['iphone','android','macbook','imac','computer','pad','tv','ipod','usb','harddisk','scanner','client-group','other'];
+    const model = ['eap650','eap787','eap650-outdoor','eap650-wall','er8411','er7212','tl-er7206','tl-sg2008p','tl-sg2428p','es205gp','dr3650'];
+    const dash = ['alert','traffic','guest','channel-utilization','client','client-wireless','wireless-device-online','customer-network','surveillance-network','olt','site','cloud','software-org','hardware-controller','cloud-standard','fusion'];
+    const hasDark = new Set([...infra.filter(k=>k!=='l3-switch'), ...client]);
+    let mode = 'light';
+    function srcFor(k, sub) { // sub='' for type icons at root, 'models/' or 'dashboard/' otherwise
+      if (sub) return B + sub + k + '.svg';
+      return B + (mode === 'dark' && hasDark.has(k) ? 'dark/' : '') + k + '.svg';
+    }
+    function render() {
+      document.getElementById('infra').innerHTML = infra.map(k=>`<div class="c"><img src="${srcFor(k,'')}"><span>${k}</span></div>`).join('');
+      document.getElementById('client').innerHTML = client.map(k=>`<div class="c"><img src="${srcFor(k,'')}"><span>${k}</span></div>`).join('');
+      document.getElementById('model').innerHTML = model.map(k=>`<div class="c"><img src="${srcFor(k,'models/')}"><span>${k}</span></div>`).join('');
+      document.getElementById('dash').innerHTML = dash.map(k=>`<div class="c"><img src="${srcFor(k,'dashboard/')}"><span>${k}</span></div>`).join('');
+      document.body.classList.toggle('dark', mode==='dark');
+      document.getElementById('bl').classList.toggle('on', mode==='light');
+      document.getElementById('bd').classList.toggle('on', mode==='dark');
+    }
+    document.getElementById('bl').onclick=()=>{mode='light';render();};
+    document.getElementById('bd').onclick=()=>{mode='dark';render();};
+    render();
+  </script>
+</body>
+</html>

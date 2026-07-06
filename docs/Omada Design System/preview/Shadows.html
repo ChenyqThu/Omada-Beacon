@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Shadows" subtitle="Three named elevations from the Figma Shadow page" viewport="700x230" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shadows</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 28px 24px; background: #FAFAFA; }
+  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+  .s { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .s .b {
+    width: 132px; height: 96px; background: #FFFFFF; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 11px; color: var(--fg-tertiary);
+  }
+  .s .nm { font-family: var(--font-mono); font-size: 11px; color: var(--fg-primary); font-weight: 700; }
+  .s .use { font-size: 10px; color: var(--fg-tertiary); text-align: center; line-height: 1.45; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="s">
+      <div class="b" style="box-shadow: 0 4px 10px 0 rgba(43,43,43,0.10)">popover</div>
+      <div class="nm">--shadow-sm</div>
+      <div class="use">dropdown, popover, menu<br/>0 4 10 · #2B2B2B 10%</div>
+    </div>
+    <div class="s">
+      <div class="b" style="box-shadow: -4px 2px 24px 0 rgba(43,43,43,0.10)">drawer</div>
+      <div class="nm">--shadow-md</div>
+      <div class="use">side sheet, drawer<br/>-4 2 24 · #2B2B2B 10%</div>
+    </div>
+    <div class="s">
+      <div class="b" style="box-shadow: 0 2px 16px 0 rgba(43,43,43,0.14)">tooltip</div>
+      <div class="nm">--shadow-lg</div>
+      <div class="use">tooltip, hover card<br/>0 2 16 · #2B2B2B 14%</div>
+    </div>
+  </div>
+</body>
+</html>

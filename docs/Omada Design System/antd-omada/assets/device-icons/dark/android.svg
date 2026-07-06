@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="88" height="60" fill="none" viewBox="0 0 88 60">
+  <rect width="21" height="44.625" x="33.498" y="7.685" fill="url(#a)" stroke="#A8AEAC" stroke-width=".394" rx="1.313"></rect>
+  <mask id="b" width="20" height="43" x="34" y="8" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+    <path fill="#323232" d="M34.812 10.028c0-.568.46-1.029 1.029-1.029h16.316c.569 0 1.03.461 1.03 1.03v39.94c0 .57-.461 1.03-1.03 1.03H35.841a1.03 1.03 0 0 1-1.03-1.03V10.03Z"></path>
+  </mask>
+  <g mask="url(#b)">
+    <path fill="#323232" d="M34.812 10.028c0-.568.46-1.029 1.029-1.029h16.316c.569 0 1.03.461 1.03 1.03v39.94c0 .57-.461 1.03-1.03 1.03H35.841a1.03 1.03 0 0 1-1.03-1.03V10.03Z"></path>
+    <path fill="url(#c)" d="M33.498 6.372h22.313v48.563H33.498z"></path>
+  </g>
+  <circle cx="43.999" cy="10.312" r=".656" fill="#3A3A3A"></circle>
+  <defs>
+    <linearGradient id="a" x1="43.998" x2="43.998" y1="7.685" y2="52.31" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3A3A3A"></stop>
+      <stop offset="1" stop-color="#121212"></stop>
+    </linearGradient>
+    <pattern id="c" width="1" height="1" patternContentUnits="objectBoundingBox">
+      <use href="#d" transform="matrix(.00146 0 0 .00067 0 -.02)"></use>
+    </pattern>
+    <image id="d" width="686" height="1550" data-name="image.png" preserveAspectRatio="none"></image>
+  </defs>
+</svg>

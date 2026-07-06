@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="88" height="82" fill="none" viewBox="0 0 88 82">
+  <path fill="url(#a)" d="M9.15 42.217h69.7v9.387H9.15v-9.387Z"></path>
+  <path fill="url(#b)" d="M9.606 42.505H78.39v8.54H9.606v-8.54Z"></path>
+  <path fill="url(#c)" d="M15.111 30.75 9.15 42.214h69.7L72.889 30.75H15.11Z"></path>
+  <mask id="f" width="70" height="13" x="9" y="30" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+    <path fill="url(#d)" d="M15.111 30.75 9.15 42.214h69.7L72.889 30.75H15.11Z"></path>
+  </mask>
+  <g filter="url(#e)" mask="url(#f)">
+    <ellipse cx="13.379" cy="4.812" fill="#D6D6D6" rx="13.379" ry="4.812" transform="rotate(-29.637 96.92 -61.877) skewX(-.002)"></ellipse>
+  </g>
+  <path fill="url(#g)" d="M16.157 44.299h1.23v1.23h-1.23z"></path>
+  <path fill="url(#h)" d="M18.619 44.299h1.23v1.23h-1.23z"></path>
+  <path fill="url(#i)" d="M13.698 44.299h1.23v1.23h-1.23z"></path>
+  <path fill="url(#j)" stroke="url(#k)" stroke-width=".218" d="M61.316 44.799h2.396v2.396h-2.396z"></path>
+  <path fill="url(#l)" stroke="url(#m)" stroke-width=".218" d="M58.049 44.799h2.396v2.396h-2.396z"></path>
+  <path fill="url(#n)" stroke="url(#o)" stroke-width=".218" d="M54.782 44.799h2.396v2.396h-2.396z"></path>
+  <path fill="url(#p)" stroke="url(#q)" stroke-width=".218" d="M64.583 44.799h2.396v2.396h-2.396z"></path>
+  <path fill="url(#r)" stroke="url(#s)" stroke-width=".218" d="M67.85 44.799h2.396v2.396H67.85z"></path>
+  <path fill="url(#t)" stroke="url(#u)" stroke-width=".218" d="M71.117 44.799h2.396v2.396h-2.396z"></path>
+  <defs>
+    <linearGradient id="a" x1="44.917" x2="44.917" y1="42.217" y2="49.554" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5C5C5C"></stop>
+      <stop offset="1" stop-color="#747578"></stop>
+    </linearGradient>
+    <linearGradient id="b" x1="43.998" x2="43.998" y1="42.505" y2="49.263" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#383838"></stop>
+      <stop offset="1" stop-color="#494A4D"></stop>
+    </linearGradient>
+    <linearGradient id="c" x1="9.15" x2="78.85" y1="36.482" y2="36.482" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#37393C"></stop>
+      <stop offset="1" stop-color="#8C8C90"></stop>
+    </linearGradient>
+    <linearGradient id="d" x1="9.15" x2="78.85" y1="36.482" y2="36.482" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1D1E21"></stop>
+      <stop offset="1" stop-color="#8C8C90"></stop>
+    </linearGradient>
+    <linearGradient id="g" x1="16.771" x2="16.771" y1="44.299" y2="45.529" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#005B3C"></stop>
+      <stop offset="1" stop-color="#00A870"></stop>
+    </linearGradient>
+    <linearGradient id="h" x1="19.234" x2="19.234" y1="44.299" y2="45.529" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#005B3C"></stop>
+      <stop offset="1" stop-color="#00A870"></stop>
+    </linearGradient>
+    <linearGradient id="i" x1="14.313" x2="14.313" y1="44.299" y2="45.529" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#005B3C"></stop>
+      <stop offset="1" stop-color="#00A870"></stop>
+    </linearGradient>
+    <linearGradient id="j" x1="62.514" x2="62.514" y1="44.908" y2="47.086" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171717"></stop>
+      <stop offset="1" stop-color="#161616"></stop>
+    </linearGradient>
+    <linearGradient id="k" x1="62.514" x2="62.514" y1="44.908" y2="47.086" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#343434"></stop>
+      <stop offset="1" stop-color="#606060"></stop>
+    </linearGradient>
+    <linearGradient id="l" x1="59.246" x2="59.246" y1="44.908" y2="47.086" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171717"></stop>
+      <stop offset="1" stop-color="#161616"></stop>
+    </linearGradient>
+    <linearGradient id="m" x1="59.246" x2="59.246" y1="44.908" y2="47.086" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#343434"></stop>
+      <stop offset="1" stop-color="#606060"></stop>
+    </linearGradient>
+    <linearGradient id="n" x1="55.979" x2="55.979" y1="44.908" y2="47.086" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171717"></stop>
+      <stop offset="1" stop-color="#161616"></stop>
+    </linearGradient>
+    <linearGradient id="o" x1="55.979" x2="55.979" y1="44.908" y2="47.086" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#343434"></stop>
+      <stop offset="1" stop-color="#606060"></stop>
+    </linearGradient>
+    <linearGradient id="p" x1="65.781" x2="65.781" y1="44.908" y2="47.086" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171717"></stop>
+      <stop offset="1" stop-color="#161616"></stop>
+    </linearGradient>
+    <linearGradient id="q" x1="65.781" x2="65.781" y1="44.908" y2="47.086" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#343434"></stop>
+      <stop offset="1" stop-color="#606060"></stop>
+    </linearGradient>
+    <linearGradient id="r" x1="69.048" x2="69.048" y1="44.908" y2="47.086" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171717"></stop>
+      <stop offset="1" stop-color="#161616"></stop>
+    </linearGradient>
+    <linearGradient id="s" x1="69.048" x2="69.048" y1="44.908" y2="47.086" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#343434"></stop>
+      <stop offset="1" stop-color="#606060"></stop>
+    </linearGradient>
+    <linearGradient id="t" x1="72.315" x2="72.315" y1="44.908" y2="47.086" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171717"></stop>
+      <stop offset="1" stop-color="#161616"></stop>
+    </linearGradient>
+    <linearGradient id="u" x1="72.315" x2="72.315" y1="44.908" y2="47.086" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#343434"></stop>
+      <stop offset="1" stop-color="#606060"></stop>
+    </linearGradient>
+    <filter id="e" width="46.855" height="38.768" x="33.858" y="18.015" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+      <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend>
+      <feGaussianBlur result="effect1_foregroundBlur_25947_14568" stdDeviation="5.778"></feGaussianBlur>
+    </filter>
+  </defs>
+</svg>

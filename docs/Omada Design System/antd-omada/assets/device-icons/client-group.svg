@@ -1,0 +1,74 @@
+<svg width="88" height="70" viewBox="0 0 88 70" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<mask id="mask0_28254_112971" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="12" y="15" width="59" height="40">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M12.5 15.75H24.75H57.9999H70.2499V26.2499H61.4999C59.5669 26.2499 57.9999 27.8169 57.9999 29.7499V54.2499H12.5V15.75Z" fill="#D9D9D9"></path>
+</mask>
+<g mask="url(#mask0_28254_112971)">
+<path d="M19.5 17.5C19.5 17.0167 19.8918 16.625 20.375 16.625H67.625C68.1083 16.625 68.5 17.0167 68.5 17.5V49.8749H19.5V17.5Z" fill="url(#paint0_linear_28254_112971)"></path>
+<mask id="mask1_28254_112971" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="20" y="17" width="48" height="33">
+<path d="M20.3757 18.3753C20.3757 17.892 20.7675 17.5003 21.2507 17.5003H66.7507C67.234 17.5003 67.6257 17.892 67.6257 18.3753V48.1252C67.6257 48.6085 67.234 49.0002 66.7507 49.0002H21.2507C20.7675 49.0002 20.3757 48.6085 20.3757 48.1252V18.3753Z" fill="#323232"></path>
+</mask>
+<g mask="url(#mask1_28254_112971)">
+<path d="M20.3757 21.8752C20.3757 21.392 20.7675 21.0002 21.2507 21.0002L66.7507 21.0002C67.234 21.0002 67.6257 21.392 67.6257 21.8752V48.1252C67.6257 48.6084 67.234 49.0002 66.7507 49.0002H21.2507C20.7675 49.0002 20.3757 48.6084 20.3757 48.1252V21.8752Z" fill="#323232"></path>
+<rect x="19.5" y="16.625" width="49" height="33.2499" fill="url(#pattern0_28254_112971)"></rect>
+<rect x="17.75" y="16.625" width="54.2499" height="34.9999" fill="url(#pattern1_28254_112971)"></rect>
+</g>
+<rect x="21.25" y="51.1002" width="5.24999" height="1.75" fill="#3D3D3F"></rect>
+<rect x="61.4999" y="51.1002" width="5.24999" height="1.75" fill="#3D3D3F"></rect>
+<path d="M14.25 49.8749H73.7499V50.7499C73.7499 51.7164 72.9664 52.4999 71.9999 52.4999H16C15.0335 52.4999 14.25 51.7164 14.25 50.7499V49.8749Z" fill="url(#paint1_linear_28254_112971)"></path>
+<path d="M14.25 49.8749H73.7499V50.7499C73.7499 51.7164 72.9664 52.4999 71.9999 52.4999H16C15.0335 52.4999 14.25 51.7164 14.25 50.7499V49.8749Z" fill="url(#paint2_linear_28254_112971)" fill-opacity="0.2"></path>
+<g filter="url(#filter0_i_28254_112971)">
+<path d="M39.45 49.8749H48.5499L48.4795 50.0392C48.2037 50.6827 47.571 51.0999 46.871 51.0999H41.1289C40.4288 51.0999 39.7962 50.6827 39.5204 50.0392L39.45 49.8749Z" fill="#D8D8D8"></path>
+</g>
+<rect x="57.9999" y="26.2499" width="17.5" height="31.4999" rx="3.49999" fill="white"></rect>
+</g>
+<path d="M59.7499 30.7999C59.7499 29.2535 61.0035 27.9999 62.5499 27.9999H70.9499C72.4962 27.9999 73.7498 29.2535 73.7498 30.7999V53.7837C73.7498 55.3301 72.4962 56.5837 70.9499 56.5837H62.5499C61.0035 56.5837 59.7499 55.3301 59.7499 53.7837V30.7999Z" fill="#CCCCCC"></path>
+<mask id="mask2_28254_112971" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="60" y="28" width="14" height="28">
+<path d="M60.494 30.7424C60.494 29.6793 61.3559 28.8174 62.419 28.8174L71.0815 28.8174C72.1446 28.8174 73.0065 29.6793 73.0065 30.7424V53.8423C73.0065 54.9054 72.1446 55.7673 71.0815 55.7673H62.419C61.3559 55.7673 60.494 54.9054 60.494 53.8423V30.7424Z" fill="#323232"></path>
+</mask>
+<g mask="url(#mask2_28254_112971)">
+<path d="M60.0123 29.5723C60.0123 29.1554 60.3503 28.8174 60.7672 28.8174L72.7324 28.8174C73.1493 28.8174 73.4873 29.1554 73.4873 29.5723V55.0124C73.4873 55.4293 73.1493 55.7673 72.7324 55.7673H60.7672C60.3503 55.7673 60.0123 55.4293 60.0123 55.0124V29.5723Z" fill="#959595"></path>
+<rect x="60.0123" y="28.8174" width="13.475" height="28.8749" fill="url(#pattern2_28254_112971)" fill-opacity="0.76"></rect>
+</g>
+<defs>
+<pattern id="pattern0_28254_112971" patternContentUnits="objectBoundingBox" width="1" height="1">
+<use xlink:href="#image0_28254_112971" transform="matrix(0.00170495 0 0 0.00251256 -0.00807481 0)"></use>
+</pattern>
+<pattern id="pattern1_28254_112971" patternContentUnits="objectBoundingBox" width="1" height="1">
+<use xlink:href="#image1_28254_112971" transform="matrix(0.000604396 0 0 0.00092437 -0.20522 -0.117647)"></use>
+</pattern>
+<filter id="filter0_i_28254_112971" x="39.45" y="49.8749" width="9.09998" height="1.40001" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"></feColorMatrix>
+<feOffset dy="0.175"></feOffset>
+<feGaussianBlur stdDeviation="0.874998"></feGaussianBlur>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"></feComposite>
+<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.9 0"></feColorMatrix>
+<feBlend mode="normal" in2="shape" result="effect1_innerShadow_28254_112971"></feBlend>
+</filter>
+<pattern id="pattern2_28254_112971" patternContentUnits="objectBoundingBox" width="1" height="1">
+<use xlink:href="#image2_28254_112971" transform="matrix(0.00203252 0 0 0.000948512 0 -0.0121963)"></use>
+</pattern>
+<linearGradient id="paint0_linear_28254_112971" x1="44" y1="20.125" x2="44" y2="49.8749" gradientUnits="userSpaceOnUse">
+<stop stop-color="#C7C7C7"></stop>
+<stop offset="1" stop-color="#9D9D9D"></stop>
+</linearGradient>
+<linearGradient id="paint1_linear_28254_112971" x1="14.25" y1="51.1874" x2="73.7499" y2="51.1874" gradientUnits="userSpaceOnUse">
+<stop stop-color="#7C7D81"></stop>
+<stop offset="0.0228138" stop-color="#BEBFC3"></stop>
+<stop offset="0.0475713" stop-color="#5E5F63"></stop>
+<stop offset="0.952402" stop-color="#5E5F63"></stop>
+<stop offset="0.974355" stop-color="#C1C2C6"></stop>
+<stop offset="1" stop-color="#737373"></stop>
+</linearGradient>
+<linearGradient id="paint2_linear_28254_112971" x1="43.9999" y1="49.8749" x2="43.9999" y2="52.4999" gradientUnits="userSpaceOnUse">
+<stop stop-color="#9FA0A4"></stop>
+<stop offset="0.482236" stop-color="#919296"></stop>
+<stop offset="0.804892"></stop>
+<stop offset="1" stop-color="#636468"></stop>
+</linearGradient>
+<image id="image0_28254_112971" width="596" height="398" preserveAspectRatio="none"></image>
+<image id="image1_28254_112971" width="2270" height="1400" preserveAspectRatio="none"></image>
+<image id="image2_28254_112971" width="492" height="1080" preserveAspectRatio="none"></image>
+</defs>
+</svg>

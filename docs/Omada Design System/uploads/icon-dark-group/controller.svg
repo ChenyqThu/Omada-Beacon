@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="88" height="64" fill="none" viewBox="0 0 88 64">
+  <rect width="44.8" height="27.2" x="21.6" y="14.4" fill="url(#a)" rx=".8"></rect>
+  <mask id="b" width="44" height="26" x="22" y="15" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+    <path fill="#323232" d="M22.4 16a.8.8 0 0 1 .8-.8h41.6a.8.8 0 0 1 .8.8v24a.8.8 0 0 1-.8.8H23.2a.8.8 0 0 1-.8-.8V16Z"></path>
+  </mask>
+  <g mask="url(#b)">
+    <path fill="url(#c)" d="M22.4 16a.8.8 0 0 1 .8-.8h41.6a.8.8 0 0 1 .8.8v24a.8.8 0 0 1-.8.8H23.2a.8.8 0 0 1-.8-.8V16Z"></path>
+    <path fill="#fff" fill-opacity=".7" d="M43.01 29.128h-4.093a.52.52 0 0 0-.517.517v4.095a.52.52 0 0 0 .517.517h4.095a.52.52 0 0 0 .517-.517v-4.095a.52.52 0 0 0-.52-.517Zm0-6.675h-4.093a.52.52 0 0 0-.517.517v4.094a.52.52 0 0 0 .517.517h4.095a.52.52 0 0 0 .517-.517v-4.096a.52.52 0 0 0-.52-.515Zm4.405-.698-2.894 2.892a.515.515 0 0 0 0 .737l2.894 2.893c.206.207.53.207.737 0l2.893-2.893a.515.515 0 0 0 0-.738l-2.907-2.89a.5.5 0 0 0-.723 0Zm2.402 7.373h-4.094a.52.52 0 0 0-.517.517v4.095a.52.52 0 0 0 .517.517h4.094a.52.52 0 0 0 .517-.517v-4.095a.52.52 0 0 0-.517-.517Z"></path>
+  </g>
+  <path fill="url(#d)" d="M40.8 41.6h6.4v8h-6.4z"></path>
+  <path fill="#848484" d="M37.6 49.6h12.8V48H37.6z"></path>
+  <defs>
+    <linearGradient id="a" x1="44" x2="44" y1="14.4" y2="41.6" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#BABABA"></stop>
+      <stop offset="1" stop-color="#8F8F8F"></stop>
+    </linearGradient>
+    <linearGradient id="c" x1="44.001" x2="44.001" y1="15.2" y2="40.8" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#323232"></stop>
+      <stop offset="1" stop-color="#242424"></stop>
+    </linearGradient>
+    <linearGradient id="d" x1="44" x2="44" y1="41.6" y2="48.267" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5B5B5B"></stop>
+      <stop offset="1" stop-color="#656565"></stop>
+    </linearGradient>
+  </defs>
+</svg>

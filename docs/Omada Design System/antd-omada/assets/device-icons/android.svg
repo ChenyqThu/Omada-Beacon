@@ -1,0 +1,21 @@
+<svg width="88" height="60" viewBox="0 0 88 60" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<rect x="33.4984" y="7.68542" width="21.0001" height="44.625" rx="1.3125" fill="url(#paint0_linear_28254_112967)" stroke="#A8AEAC" stroke-width="0.393751"></rect>
+<mask id="mask0_28254_112967" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="34" y="8" width="20" height="43">
+<path d="M34.8118 10.0286C34.8118 9.46003 35.2726 8.99915 35.8412 8.99915L52.1574 8.99915C52.7259 8.99915 53.1868 9.46003 53.1868 10.0286V49.9697C53.1868 50.5383 52.7259 50.9991 52.1574 50.9991H35.8412C35.2726 50.9991 34.8118 50.5383 34.8118 49.9697V10.0286Z" fill="#323232"></path>
+</mask>
+<g mask="url(#mask0_28254_112967)">
+<path d="M34.8118 10.0286C34.8118 9.46003 35.2726 8.99915 35.8412 8.99915L52.1574 8.99915C52.7259 8.99915 53.1868 9.46003 53.1868 10.0286V49.9697C53.1868 50.5383 52.7259 50.9991 52.1574 50.9991H35.8412C35.2726 50.9991 34.8118 50.5383 34.8118 49.9697V10.0286Z" fill="#323232"></path>
+<rect x="33.4985" y="6.37228" width="22.3126" height="48.5625" fill="url(#pattern0_28254_112967)"></rect>
+</g>
+<ellipse cx="43.9993" cy="10.3118" rx="0.656252" ry="0.65625" fill="#3A3A3A"></ellipse>
+<defs>
+<pattern id="pattern0_28254_112967" patternContentUnits="objectBoundingBox" width="1" height="1">
+<use xlink:href="#image0_28254_112967" transform="matrix(0.00145773 0 0 0.000669768 0 -0.01907)"></use>
+</pattern>
+<linearGradient id="paint0_linear_28254_112967" x1="43.9984" y1="7.68542" x2="43.9984" y2="52.3104" gradientUnits="userSpaceOnUse">
+<stop stop-color="#3A3A3A"></stop>
+<stop offset="1" stop-color="#121212"></stop>
+</linearGradient>
+<image id="image0_28254_112967" width="686" height="1550" preserveAspectRatio="none"></image>
+</defs>
+</svg>

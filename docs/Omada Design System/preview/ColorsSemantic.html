@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Semantic Colors" subtitle="Success / Info / Warning / Danger" viewport="700x180" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Semantic Colors</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 22px 24px; }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .s { border: 1px solid var(--border-default); border-radius: 8px; overflow: hidden; }
+  .s .chip { height: 64px; display: flex; align-items: center; padding: 0 16px; color: #fff; font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+  .s .body { padding: 10px 14px 12px; background: #fff; }
+  .s .label { font-size: 12px; font-weight: 700; color: var(--fg-primary); }
+  .s .use { font-size: 11px; color: var(--fg-tertiary); margin-top: 2px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="s"><div class="chip" style="background:#00A870">#00A870</div><div class="body"><div class="label">Success</div><div class="use">online, healthy, completed</div></div></div>
+    <div class="s"><div class="chip" style="background:#0069CB">#0069CB</div><div class="body"><div class="label">Info</div><div class="use">tips, neutral notifications</div></div></div>
+    <div class="s"><div class="chip" style="background:#FF8C27">#FF8C27</div><div class="body"><div class="label">Warning</div><div class="use">pending, attention needed</div></div></div>
+    <div class="s"><div class="chip" style="background:#EE385C">#EE385C</div><div class="body"><div class="label">Danger</div><div class="use">errors, offline, destructive</div></div></div>
+  </div>
+</body>
+</html>

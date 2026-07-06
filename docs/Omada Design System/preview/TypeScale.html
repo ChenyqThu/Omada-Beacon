@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Type Scale" subtitle="8-step modular scale, 11–60 px" viewport="700x320" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Type Scale</title>
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 22px 24px; }
+  .row { display: grid; grid-template-columns: 80px 60px 1fr; align-items: baseline; gap: 0 14px; row-gap: 14px; }
+  .row .px { font-family: var(--font-mono); font-size: 10px; color: var(--fg-tertiary); }
+  .row .nm { font-family: var(--font-mono); font-size: 10px; color: var(--fg-secondary); }
+  .row .sp { color: var(--fg-primary); line-height: 1; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="px">60px / 100%</div><div class="nm">--fs-6xl</div><div class="sp" style="font-size:48px;font-weight:700;letter-spacing:-0.02em">Omada Display</div>
+    <div class="px">36px / 100%</div><div class="nm">--fs-4xl</div><div class="sp" style="font-size:36px;font-weight:700">Heading 1</div>
+    <div class="px">24px / 120%</div><div class="nm">--fs-2xl</div><div class="sp" style="font-size:24px;font-weight:600">Heading 2</div>
+    <div class="px">20px / 125%</div><div class="nm">--fs-xl</div><div class="sp" style="font-size:20px;font-weight:600">Heading 3 / Card title</div>
+    <div class="px">16px / 125%</div><div class="nm">--fs-md</div><div class="sp" style="font-size:16px;font-weight:600">Section label / Input</div>
+    <div class="px">14px / 150%</div><div class="nm">--fs-base</div><div class="sp" style="font-size:14px">Body — table cells, descriptions, default text</div>
+    <div class="px">12px / 150%</div><div class="nm">--fs-sm</div><div class="sp" style="font-size:12px;color:var(--fg-secondary)">Meta / table caption / inline help</div>
+    <div class="px">11px / 140%</div><div class="nm">--fs-xs</div><div class="sp" style="font-size:11px;color:var(--fg-tertiary)">Caption / overline / hint</div>
+  </div>
+</body>
+</html>
